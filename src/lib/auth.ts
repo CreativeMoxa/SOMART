@@ -44,12 +44,12 @@ export async function isAdmin(): Promise<boolean> {
   }
 }
 
-export function checkCredentials(email: string, password: string): boolean {
-  const adminEmail = process.env.ADMIN_EMAIL;
+export function checkCredentials(username: string, password: string): boolean {
+  const adminUsername = process.env.ADMIN_USERNAME;
   const adminPassword = process.env.ADMIN_PASSWORD;
-  if (!adminEmail || !adminPassword) return false;
+  if (!adminUsername || !adminPassword) return false;
   return (
-    email.trim().toLowerCase() === adminEmail.toLowerCase() &&
+    username.trim().toLowerCase() === adminUsername.toLowerCase() &&
     password === adminPassword
   );
 }

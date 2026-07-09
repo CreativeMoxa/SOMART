@@ -3,9 +3,9 @@ import { checkCredentials, createSession } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
   try {
-    const { email, password } = await req.json();
-    if (!checkCredentials(email ?? "", password ?? "")) {
-      return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
+    const { username, password } = await req.json();
+    if (!checkCredentials(username ?? "", password ?? "")) {
+      return NextResponse.json({ error: "Invalid username or password" }, { status: 401 });
     }
     await createSession();
     return NextResponse.json({ ok: true });

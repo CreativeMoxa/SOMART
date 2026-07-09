@@ -37,15 +37,15 @@ export default function LoginForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
       <div>
-        <label htmlFor="email" className="text-sm font-semibold">
-          Email
+        <label htmlFor="username" className="text-sm font-semibold">
+          Username
         </label>
         <input
-          id="email"
-          name="email"
-          type="email"
+          id="username"
+          name="username"
+          type="text"
           required
-          autoComplete="email"
+          autoComplete="username"
           className={inputClass}
         />
       </div>
