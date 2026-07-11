@@ -3,6 +3,7 @@ import { connectDB } from "@/lib/db";
 import { Sale } from "@/models/Sale";
 import { Product } from "@/models/Product";
 import { detachSaleFromInvoice } from "@/lib/invoiceSale";
+import { applyStock } from "@/lib/inventory";
 import { isAdmin } from "@/lib/auth";
 
 type Params = { params: Promise<{ id: string }> };
@@ -38,10 +39,14 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
     if (sale.status !== "pending") {
       for (const item of sale.items) {
         if (!item.productId) continue;
-        await Product.findByIdAndUpdate(item.productId, {
-          $inc: { stockQty: item.qty, soldCount: -item.qty },
-          $set: { inStock: true },
-        });
+        const product = await Product.findById(item.productId);
+        if (product) {
+          await applyStock(product, item.qty, "invoice-returned", {
+            reference: sale.number,
+            bumpSold: true,
+            note: item.name,
+          });
+        }
       }
     }
 

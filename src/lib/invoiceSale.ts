@@ -4,6 +4,7 @@ import { Product } from "@/models/Product";
 import { Sale, type SaleDoc } from "@/models/Sale";
 import { nextNumber } from "@/lib/numbering";
 import { computeProfit, round2 } from "@/lib/profit";
+import { applyStock } from "@/lib/inventory";
 
 type InvoiceDocument = HydratedDocument<InvoiceDoc>;
 type SaleDocument = HydratedDocument<SaleDoc>;
@@ -12,30 +13,36 @@ type SaleDocument = HydratedDocument<SaleDoc>;
 //   Invoice paid            → linked Sale is "completed" and stock is deducted.
 //   Invoice draft/unpaid/…  → linked Sale becomes "pending" and stock is restored.
 // The sale record survives status flips, so inventory stays accurate no matter
-// how many times the invoice status changes.
+// how many times the invoice status changes. Every change is logged to history.
 
-async function deductStock(sale: SaleDocument) {
+async function deductStock(sale: SaleDocument, reference: string) {
   for (const item of sale.items) {
     if (!item.productId) continue;
     const product = await Product.findById(item.productId);
     if (product) {
-      product.stockQty = Math.max(0, (product.stockQty ?? 0) - item.qty);
-      product.soldCount = (product.soldCount ?? 0) + item.qty;
-      if (product.stockQty <= 0) product.inStock = false;
-      await product.save();
+      await applyStock(product, -item.qty, "invoice-sale", {
+        reference,
+        bumpSold: true,
+        note: item.name,
+      });
     }
   }
 }
 
-async function restoreStock(sale: SaleDocument) {
+async function restoreStock(
+  sale: SaleDocument,
+  reference: string,
+  type: "invoice-returned" | "invoice-cancelled" = "invoice-returned"
+) {
   for (const item of sale.items) {
     if (!item.productId) continue;
     const product = await Product.findById(item.productId);
     if (product) {
-      product.stockQty = (product.stockQty ?? 0) + item.qty;
-      product.soldCount = Math.max(0, (product.soldCount ?? 0) - item.qty);
-      if (product.stockQty > 0) product.inStock = true;
-      await product.save();
+      await applyStock(product, item.qty, type, {
+        reference,
+        bumpSold: true,
+        note: item.name,
+      });
     }
   }
 }
@@ -45,7 +52,7 @@ export async function applyInvoicePaid(invoice: InvoiceDocument) {
   if (invoice.saleId) {
     const sale = await Sale.findById(invoice.saleId);
     if (sale && sale.status === "pending") {
-      await deductStock(sale);
+      await deductStock(sale, invoice.number);
       sale.status = "completed";
       await sale.save();
     }
@@ -87,7 +94,7 @@ export async function applyInvoicePaid(invoice: InvoiceDocument) {
     invoiceId: invoice._id,
     note: `Payment of invoice ${invoice.number}`,
   });
-  await deductStock(sale);
+  await deductStock(sale, invoice.number);
 
   invoice.saleId = sale._id;
   await invoice.save();
@@ -138,7 +145,7 @@ export async function revertInvoicePaid(invoice: InvoiceDocument) {
   if (!invoice.saleId) return;
   const sale = await Sale.findById(invoice.saleId);
   if (sale && sale.status === "completed") {
-    await restoreStock(sale);
+    await restoreStock(sale, invoice.number, "invoice-cancelled");
     sale.status = "pending";
     await sale.save();
   }
@@ -150,7 +157,7 @@ export async function removeInvoiceSale(invoice: InvoiceDocument) {
   if (!invoice.saleId) return;
   const sale = await Sale.findById(invoice.saleId);
   if (sale) {
-    if (sale.status === "completed") await restoreStock(sale);
+    if (sale.status === "completed") await restoreStock(sale, invoice.number, "invoice-cancelled");
     await sale.deleteOne();
   }
   invoice.saleId = null;

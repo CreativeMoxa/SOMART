@@ -4,8 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import { SOURCE_LABELS, type MarketingSource } from "@/lib/marketing";
 import { ExportButtons } from "@/components/admin/TableTools";
 import ProfitReport from "./ProfitReport";
+import InventoryReport from "./InventoryReport";
 
-type ReportKind = "profit" | "sales" | "invoices" | "marketing" | "expenses" | "customers";
+type ReportKind = "profit" | "inventory" | "sales" | "invoices" | "marketing" | "expenses" | "customers";
 
 type Sale = {
   _id: string;
@@ -40,6 +41,7 @@ type Customer = { _id: string; name: string; phone: string; email?: string; crea
 
 const REPORTS: { kind: ReportKind; label: string }[] = [
   { kind: "profit", label: "Profit" },
+  { kind: "inventory", label: "Inventory" },
   { kind: "sales", label: "Sales" },
   { kind: "invoices", label: "Invoices" },
   { kind: "marketing", label: "Marketing" },
@@ -339,7 +341,7 @@ export default function ReportsManager({ initialTab = "" }: { initialTab?: strin
             Presentation-ready reports for every module — filter by date, then export.
           </p>
         </div>
-        {kind !== "profit" && (
+        {kind !== "profit" && kind !== "inventory" && (
           <ExportButtons onExcel={handleExcel} onPdf={handlePdf} busy={busy || loading} />
         )}
       </div>
@@ -364,6 +366,10 @@ export default function ReportsManager({ initialTab = "" }: { initialTab?: strin
       {kind === "profit" ? (
         <div className="mt-6">
           <ProfitReport companyName={business?.companyName ?? "SOMART"} />
+        </div>
+      ) : kind === "inventory" ? (
+        <div className="mt-6">
+          <InventoryReport companyName={business?.companyName ?? "SOMART"} />
         </div>
       ) : (
        <>

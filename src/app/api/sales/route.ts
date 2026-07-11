@@ -7,6 +7,7 @@ import { CUSTOMER_TYPES, type CustomerType } from "@/lib/customerType";
 import { Customer } from "@/models/Customer";
 import { nextNumber } from "@/lib/numbering";
 import { computeProfit, round2 } from "@/lib/profit";
+import { applyStock } from "@/lib/inventory";
 import { isAdmin } from "@/lib/auth";
 
 export async function GET(req: NextRequest) {
@@ -107,16 +108,15 @@ export async function POST(req: NextRequest) {
       note: body.note ?? "",
     });
 
-    // Decrement stock and bump sold counts after the sale is recorded.
+    // Decrement stock, bump sold counts, and log inventory movements.
     for (const item of items) {
-      const updated = await Product.findByIdAndUpdate(
-        item.productId,
-        { $inc: { stockQty: -item.qty, soldCount: item.qty } },
-        { new: true }
-      );
-      if (updated && updated.stockQty <= 0 && updated.inStock) {
-        updated.inStock = false;
-        await updated.save();
+      const product = await Product.findById(item.productId);
+      if (product) {
+        await applyStock(product, -item.qty, "invoice-sale", {
+          reference: sale.number,
+          bumpSold: true,
+          note: item.name,
+        });
       }
     }
 

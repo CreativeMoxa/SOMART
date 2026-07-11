@@ -3,10 +3,14 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { LogoutIcon } from "@/components/icons";
+import NotificationsBell from "@/components/admin/NotificationsBell";
 
 const links = [
   { href: "/admin", label: "Dashboard" },
   { href: "/admin/products", label: "Products" },
+  { href: "/admin/inventory", label: "Inventory" },
+  { href: "/admin/air-freight", label: "Air Freight" },
+  { href: "/admin/sea-freight", label: "Sea Freight" },
   { href: "/admin/sales", label: "Sales" },
   { href: "/admin/quotations", label: "Quotations" },
   { href: "/admin/invoices", label: "Invoices" },
@@ -32,6 +36,7 @@ export default function AdminSidebar() {
       <p className="px-3 pb-2 text-[10px] font-bold uppercase tracking-[0.25em] text-gold">
         Store Manager
       </p>
+      <NotificationsBell />
       {links.map((link) => {
         const active =
           link.href === "/admin"

@@ -37,8 +37,11 @@ const productSchema = new Schema(
       default: "unisex",
     },
     stockQty: { type: Number, default: 0, min: 0 },
+    minStock: { type: Number, default: 5, min: 0 }, // low-stock threshold
     inStock: { type: Boolean, default: true },
     soldCount: { type: Number, default: 0 },
+    lastRestockedAt: { type: Date, default: null },
+    lastSoldAt: { type: Date, default: null },
     featured: { type: Boolean, default: false },
   },
   {
