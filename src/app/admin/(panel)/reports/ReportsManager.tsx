@@ -3,8 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { SOURCE_LABELS, type MarketingSource } from "@/lib/marketing";
 import { ExportButtons } from "@/components/admin/TableTools";
+import ProfitReport from "./ProfitReport";
 
-type ReportKind = "sales" | "invoices" | "marketing" | "expenses" | "customers";
+type ReportKind = "profit" | "sales" | "invoices" | "marketing" | "expenses" | "customers";
 
 type Sale = {
   _id: string;
@@ -38,6 +39,7 @@ type Expense = {
 type Customer = { _id: string; name: string; phone: string; email?: string; createdAt: string };
 
 const REPORTS: { kind: ReportKind; label: string }[] = [
+  { kind: "profit", label: "Profit" },
   { kind: "sales", label: "Sales" },
   { kind: "invoices", label: "Invoices" },
   { kind: "marketing", label: "Marketing" },
@@ -92,7 +94,7 @@ function BarChart({ data }: { data: { label: string; value: number }[] }) {
 }
 
 export default function ReportsManager() {
-  const [kind, setKind] = useState<ReportKind>("sales");
+  const [kind, setKind] = useState<ReportKind>("profit");
   const [from, setFrom] = useState(firstOfMonth());
   const [to, setTo] = useState(toDay(new Date()));
   const [sales, setSales] = useState<Sale[]>([]);
@@ -281,7 +283,6 @@ export default function ReportsManager() {
         Added: toDay(c.createdAt),
       })),
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [kind, data, customers.length]);
 
   const reportLabel = REPORTS.find((r) => r.kind === kind)?.label ?? "";
@@ -334,7 +335,9 @@ export default function ReportsManager() {
             Presentation-ready reports for every module — filter by date, then export.
           </p>
         </div>
-        <ExportButtons onExcel={handleExcel} onPdf={handlePdf} busy={busy || loading} />
+        {kind !== "profit" && (
+          <ExportButtons onExcel={handleExcel} onPdf={handlePdf} busy={busy || loading} />
+        )}
       </div>
 
       <div className="mt-6 flex flex-wrap gap-2">
@@ -354,6 +357,12 @@ export default function ReportsManager() {
         ))}
       </div>
 
+      {kind === "profit" ? (
+        <div className="mt-6">
+          <ProfitReport companyName={business?.companyName ?? "SOMART"} />
+        </div>
+      ) : (
+       <>
       <div className="mt-5 flex flex-wrap items-end gap-4">
         <div>
           <label htmlFor="r-from" className="text-sm font-semibold">From</label>
@@ -465,6 +474,8 @@ export default function ReportsManager() {
             </table>
           </div>
         </>
+      )}
+       </>
       )}
     </div>
   );

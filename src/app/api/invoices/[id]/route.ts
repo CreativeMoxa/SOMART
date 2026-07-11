@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { Invoice, INVOICE_STATUSES } from "@/models/Invoice";
-import { shapeDocumentPayload } from "@/lib/documents";
+import { shapeDocumentPayload, enrichItemsWithProfit } from "@/lib/documents";
 import { applyInvoicePaid, revertInvoicePaid, removeInvoiceSale } from "@/lib/invoiceSale";
 import { isAdmin } from "@/lib/auth";
 
@@ -45,9 +45,17 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       if (!shaped.customerName) {
         return NextResponse.json({ error: "Customer name is required" }, { status: 400 });
       }
-      Object.assign(update, shaped, { dueDate: body.dueDate ?? "" });
-    } else if (body.dueDate !== undefined) {
-      update.dueDate = body.dueDate;
+      const enriched = await enrichItemsWithProfit(shaped.items, shaped.discount);
+      Object.assign(update, shaped, {
+        items: enriched.items,
+        totalCost: enriched.totalCost,
+        profit: enriched.profit,
+        dueDate: body.dueDate ?? "",
+      });
+    } else {
+      if (body.dueDate !== undefined) update.dueDate = body.dueDate;
+      if (body.customerType !== undefined) update.customerType = body.customerType;
+      if (body.source !== undefined) update.source = body.source;
     }
 
     const invoice = await Invoice.findById(id);

@@ -3,8 +3,10 @@ import { connectDB } from "@/lib/db";
 import { Product, salePrice } from "@/models/Product";
 import { Sale, PAYMENT_METHODS } from "@/models/Sale";
 import { MARKETING_SOURCES, type MarketingSource } from "@/lib/marketing";
+import { CUSTOMER_TYPES, type CustomerType } from "@/lib/customerType";
 import { Customer } from "@/models/Customer";
 import { nextNumber } from "@/lib/numbering";
+import { computeProfit, round2 } from "@/lib/profit";
 import { isAdmin } from "@/lib/auth";
 
 export async function GET(req: NextRequest) {
@@ -54,11 +56,19 @@ export async function POST(req: NextRequest) {
           { status: 400 }
         );
       }
+      const price = salePrice(product);
+      const costPrice = product.costPrice ?? 0;
+      const { profitAmount, markupPercent, marginPercent } = computeProfit(price, costPrice);
       items.push({
         productId: product._id,
         name: product.name,
-        price: salePrice(product),
-        costPrice: product.costPrice ?? 0,
+        price,
+        costPrice,
+        profitAmount,
+        markupPercent,
+        marginPercent,
+        category: product.category ?? "",
+        brand: product.brand ?? "",
         qty: quantity,
       });
     }
@@ -66,8 +76,10 @@ export async function POST(req: NextRequest) {
     const subtotal = items.reduce((sum, i) => sum + i.price * i.qty, 0);
     const discount = Math.max(0, Number(body.discount) || 0);
     const total = Math.max(0, subtotal - discount);
-    const profit =
-      items.reduce((sum, i) => sum + (i.price - i.costPrice) * i.qty, 0) - discount;
+    const totalCost = round2(items.reduce((sum, i) => sum + i.costPrice * i.qty, 0));
+    const profit = round2(
+      items.reduce((sum, i) => sum + (i.price - i.costPrice) * i.qty, 0) - discount
+    );
 
     let customerName = "Walk-in";
     if (body.customerId) {
@@ -83,11 +95,15 @@ export async function POST(req: NextRequest) {
       subtotal,
       discount,
       total,
+      totalCost,
       profit,
       paymentMethod: body.paymentMethod ?? "cash",
       source: MARKETING_SOURCES.includes(body.source as MarketingSource)
         ? body.source
         : "walk-in",
+      customerType: CUSTOMER_TYPES.includes(body.customerType as CustomerType)
+        ? body.customerType
+        : "retail",
       note: body.note ?? "",
     });
 

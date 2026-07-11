@@ -3,6 +3,12 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { PlusIcon, TrashIcon, XIcon } from "@/components/icons";
 import { MARKETING_SOURCES, SOURCE_LABELS, type MarketingSource } from "@/lib/marketing";
+import {
+  CUSTOMER_TYPES,
+  CUSTOMER_TYPE_LABELS,
+  DEFAULT_CUSTOMER_TYPE,
+  type CustomerType,
+} from "@/lib/customerType";
 import { useSelection, BulkBar, ExportButtons, checkboxClass } from "@/components/admin/TableTools";
 
 type SaleItem = { name: string; price: number; qty: number };
@@ -18,6 +24,8 @@ type Sale = {
   paymentMethod: string;
   status?: string;
   source?: string;
+  customerType?: string;
+  totalCost?: number;
   invoiceId?: string | null;
   createdAt: string;
 };
@@ -57,6 +65,7 @@ export default function SalesManager() {
   const [discount, setDiscount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [source, setSource] = useState<MarketingSource>("walk-in");
+  const [customerType, setCustomerType] = useState<CustomerType>(DEFAULT_CUSTOMER_TYPE);
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
   const { selected, toggle, toggleAll, clear } = useSelection();
@@ -90,6 +99,7 @@ export default function SalesManager() {
     setDiscount("");
     setPaymentMethod("cash");
     setSource("walk-in");
+    setCustomerType(DEFAULT_CUSTOMER_TYPE);
     setNote("");
     setError(null);
     setOpen(true);
@@ -124,6 +134,7 @@ export default function SalesManager() {
           discount: Number(discount) || 0,
           paymentMethod,
           source,
+          customerType,
           note,
         }),
       });
@@ -147,12 +158,14 @@ export default function SalesManager() {
         timeStyle: "short",
       }),
       Customer: s.customerName,
-      "Customer Type": SOURCE_LABELS[s.source as MarketingSource] ?? "Walk-in",
+      "Marketing Source": SOURCE_LABELS[s.source as MarketingSource] ?? "Walk-in",
+      "Customer Type": CUSTOMER_TYPE_LABELS[s.customerType as CustomerType] ?? "Retail",
       Status: s.status ?? "completed",
       Items: s.items.map((i) => `${i.name} ×${i.qty}`).join(", "),
       Payment: s.paymentMethod,
       Subtotal: s.subtotal,
       Discount: s.discount,
+      Cost: s.totalCost ?? 0,
       Total: s.total,
       Profit: s.profit,
     }));
@@ -184,6 +197,7 @@ export default function SalesManager() {
           { header: "Number", key: "Number" },
           { header: "Date", key: "Date" },
           { header: "Customer", key: "Customer" },
+          { header: "Source", key: "Marketing Source" },
           { header: "Type", key: "Customer Type" },
           { header: "Status", key: "Status" },
           { header: "Payment", key: "Payment" },
@@ -514,7 +528,7 @@ export default function SalesManager() {
               </div>
               <div>
                 <label htmlFor="s-source" className="text-sm font-semibold">
-                  Customer type <span className="font-normal text-muted">(marketing)</span>
+                  Marketing Source
                 </label>
                 <select
                   id="s-source"
@@ -525,6 +539,23 @@ export default function SalesManager() {
                   {MARKETING_SOURCES.map((s) => (
                     <option key={s} value={s}>
                       {SOURCE_LABELS[s]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label htmlFor="s-ctype" className="text-sm font-semibold">
+                  Customer Type
+                </label>
+                <select
+                  id="s-ctype"
+                  value={customerType}
+                  onChange={(e) => setCustomerType(e.target.value as CustomerType)}
+                  className={inputClass}
+                >
+                  {CUSTOMER_TYPES.map((c) => (
+                    <option key={c} value={c}>
+                      {CUSTOMER_TYPE_LABELS[c]}
                     </option>
                   ))}
                 </select>

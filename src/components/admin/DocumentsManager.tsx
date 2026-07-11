@@ -5,6 +5,12 @@ import { PencilIcon, PlusIcon, TrashIcon, XIcon } from "@/components/icons";
 import QuickAddProduct, { type PickerProduct } from "@/components/admin/QuickAddProduct";
 import QuickAddCustomer, { type PickerCustomer } from "@/components/admin/QuickAddCustomer";
 import { MARKETING_SOURCES, SOURCE_LABELS, type MarketingSource } from "@/lib/marketing";
+import {
+  CUSTOMER_TYPES,
+  CUSTOMER_TYPE_LABELS,
+  DEFAULT_CUSTOMER_TYPE,
+  type CustomerType,
+} from "@/lib/customerType";
 import { DEFAULT_TEMPLATES, renderTemplate } from "@/lib/templates";
 import { useSelection, BulkBar, ExportButtons, checkboxClass } from "@/components/admin/TableTools";
 import type { PdfBusiness } from "@/lib/pdf";
@@ -27,6 +33,7 @@ type Doc = {
   total: number;
   status: string;
   source?: string;
+  customerType?: string;
   saleId?: string | null;
   dueDate?: string;
   validUntil?: string;
@@ -123,6 +130,7 @@ export default function DocumentsManager({ kind }: { kind: DocKind }) {
   const [docDate, setDocDate] = useState("");
   const [status, setStatus] = useState("draft");
   const [source, setSource] = useState<MarketingSource>("walk-in");
+  const [customerType, setCustomerType] = useState<CustomerType>(DEFAULT_CUSTOMER_TYPE);
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const printAfterRef = useRef(false);
@@ -191,6 +199,7 @@ export default function DocumentsManager({ kind }: { kind: DocKind }) {
     setDocDate(today());
     setStatus("draft");
     setSource("walk-in");
+    setCustomerType(DEFAULT_CUSTOMER_TYPE);
     setNotes("");
     setEditing("");
     setError(null);
@@ -217,6 +226,11 @@ export default function DocumentsManager({ kind }: { kind: DocKind }) {
       MARKETING_SOURCES.includes(doc.source as MarketingSource)
         ? (doc.source as MarketingSource)
         : "walk-in"
+    );
+    setCustomerType(
+      CUSTOMER_TYPES.includes(doc.customerType as CustomerType)
+        ? (doc.customerType as CustomerType)
+        : DEFAULT_CUSTOMER_TYPE
     );
     setNotes(doc.notes);
     setEditing(doc._id);
@@ -288,7 +302,8 @@ export default function DocumentsManager({ kind }: { kind: DocKind }) {
       Date: new Date(d.createdAt).toLocaleDateString("en-US"),
       Customer: d.customerName,
       Phone: d.customerPhone,
-      "Customer Type": SOURCE_LABELS[d.source as MarketingSource] ?? "Walk-in",
+      "Marketing Source": SOURCE_LABELS[d.source as MarketingSource] ?? "Walk-in",
+      "Customer Type": CUSTOMER_TYPE_LABELS[d.customerType as CustomerType] ?? "Retail",
       Status: d.status,
       [cfg.dateLabel]: d[cfg.dateField] || "",
       Items: d.items.map((i) => `${i.name} ×${i.qty}`).join(", "),
@@ -398,6 +413,7 @@ export default function DocumentsManager({ kind }: { kind: DocKind }) {
         [cfg.dateField]: docDate,
         status,
         source,
+        customerType,
         notes,
       };
       const res = await fetch(isNew ? cfg.api : `${cfg.api}/${editing}`, {
@@ -555,7 +571,7 @@ export default function DocumentsManager({ kind }: { kind: DocKind }) {
                 <th className="w-10 px-2 py-3 font-semibold">#</th>
                 <th className="px-4 py-3 font-semibold">Number</th>
                 <th className="px-4 py-3 font-semibold">Customer</th>
-                <th className="px-4 py-3 font-semibold">Type</th>
+                <th className="px-4 py-3 font-semibold">Source</th>
                 <th className="px-4 py-3 font-semibold">Total</th>
                 <th className="px-4 py-3 font-semibold">Status</th>
                 <th className="px-4 py-3 font-semibold">{cfg.dateLabel}</th>
@@ -948,7 +964,7 @@ export default function DocumentsManager({ kind }: { kind: DocKind }) {
               </div>
             </div>
 
-            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <div className="mt-4 grid gap-4 sm:grid-cols-3">
               <div>
                 <label htmlFor="d-status" className="text-sm font-semibold">Status</label>
                 <select
@@ -971,7 +987,7 @@ export default function DocumentsManager({ kind }: { kind: DocKind }) {
               </div>
               <div>
                 <label htmlFor="d-source" className="text-sm font-semibold">
-                  Customer type <span className="font-normal text-muted">(marketing — not printed)</span>
+                  Marketing Source <span className="font-normal text-muted">(not printed)</span>
                 </label>
                 <select
                   id="d-source"
@@ -982,6 +998,23 @@ export default function DocumentsManager({ kind }: { kind: DocKind }) {
                   {MARKETING_SOURCES.map((s) => (
                     <option key={s} value={s}>
                       {SOURCE_LABELS[s]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label htmlFor="d-ctype" className="text-sm font-semibold">
+                  Customer Type <span className="font-normal text-muted">(not printed)</span>
+                </label>
+                <select
+                  id="d-ctype"
+                  value={customerType}
+                  onChange={(e) => setCustomerType(e.target.value as CustomerType)}
+                  className={`${inputClass} cursor-pointer`}
+                >
+                  {CUSTOMER_TYPES.map((c) => (
+                    <option key={c} value={c}>
+                      {CUSTOMER_TYPE_LABELS[c]}
                     </option>
                   ))}
                 </select>

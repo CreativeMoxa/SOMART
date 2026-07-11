@@ -3,6 +3,7 @@ import { Invoice, type InvoiceDoc } from "@/models/Invoice";
 import { Product } from "@/models/Product";
 import { Sale, type SaleDoc } from "@/models/Sale";
 import { nextNumber } from "@/lib/numbering";
+import { computeProfit, round2 } from "@/lib/profit";
 
 type InvoiceDocument = HydratedDocument<InvoiceDoc>;
 type SaleDocument = HydratedDocument<SaleDoc>;
@@ -51,26 +52,23 @@ export async function applyInvoicePaid(invoice: InvoiceDocument) {
     return;
   }
 
-  // First payment: build the sale from the invoice items.
-  const saleItems = [];
-  for (const item of invoice.items) {
-    let costPrice = 0;
-    if (item.productId) {
-      const product = await Product.findById(item.productId).lean();
-      if (product) costPrice = product.costPrice ?? 0;
-    }
-    saleItems.push({
-      productId: item.productId ?? null,
-      name: item.name,
-      price: item.price,
-      costPrice,
-      qty: item.qty,
-    });
-  }
+  // First payment: back-fill the profit snapshot for legacy invoices created
+  // before profit tracking, then build the Sale by INHERITING that snapshot
+  // (the Sales module never recalculates profit — it reads invoice data).
+  await ensureInvoiceProfitSnapshot(invoice);
 
-  const profit =
-    saleItems.reduce((sum, i) => sum + (i.price - i.costPrice) * i.qty, 0) -
-    (invoice.discount ?? 0);
+  const saleItems = invoice.items.map((item) => ({
+    productId: item.productId ?? null,
+    name: item.name,
+    price: item.price,
+    qty: item.qty,
+    costPrice: item.costPrice ?? 0,
+    profitAmount: item.profitAmount ?? 0,
+    markupPercent: item.markupPercent ?? 0,
+    marginPercent: item.marginPercent ?? 0,
+    category: item.category ?? "",
+    brand: item.brand ?? "",
+  }));
 
   const sale = await Sale.create({
     number: await nextNumber(Sale, "SAL"),
@@ -80,10 +78,12 @@ export async function applyInvoicePaid(invoice: InvoiceDocument) {
     subtotal: invoice.subtotal,
     discount: invoice.discount ?? 0,
     total: invoice.total,
-    profit,
+    totalCost: invoice.totalCost ?? 0,
+    profit: invoice.profit ?? 0,
     paymentMethod: "other",
     status: "completed",
     source: invoice.source ?? "walk-in",
+    customerType: invoice.customerType ?? "retail",
     invoiceId: invoice._id,
     note: `Payment of invoice ${invoice.number}`,
   });
@@ -91,6 +91,47 @@ export async function applyInvoicePaid(invoice: InvoiceDocument) {
 
   invoice.saleId = sale._id;
   await invoice.save();
+}
+
+// Legacy invoices (created before profit tracking) have no cost snapshot.
+// Fill it in once from current product costs so the sale inherits real numbers.
+async function ensureInvoiceProfitSnapshot(invoice: InvoiceDocument) {
+  const alreadyHasSnapshot =
+    (invoice.totalCost ?? 0) > 0 ||
+    invoice.items.some((i) => (i.costPrice ?? 0) > 0 || (i.profitAmount ?? 0) > 0);
+  if (alreadyHasSnapshot) return;
+
+  let totalCost = 0;
+  let grossProfit = 0;
+  for (const item of invoice.items) {
+    let costPrice = 0;
+    let category = item.category ?? "";
+    let brand = item.brand ?? "";
+    if (item.productId) {
+      const product = await Product.findById(item.productId)
+        .select("costPrice category brand")
+        .lean();
+      if (product) {
+        costPrice = Math.max(0, product.costPrice ?? 0);
+        category = product.category ?? "";
+        brand = product.brand ?? "";
+      }
+    }
+    const { profitAmount, markupPercent, marginPercent } = computeProfit(
+      item.price,
+      costPrice
+    );
+    item.costPrice = costPrice;
+    item.profitAmount = profitAmount;
+    item.markupPercent = markupPercent;
+    item.marginPercent = marginPercent;
+    item.category = category;
+    item.brand = brand;
+    totalCost += costPrice * item.qty;
+    grossProfit += profitAmount * item.qty;
+  }
+  invoice.totalCost = round2(totalCost);
+  invoice.profit = round2(grossProfit - (invoice.discount ?? 0));
 }
 
 export async function revertInvoicePaid(invoice: InvoiceDocument) {

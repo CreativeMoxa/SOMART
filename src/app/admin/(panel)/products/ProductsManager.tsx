@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import type { ProductJSON } from "@/components/ProductCard";
 import { useSelection, BulkBar, checkboxClass } from "@/components/admin/TableTools";
+import { computeProfit } from "@/lib/profit";
 import {
   PencilIcon,
   PlusIcon,
@@ -312,6 +313,7 @@ export default function ProductsManager() {
                 <th className="px-4 py-3 font-semibold">Product</th>
                 <th className="px-4 py-3 font-semibold">Category</th>
                 <th className="px-4 py-3 font-semibold">Price</th>
+                <th className="px-4 py-3 font-semibold">Profit · Margin</th>
                 <th className="px-4 py-3 font-semibold">Discount</th>
                 <th className="px-4 py-3 font-semibold">Stock</th>
                 <th className="px-4 py-3 font-semibold">Sold</th>
@@ -358,6 +360,24 @@ export default function ProductsManager() {
                   <td className="px-4 py-3 capitalize text-muted">{product.category}</td>
                   <td className="px-4 py-3 font-semibold text-gold">
                     ${product.price.toFixed(2)}
+                  </td>
+                  <td className="px-4 py-3">
+                    {(() => {
+                      const { profitAmount, marginPercent } = computeProfit(
+                        product.price,
+                        product.costPrice ?? 0
+                      );
+                      return (
+                        <div className="text-xs">
+                          <span
+                            className={`font-semibold ${profitAmount < 0 ? "text-red-500" : "text-emerald-500"}`}
+                          >
+                            ${profitAmount.toFixed(2)}
+                          </span>
+                          <span className="text-muted"> · {marginPercent}%</span>
+                        </div>
+                      );
+                    })()}
                   </td>
                   <td className="px-4 py-3 text-muted">
                     {(product.discountPercent ?? 0) > 0
@@ -415,7 +435,7 @@ export default function ProductsManager() {
               ))}
               {products.length === 0 && (
                 <tr>
-                  <td colSpan={10} className="px-4 py-12 text-center text-muted">
+                  <td colSpan={11} className="px-4 py-12 text-center text-muted">
                     No products yet — add your first one.
                   </td>
                 </tr>
@@ -573,6 +593,37 @@ export default function ProductsManager() {
                 />
               </div>
             </div>
+
+            {(() => {
+              const selling = Number(form.price) || 0;
+              const cost = Number(form.costPrice) || 0;
+              const { profitAmount, markupPercent, marginPercent } = computeProfit(selling, cost);
+              const negative = profitAmount < 0;
+              return (
+                <div className="mt-4 grid grid-cols-3 gap-3 rounded-2xl bg-surface p-4 text-center">
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted">
+                      Profit / unit
+                    </p>
+                    <p className={`mt-1 text-lg font-bold ${negative ? "text-red-500" : "text-emerald-500"}`}>
+                      ${profitAmount.toFixed(2)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted">
+                      Markup
+                    </p>
+                    <p className="mt-1 text-lg font-bold">{markupPercent}%</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted">
+                      Margin
+                    </p>
+                    <p className="mt-1 text-lg font-bold">{marginPercent}%</p>
+                  </div>
+                </div>
+              );
+            })()}
 
             <div className="mt-4">
               <label htmlFor="p-slug" className="text-sm font-semibold">Slug (URL)</label>

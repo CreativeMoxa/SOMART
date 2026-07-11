@@ -1,4 +1,5 @@
 import mongoose, { Schema, type InferSchemaType, type Model } from "mongoose";
+import { computeProfit } from "@/lib/profit";
 
 export const PRODUCT_CATEGORIES = [
   "eyeglasses",
@@ -40,11 +41,30 @@ const productSchema = new Schema(
     soldCount: { type: Number, default: 0 },
     featured: { type: Boolean, default: false },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
+  }
 );
+
+// Calculated business fields, derived automatically from price & costPrice.
+// (profitAmount / markupPercent / marginPercent — see src/lib/profit.ts)
+productSchema.virtual("profitAmount").get(function () {
+  return computeProfit(this.price ?? 0, this.costPrice ?? 0).profitAmount;
+});
+productSchema.virtual("markupPercent").get(function () {
+  return computeProfit(this.price ?? 0, this.costPrice ?? 0).markupPercent;
+});
+productSchema.virtual("marginPercent").get(function () {
+  return computeProfit(this.price ?? 0, this.costPrice ?? 0).marginPercent;
+});
 
 export type ProductDoc = InferSchemaType<typeof productSchema> & {
   _id: mongoose.Types.ObjectId;
+  profitAmount: number;
+  markupPercent: number;
+  marginPercent: number;
 };
 
 export function salePrice(p: { price: number; discountPercent?: number }) {

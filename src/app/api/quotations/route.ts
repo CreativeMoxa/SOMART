@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { Quotation, QUOTATION_STATUSES } from "@/models/Quotation";
 import { nextNumber } from "@/lib/numbering";
-import { shapeDocumentPayload } from "@/lib/documents";
+import { shapeDocumentPayload, enrichItemsWithProfit } from "@/lib/documents";
 import { isAdmin } from "@/lib/auth";
 
 export async function GET(req: NextRequest) {
@@ -41,9 +41,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "At least one item is required" }, { status: 400 });
     }
     const status = QUOTATION_STATUSES.includes(body.status) ? body.status : "draft";
+    const enriched = await enrichItemsWithProfit(shaped.items, shaped.discount);
 
     const quotation = await Quotation.create({
       ...shaped,
+      items: enriched.items,
+      totalCost: enriched.totalCost,
+      profit: enriched.profit,
       number: await nextNumber(Quotation, "QUO"),
       status,
       validUntil: body.validUntil ?? "",

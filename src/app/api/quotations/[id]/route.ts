@@ -3,7 +3,7 @@ import { connectDB } from "@/lib/db";
 import { Quotation, QUOTATION_STATUSES } from "@/models/Quotation";
 import { Invoice } from "@/models/Invoice";
 import { nextNumber } from "@/lib/numbering";
-import { shapeDocumentPayload } from "@/lib/documents";
+import { shapeDocumentPayload, enrichItemsWithProfit } from "@/lib/documents";
 import { isAdmin } from "@/lib/auth";
 
 type Params = { params: Promise<{ id: string }> };
@@ -45,13 +45,17 @@ export async function PATCH(req: NextRequest, { params }: Params) {
         customerId: quotation.customerId,
         customerName: quotation.customerName,
         customerPhone: quotation.customerPhone,
+        // Line snapshots (cost/profit/category/brand) carry over unchanged.
         items: quotation.items,
         subtotal: quotation.subtotal,
         discount: quotation.discount,
         tax: quotation.tax,
         total: quotation.total,
+        totalCost: quotation.totalCost ?? 0,
+        profit: quotation.profit ?? 0,
         status: "unpaid",
         source: quotation.source ?? "walk-in",
+        customerType: quotation.customerType ?? "retail",
         notes: quotation.notes,
       });
       quotation.invoiceId = invoice._id;
@@ -72,9 +76,17 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       if (!shaped.customerName) {
         return NextResponse.json({ error: "Customer name is required" }, { status: 400 });
       }
-      Object.assign(update, shaped, { validUntil: body.validUntil ?? "" });
-    } else if (body.validUntil !== undefined) {
-      update.validUntil = body.validUntil;
+      const enriched = await enrichItemsWithProfit(shaped.items, shaped.discount);
+      Object.assign(update, shaped, {
+        items: enriched.items,
+        totalCost: enriched.totalCost,
+        profit: enriched.profit,
+        validUntil: body.validUntil ?? "",
+      });
+    } else {
+      if (body.validUntil !== undefined) update.validUntil = body.validUntil;
+      if (body.customerType !== undefined) update.customerType = body.customerType;
+      if (body.source !== undefined) update.source = body.source;
     }
 
     const quotation = await Quotation.findByIdAndUpdate(
