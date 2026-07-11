@@ -42,6 +42,11 @@ const saleSchema = new Schema(
   { timestamps: true }
 );
 
+// Hot paths: recent-sales lists, dashboard revenue (status+date), marketing rollups.
+saleSchema.index({ createdAt: -1 });
+saleSchema.index({ status: 1, createdAt: -1 });
+saleSchema.index({ source: 1 });
+
 export type SaleDoc = InferSchemaType<typeof saleSchema> & {
   _id: mongoose.Types.ObjectId;
   createdAt: Date;

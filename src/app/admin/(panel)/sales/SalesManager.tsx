@@ -66,7 +66,7 @@ export default function SalesManager() {
     try {
       const [salesRes, productsRes, customersRes] = await Promise.all([
         fetch("/api/sales"),
-        fetch("/api/products"),
+        fetch("/api/products?slim=1"),
         fetch("/api/customers"),
       ]);
       if (!salesRes.ok) throw new Error("Failed to load sales");

@@ -33,6 +33,10 @@ const invoiceSchema = new Schema(
   { timestamps: true }
 );
 
+// Hot paths: invoice list (newest first), status filters/counts.
+invoiceSchema.index({ createdAt: -1 });
+invoiceSchema.index({ status: 1 });
+
 export type InvoiceDoc = InferSchemaType<typeof invoiceSchema> & {
   _id: mongoose.Types.ObjectId;
   createdAt: Date;

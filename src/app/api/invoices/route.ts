@@ -13,8 +13,13 @@ export async function GET(req: NextRequest) {
   try {
     await connectDB();
     const status = req.nextUrl.searchParams.get("status");
+    const limit = Math.min(5000, Number(req.nextUrl.searchParams.get("limit")) || 500);
     const filter = status ? { status } : {};
-    const invoices = await Invoice.find(filter).sort({ createdAt: -1 }).lean();
+    const invoices = await Invoice.find(filter)
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .batchSize(limit)
+      .lean();
     return NextResponse.json(invoices);
   } catch (err) {
     console.error("GET /api/invoices failed:", err);

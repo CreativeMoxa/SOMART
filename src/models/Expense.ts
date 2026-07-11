@@ -21,6 +21,8 @@ const expenseSchema = new Schema(
   { timestamps: true }
 );
 
+expenseSchema.index({ date: -1 });
+
 export type ExpenseDoc = InferSchemaType<typeof expenseSchema> & {
   _id: mongoose.Types.ObjectId;
 };

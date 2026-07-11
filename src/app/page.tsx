@@ -13,7 +13,8 @@ import {
   WhatsAppIcon,
 } from "@/components/icons";
 
-export const dynamic = "force-dynamic";
+// Serve a cached page and refresh it in the background at most once a minute.
+export const revalidate = 60;
 
 const categories = [
   {

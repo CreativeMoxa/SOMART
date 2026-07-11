@@ -26,7 +26,13 @@ export async function GET(req: NextRequest) {
       ];
     }
 
-    const products = await Product.find(filter).sort({ createdAt: -1 }).lean();
+    // slim=1 returns only what pickers/lists need, cutting payload size sharply.
+    const slim = searchParams.get("slim") === "1";
+    const query = Product.find(filter).sort({ createdAt: -1 });
+    if (slim) {
+      query.select("name slug brand category price discountPercent imageUrl stockQty inStock");
+    }
+    const products = await query.lean();
     return NextResponse.json(products);
   } catch (err) {
     console.error("GET /api/products failed:", err);

@@ -19,7 +19,13 @@ export async function GET(req: NextRequest) {
           ],
         }
       : {};
-    const customers = await Customer.find(filter).sort({ createdAt: -1 }).lean();
+    // batchSize matches the limit so remote Atlas returns everything in one roundtrip.
+    const customers = await Customer.find(filter)
+      .select("name phone email address notes createdAt")
+      .sort({ createdAt: -1 })
+      .limit(2000)
+      .batchSize(2000)
+      .lean();
     return NextResponse.json(customers);
   } catch (err) {
     console.error("GET /api/customers failed:", err);

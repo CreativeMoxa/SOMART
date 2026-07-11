@@ -12,8 +12,13 @@ export async function GET(req: NextRequest) {
   try {
     await connectDB();
     const status = req.nextUrl.searchParams.get("status");
+    const limit = Math.min(5000, Number(req.nextUrl.searchParams.get("limit")) || 500);
     const filter = status ? { status } : {};
-    const quotations = await Quotation.find(filter).sort({ createdAt: -1 }).lean();
+    const quotations = await Quotation.find(filter)
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .batchSize(limit)
+      .lean();
     return NextResponse.json(quotations);
   } catch (err) {
     console.error("GET /api/quotations failed:", err);

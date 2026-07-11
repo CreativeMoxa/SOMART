@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cache } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connectDB } from "@/lib/db";
@@ -17,7 +18,13 @@ import {
   WhatsAppIcon,
 } from "@/components/icons";
 
-export const dynamic = "force-dynamic";
+// Cache each product page; refresh in the background at most once a minute.
+export const revalidate = 60;
+
+// Render product pages on demand and cache them (ISR).
+export function generateStaticParams() {
+  return [];
+}
 
 const categoryIcons: Record<string, typeof GlassesIcon> = {
   eyeglasses: GlassesIcon,
@@ -33,7 +40,8 @@ const categoryLabels: Record<string, string> = {
   accessories: "Accessories",
 };
 
-async function getData(slug: string) {
+// cache() dedupes the two calls per render (generateMetadata + the page itself).
+const getData = cache(async function getData(slug: string) {
   try {
     await connectDB();
     const product = await Product.findOne({ slug }).lean();
@@ -56,7 +64,7 @@ async function getData(slug: string) {
     console.error("Failed to load product:", err);
     return null;
   }
-}
+});
 
 export async function generateMetadata({
   params,

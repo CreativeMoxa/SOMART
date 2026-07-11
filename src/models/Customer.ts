@@ -11,6 +11,10 @@ const customerSchema = new Schema(
   { timestamps: true }
 );
 
+// Hot paths: directory list (newest first), phone dedupe on imports/saves.
+customerSchema.index({ createdAt: -1 });
+customerSchema.index({ phone: 1 });
+
 export type CustomerDoc = InferSchemaType<typeof customerSchema> & {
   _id: mongoose.Types.ObjectId;
 };

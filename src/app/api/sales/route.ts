@@ -13,8 +13,12 @@ export async function GET(req: NextRequest) {
   }
   try {
     await connectDB();
-    const limit = Number(req.nextUrl.searchParams.get("limit") ?? 100);
-    const sales = await Sale.find().sort({ createdAt: -1 }).limit(limit).lean();
+    const limit = Math.min(5000, Number(req.nextUrl.searchParams.get("limit")) || 100);
+    const sales = await Sale.find()
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .batchSize(limit)
+      .lean();
     return NextResponse.json(sales);
   } catch (err) {
     console.error("GET /api/sales failed:", err);

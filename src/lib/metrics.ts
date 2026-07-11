@@ -24,12 +24,18 @@ export async function getDashboardMetrics() {
       Sale.find({
         createdAt: { $gte: startOfYear },
         status: { $ne: "pending" },
-      }).lean(),
+      })
+        .select("total profit createdAt source")
+        .batchSize(10000)
+        .lean(),
       Expense.aggregate([
         { $match: { date: { $gte: dayKey(startOfMonth) } } },
         { $group: { _id: null, total: { $sum: "$amount" } } },
       ]),
-      Product.find().lean(),
+      Product.find()
+        .select("name slug price costPrice stockQty soldCount")
+        .batchSize(5000)
+        .lean(),
       Customer.countDocuments(),
       Invoice.countDocuments({ status: { $in: ["unpaid", "overdue"] } }),
     ]);
@@ -105,6 +111,7 @@ export async function getDashboardMetrics() {
     .map((p) => ({ name: p.name, slug: p.slug, soldCount: p.soldCount ?? 0 }));
 
   const recentSales = await Sale.find({ status: { $ne: "pending" } })
+    .select("number customerName total createdAt")
     .sort({ createdAt: -1 })
     .limit(6)
     .lean();

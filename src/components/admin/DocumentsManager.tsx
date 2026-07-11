@@ -161,15 +161,20 @@ export default function DocumentsManager({ kind }: { kind: DocKind }) {
     load();
   }, [load]);
 
+  const pickersLoadedRef = useRef(false);
   const loadPickers = useCallback(async () => {
+    // Load once per page visit — quick-added customers/products are appended locally.
+    if (pickersLoadedRef.current) return;
+    pickersLoadedRef.current = true;
     try {
       const [cRes, pRes] = await Promise.all([
         fetch("/api/customers"),
-        fetch("/api/products"),
+        fetch("/api/products?slim=1"),
       ]);
       if (cRes.ok) setCustomers(await cRes.json());
       if (pRes.ok) setProducts(await pRes.json());
     } catch {
+      pickersLoadedRef.current = false;
       // pickers are a convenience; the form still works with free text
     }
   }, []);

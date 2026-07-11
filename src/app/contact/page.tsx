@@ -4,7 +4,8 @@ import { getSettings } from "@/models/Setting";
 import { WhatsAppIcon } from "@/components/icons";
 
 export const metadata: Metadata = { title: "Contact Us" };
-export const dynamic = "force-dynamic";
+// Contact details rarely change — cache and refresh every 5 minutes.
+export const revalidate = 300;
 
 export default async function ContactPage() {
   let settings = null;

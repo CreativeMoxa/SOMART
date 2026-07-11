@@ -33,6 +33,8 @@ const quotationSchema = new Schema(
   { timestamps: true }
 );
 
+quotationSchema.index({ createdAt: -1 });
+
 export type QuotationDoc = InferSchemaType<typeof quotationSchema> & {
   _id: mongoose.Types.ObjectId;
   createdAt: Date;
