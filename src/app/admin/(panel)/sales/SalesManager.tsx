@@ -1,8 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { PlusIcon, TrashIcon, XIcon } from "@/components/icons";
 import { MARKETING_SOURCES, SOURCE_LABELS, type MarketingSource } from "@/lib/marketing";
+import {
+  DATE_RANGES,
+  RANGE_LABELS,
+  inRange,
+  normalizeRange,
+  type DateRange,
+} from "@/lib/dateRange";
 import {
   CUSTOMER_TYPES,
   CUSTOMER_TYPE_LABELS,
@@ -52,12 +60,24 @@ function unitPrice(p: ProductOption) {
   return pct > 0 ? Math.round(p.price * (100 - pct)) / 100 : p.price;
 }
 
-export default function SalesManager() {
+export default function SalesManager({ initialRange = "" }: { initialRange?: string }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const [range, setRange] = useState<DateRange>(normalizeRange(initialRange));
   const [sales, setSales] = useState<Sale[]>([]);
   const [products, setProducts] = useState<ProductOption[]>([]);
   const [customers, setCustomers] = useState<CustomerOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Keep the active filter in the URL so it survives refresh and is shareable.
+  function applyRange(next: DateRange) {
+    setRange(next);
+    clear();
+    router.replace(next ? `${pathname}?range=${next}` : pathname, { scroll: false });
+  }
+
+  const visible = sales.filter((s) => inRange(s.createdAt, range));
 
   const [open, setOpen] = useState(false);
   const [cart, setCart] = useState<CartRow[]>([{ productId: "", qty: 1 }]);
@@ -151,7 +171,7 @@ export default function SalesManager() {
   }
 
   function exportRows() {
-    return sales.map((s) => ({
+    return visible.map((s) => ({
       Number: s.number,
       Date: new Date(s.createdAt).toLocaleString("en-US", {
         dateStyle: "medium",
@@ -181,7 +201,7 @@ export default function SalesManager() {
     try {
       const res = await fetch("/api/settings");
       const business = res.ok ? await res.json() : { companyName: "SOMART" };
-      const completed = sales.filter((s) => s.status !== "pending");
+      const completed = visible.filter((s) => s.status !== "pending");
       const { exportPdf } = await import("@/lib/export");
       await exportPdf({
         filename: "sales",
@@ -262,7 +282,8 @@ export default function SalesManager() {
           </p>
           <h1 className="mt-1 text-3xl font-semibold">Sales History</h1>
           <p className="mt-1 text-sm text-muted">
-            {sales.length} sale{sales.length === 1 ? "" : "s"} recorded
+            {visible.length} sale{visible.length === 1 ? "" : "s"}
+            {range ? ` · ${RANGE_LABELS[range]}` : " recorded"}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -275,6 +296,34 @@ export default function SalesManager() {
             <PlusIcon className="h-4 w-4" /> New Sale
           </button>
         </div>
+      </div>
+
+      <div className="mt-6 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => applyRange("")}
+          className={`cursor-pointer rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-wider transition-colors duration-200 ${
+            range === ""
+              ? "bg-foreground text-background"
+              : "border border-line text-muted hover:border-gold hover:text-gold"
+          }`}
+        >
+          All
+        </button>
+        {DATE_RANGES.map((r) => (
+          <button
+            key={r}
+            type="button"
+            onClick={() => applyRange(r)}
+            className={`cursor-pointer rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-wider transition-colors duration-200 ${
+              range === r
+                ? "bg-foreground text-background"
+                : "border border-line text-muted hover:border-gold hover:text-gold"
+            }`}
+          >
+            {RANGE_LABELS[r]}
+          </button>
+        ))}
       </div>
 
       <BulkBar
@@ -306,8 +355,8 @@ export default function SalesManager() {
                     type="checkbox"
                     aria-label="Select all"
                     className={checkboxClass}
-                    checked={sales.length > 0 && sales.every((s) => selected.has(s._id))}
-                    onChange={() => toggleAll(sales.map((s) => s._id))}
+                    checked={visible.length > 0 && visible.every((s) => selected.has(s._id))}
+                    onChange={() => toggleAll(visible.map((s) => s._id))}
                   />
                 </th>
                 <th className="w-10 px-2 py-3 font-semibold">#</th>
@@ -323,7 +372,7 @@ export default function SalesManager() {
               </tr>
             </thead>
             <tbody>
-              {sales.map((sale, rowIndex) => (
+              {visible.map((sale, rowIndex) => (
                 <tr
                   key={sale._id}
                   className={`border-b border-line last:border-0 ${
@@ -393,10 +442,12 @@ export default function SalesManager() {
                   </td>
                 </tr>
               ))}
-              {sales.length === 0 && (
+              {visible.length === 0 && (
                 <tr>
                   <td colSpan={11} className="px-4 py-12 text-center text-muted">
-                    No sales yet — record your first sale.
+                    {sales.length === 0
+                      ? "No sales yet — record your first sale."
+                      : `No sales in ${range ? RANGE_LABELS[range] : "this view"}.`}
                   </td>
                 </tr>
               )}

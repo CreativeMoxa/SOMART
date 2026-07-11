@@ -1,9 +1,20 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import type { ProductJSON } from "@/components/ProductCard";
 import { useSelection, BulkBar, checkboxClass } from "@/components/admin/TableTools";
 import { computeProfit } from "@/lib/profit";
+
+// Stock filters used by the dashboard "Low Stock Items" drill-down.
+const STOCK_FILTERS = {
+  "low-stock": { label: "Low Stock", test: (q: number) => q <= 5 },
+  "out-of-stock": { label: "Out of Stock", test: (q: number) => q === 0 },
+} as const;
+type StockFilter = keyof typeof STOCK_FILTERS | "";
+function normalizeStock(v: string | null | undefined): StockFilter {
+  return v && v in STOCK_FILTERS ? (v as StockFilter) : "";
+}
 import {
   PencilIcon,
   PlusIcon,
@@ -65,10 +76,23 @@ function toForm(p: ProductJSON): FormState {
   };
 }
 
-export default function ProductsManager() {
+export default function ProductsManager({ initialFilter = "" }: { initialFilter?: string }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const [stockFilter, setStockFilter] = useState<StockFilter>(normalizeStock(initialFilter));
   const [products, setProducts] = useState<ProductJSON[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  function applyStockFilter(next: StockFilter) {
+    setStockFilter(next);
+    clear();
+    router.replace(next ? `${pathname}?filter=${next}` : pathname, { scroll: false });
+  }
+
+  const visible = stockFilter
+    ? products.filter((p) => STOCK_FILTERS[stockFilter].test(p.stockQty ?? 0))
+    : products;
 
   // editing: null = closed, "" = creating new, slug = editing existing
   const [editing, setEditing] = useState<string | null>(null);
@@ -264,7 +288,8 @@ export default function ProductsManager() {
           </p>
           <h1 className="mt-1 text-3xl font-semibold">Products</h1>
           <p className="mt-1 text-sm text-muted">
-            {products.length} product{products.length === 1 ? "" : "s"} in the catalog
+            {visible.length} product{visible.length === 1 ? "" : "s"}
+            {stockFilter ? ` · ${STOCK_FILTERS[stockFilter].label}` : " in the catalog"}
           </p>
         </div>
         <button
@@ -274,6 +299,34 @@ export default function ProductsManager() {
         >
           <PlusIcon className="h-4 w-4" /> New Product
         </button>
+      </div>
+
+      <div className="mt-6 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => applyStockFilter("")}
+          className={`cursor-pointer rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-wider transition-colors duration-200 ${
+            stockFilter === ""
+              ? "bg-foreground text-background"
+              : "border border-line text-muted hover:border-gold hover:text-gold"
+          }`}
+        >
+          All
+        </button>
+        {(Object.keys(STOCK_FILTERS) as (keyof typeof STOCK_FILTERS)[]).map((f) => (
+          <button
+            key={f}
+            type="button"
+            onClick={() => applyStockFilter(f)}
+            className={`cursor-pointer rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-wider transition-colors duration-200 ${
+              stockFilter === f
+                ? "bg-foreground text-background"
+                : "border border-line text-muted hover:border-gold hover:text-gold"
+            }`}
+          >
+            {STOCK_FILTERS[f].label}
+          </button>
+        ))}
       </div>
 
       <BulkBar
@@ -305,8 +358,8 @@ export default function ProductsManager() {
                     type="checkbox"
                     aria-label="Select all"
                     className={checkboxClass}
-                    checked={products.length > 0 && products.every((p) => selected.has(p.slug))}
-                    onChange={() => toggleAll(products.map((p) => p.slug))}
+                    checked={visible.length > 0 && visible.every((p) => selected.has(p.slug))}
+                    onChange={() => toggleAll(visible.map((p) => p.slug))}
                   />
                 </th>
                 <th className="w-10 px-2 py-3 font-semibold">#</th>
@@ -322,7 +375,7 @@ export default function ProductsManager() {
               </tr>
             </thead>
             <tbody>
-              {products.map((product, rowIndex) => (
+              {visible.map((product, rowIndex) => (
                 <tr
                   key={product._id}
                   className={`border-b border-line last:border-0 ${
@@ -433,10 +486,12 @@ export default function ProductsManager() {
                   </td>
                 </tr>
               ))}
-              {products.length === 0 && (
+              {visible.length === 0 && (
                 <tr>
                   <td colSpan={11} className="px-4 py-12 text-center text-muted">
-                    No products yet — add your first one.
+                    {products.length === 0
+                      ? "No products yet — add your first one."
+                      : `No ${stockFilter ? STOCK_FILTERS[stockFilter].label.toLowerCase() : ""} products.`}
                   </td>
                 </tr>
               )}

@@ -93,8 +93,12 @@ function BarChart({ data }: { data: { label: string; value: number }[] }) {
   );
 }
 
-export default function ReportsManager() {
-  const [kind, setKind] = useState<ReportKind>("profit");
+const REPORT_KINDS = REPORTS.map((r) => r.kind);
+
+export default function ReportsManager({ initialTab = "" }: { initialTab?: string }) {
+  const [kind, setKind] = useState<ReportKind>(
+    REPORT_KINDS.includes(initialTab as ReportKind) ? (initialTab as ReportKind) : "profit"
+  );
   const [from, setFrom] = useState(firstOfMonth());
   const [to, setTo] = useState(toDay(new Date()));
   const [sales, setSales] = useState<Sale[]>([]);

@@ -1,8 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { PencilIcon, PlusIcon, TrashIcon, XIcon } from "@/components/icons";
 import { useSelection, BulkBar, ExportButtons, checkboxClass } from "@/components/admin/TableTools";
+import {
+  DATE_RANGES,
+  RANGE_LABELS,
+  inRange,
+  normalizeRange,
+  type DateRange,
+} from "@/lib/dateRange";
 
 type Expense = {
   _id: string;
@@ -29,7 +37,10 @@ type FormState = typeof emptyForm;
 const inputClass =
   "mt-1 w-full rounded-xl border border-line bg-background px-3.5 py-2.5 text-sm transition-colors duration-200 focus:border-gold focus:outline-2 focus:outline-offset-1 focus:outline-gold/40";
 
-export default function ExpensesManager() {
+export default function ExpensesManager({ initialRange = "" }: { initialRange?: string }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const [range, setRange] = useState<DateRange>(normalizeRange(initialRange));
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -39,6 +50,14 @@ export default function ExpensesManager() {
   const [saving, setSaving] = useState(false);
   const { selected, toggle, toggleAll, clear } = useSelection();
   const [bulkDeleting, setBulkDeleting] = useState(false);
+
+  function applyRange(next: DateRange) {
+    setRange(next);
+    clear();
+    router.replace(next ? `${pathname}?range=${next}` : pathname, { scroll: false });
+  }
+
+  const visible = expenses.filter((x) => inRange(x.date, range));
 
   const load = useCallback(async () => {
     try {
@@ -112,10 +131,10 @@ export default function ExpensesManager() {
     }
   }
 
-  const total = expenses.reduce((sum, x) => sum + x.amount, 0);
+  const total = visible.reduce((sum, x) => sum + x.amount, 0);
 
   function exportRows() {
-    return expenses.map((x) => ({
+    return visible.map((x) => ({
       Title: x.title,
       Category: x.category,
       Date: x.date,
@@ -140,7 +159,7 @@ export default function ExpensesManager() {
         title: "Expense Report",
         business,
         kpis: [
-          ["Records", String(expenses.length)],
+          ["Records", String(visible.length)],
           ["Total expenses", `$${total.toFixed(2)}`],
         ],
         columns: [
@@ -189,8 +208,8 @@ export default function ExpensesManager() {
           </p>
           <h1 className="mt-1 text-3xl font-semibold">Expenses</h1>
           <p className="mt-1 text-sm text-muted">
-            {expenses.length} record{expenses.length === 1 ? "" : "s"} · total $
-            {total.toFixed(2)}
+            {visible.length} record{visible.length === 1 ? "" : "s"}
+            {range ? ` · ${RANGE_LABELS[range]}` : ""} · total ${total.toFixed(2)}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -203,6 +222,34 @@ export default function ExpensesManager() {
             <PlusIcon className="h-4 w-4" /> New Expense
           </button>
         </div>
+      </div>
+
+      <div className="mt-6 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => applyRange("")}
+          className={`cursor-pointer rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-wider transition-colors duration-200 ${
+            range === ""
+              ? "bg-foreground text-background"
+              : "border border-line text-muted hover:border-gold hover:text-gold"
+          }`}
+        >
+          All
+        </button>
+        {DATE_RANGES.map((r) => (
+          <button
+            key={r}
+            type="button"
+            onClick={() => applyRange(r)}
+            className={`cursor-pointer rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-wider transition-colors duration-200 ${
+              range === r
+                ? "bg-foreground text-background"
+                : "border border-line text-muted hover:border-gold hover:text-gold"
+            }`}
+          >
+            {RANGE_LABELS[r]}
+          </button>
+        ))}
       </div>
 
       <BulkBar
@@ -234,8 +281,8 @@ export default function ExpensesManager() {
                     type="checkbox"
                     aria-label="Select all"
                     className={checkboxClass}
-                    checked={expenses.length > 0 && expenses.every((x) => selected.has(x._id))}
-                    onChange={() => toggleAll(expenses.map((x) => x._id))}
+                    checked={visible.length > 0 && visible.every((x) => selected.has(x._id))}
+                    onChange={() => toggleAll(visible.map((x) => x._id))}
                   />
                 </th>
                 <th className="w-10 px-2 py-3 font-semibold">#</th>
@@ -247,7 +294,7 @@ export default function ExpensesManager() {
               </tr>
             </thead>
             <tbody>
-              {expenses.map((expense, rowIndex) => (
+              {visible.map((expense, rowIndex) => (
                 <tr
                   key={expense._id}
                   className={`border-b border-line last:border-0 ${
@@ -298,7 +345,9 @@ export default function ExpensesManager() {
               {expenses.length === 0 && (
                 <tr>
                   <td colSpan={7} className="px-4 py-12 text-center text-muted">
-                    No expenses recorded yet.
+                    {expenses.length === 0
+                      ? "No expenses recorded yet."
+                      : `No expenses in ${range ? RANGE_LABELS[range] : "this view"}.`}
                   </td>
                 </tr>
               )}

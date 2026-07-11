@@ -13,19 +13,32 @@ function StatCard({
   label,
   value,
   accent,
+  href,
 }: {
   label: string;
   value: string;
   accent?: boolean;
+  href?: string;
 }) {
-  return (
-    <div className="rounded-2xl border border-line bg-surface p-5">
+  const inner = (
+    <>
       <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-muted">
         {label}
       </p>
       <p className={`mt-2 text-2xl font-bold ${accent ? "text-gold" : ""}`}>{value}</p>
-    </div>
+    </>
   );
+  if (href) {
+    return (
+      <Link
+        href={href}
+        className="group block cursor-pointer rounded-2xl border border-line bg-surface p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-gold/60 hover:shadow-lg hover:shadow-black/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold dark:hover:shadow-black/20"
+      >
+        {inner}
+      </Link>
+    );
+  }
+  return <div className="rounded-2xl border border-line bg-surface p-5">{inner}</div>;
 }
 
 function BarChart({ data }: { data: { label: string; total: number }[] }) {
@@ -57,22 +70,23 @@ export default async function AdminDashboardPage() {
       <h1 className="mt-1 text-3xl font-semibold">Dashboard</h1>
 
       <div className="mt-7 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Today's Sales" value={money(m.todaySales)} accent />
-        <StatCard label="Monthly Revenue" value={money(m.monthRevenue)} />
-        <StatCard label="Annual Revenue" value={money(m.yearRevenue)} />
-        <StatCard label="Gross Profit (month)" value={money(m.monthProfit)} />
-        <StatCard label="Expenses (month)" value={money(m.monthExpenses)} />
+        <StatCard label="Today's Sales" value={money(m.todaySales)} accent href="/admin/sales?range=today" />
+        <StatCard label="Monthly Revenue" value={money(m.monthRevenue)} href="/admin/sales?range=month" />
+        <StatCard label="Annual Revenue" value={money(m.yearRevenue)} href="/admin/sales?range=year" />
+        <StatCard label="Gross Profit (month)" value={money(m.monthProfit)} href="/admin/reports?tab=profit&range=month" />
+        <StatCard label="Expenses (month)" value={money(m.monthExpenses)} href="/admin/expenses?range=month" />
         <StatCard
           label="Net Profit (month)"
           value={money(m.netProfit)}
           accent={m.netProfit > 0}
+          href="/admin/reports?tab=profit&range=month"
         />
-        <StatCard label="Inventory Value" value={money(m.inventoryValue)} />
-        <StatCard label="Unpaid Invoices" value={String(m.unpaidInvoices)} />
-        <StatCard label="Total Orders" value={String(m.totalOrders)} />
-        <StatCard label="Total Customers" value={String(m.totalCustomers)} />
-        <StatCard label="Products" value={String(m.totalProducts)} />
-        <StatCard label="Low Stock Items" value={String(m.lowStock.length)} />
+        <StatCard label="Inventory Value" value={money(m.inventoryValue)} href="/admin/products" />
+        <StatCard label="Unpaid Invoices" value={String(m.unpaidInvoices)} href="/admin/invoices?status=unpaid" />
+        <StatCard label="Total Orders" value={String(m.totalOrders)} href="/admin/sales" />
+        <StatCard label="Total Customers" value={String(m.totalCustomers)} href="/admin/customers" />
+        <StatCard label="Products" value={String(m.totalProducts)} href="/admin/products" />
+        <StatCard label="Low Stock Items" value={String(m.lowStock.length)} href="/admin/products?filter=low-stock" />
       </div>
 
       <div className="mt-6 grid gap-4 lg:grid-cols-2">

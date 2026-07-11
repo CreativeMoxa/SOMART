@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { PencilIcon, PlusIcon, TrashIcon, XIcon } from "@/components/icons";
 import QuickAddProduct, { type PickerProduct } from "@/components/admin/QuickAddProduct";
 import QuickAddCustomer, { type PickerCustomer } from "@/components/admin/QuickAddCustomer";
@@ -111,11 +112,27 @@ function whatsappLink(doc: Doc, kind: DocKind, business: BusinessSettings | null
   return `${base}?text=${encodeURIComponent(text)}`;
 }
 
-export default function DocumentsManager({ kind }: { kind: DocKind }) {
+export default function DocumentsManager({
+  kind,
+  initialStatus = "",
+}: {
+  kind: DocKind;
+  initialStatus?: string;
+}) {
   const cfg = config[kind];
+  const router = useRouter();
+  const pathname = usePathname();
   const [docs, setDocs] = useState<Doc[]>([]);
-  const [statusFilter, setStatusFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState(
+    cfg.statuses.includes(initialStatus) ? initialStatus : ""
+  );
   const [loading, setLoading] = useState(true);
+
+  // Keep the status filter in the URL so it survives refresh and drill-downs.
+  function applyStatus(next: string) {
+    setStatusFilter(next);
+    router.replace(next ? `${pathname}?status=${next}` : pathname, { scroll: false });
+  }
   const [error, setError] = useState<string | null>(null);
 
   const [editing, setEditing] = useState<string | null>(null);
@@ -510,7 +527,7 @@ export default function DocumentsManager({ kind }: { kind: DocKind }) {
       <div className="mt-6 flex flex-wrap gap-2">
         <button
           type="button"
-          onClick={() => setStatusFilter("")}
+          onClick={() => applyStatus("")}
           className={`cursor-pointer rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-wider transition-colors duration-200 ${
             statusFilter === ""
               ? "bg-foreground text-background"
@@ -523,7 +540,7 @@ export default function DocumentsManager({ kind }: { kind: DocKind }) {
           <button
             key={s}
             type="button"
-            onClick={() => setStatusFilter(s)}
+            onClick={() => applyStatus(s)}
             className={`cursor-pointer rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-wider transition-colors duration-200 ${
               statusFilter === s
                 ? "bg-foreground text-background"

@@ -4,6 +4,11 @@ import DocumentsManager from "@/components/admin/DocumentsManager";
 export const metadata: Metadata = { title: "Invoices — Admin" };
 export const dynamic = "force-dynamic";
 
-export default function AdminInvoicesPage() {
-  return <DocumentsManager kind="invoice" />;
+export default async function AdminInvoicesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ status?: string }>;
+}) {
+  const { status } = await searchParams;
+  return <DocumentsManager kind="invoice" initialStatus={status ?? ""} />;
 }
