@@ -80,7 +80,12 @@ export default function ExpensesManager({ initialRange = "" }: { initialRange?: 
   }
 
   function openNew() {
-    setForm({ ...emptyForm, date: new Date().toISOString().slice(0, 10) });
+    // Local calendar day — the server fixes the real recording date on save.
+    const d = new Date();
+    const localToday = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+      d.getDate()
+    ).padStart(2, "0")}`;
+    setForm({ ...emptyForm, date: localToday });
     setEditing("");
     setError(null);
   }
@@ -421,15 +426,25 @@ export default function ExpensesManager({ initialRange = "" }: { initialRange?: 
                 />
               </div>
               <div>
-                <label htmlFor="e-date" className="text-sm font-semibold">Date</label>
+                <label htmlFor="e-date" className="text-sm font-semibold">
+                  Date <span className="font-normal text-muted">(automatic)</span>
+                </label>
                 <input
                   id="e-date"
-                  required
-                  type="date"
-                  value={form.date}
-                  onChange={(e) => set("date", e.target.value)}
-                  className={inputClass}
+                  type="text"
+                  readOnly
+                  aria-readonly="true"
+                  value={
+                    editing === ""
+                      ? `${form.date} — today`
+                      : form.date
+                  }
+                  title="The recording date is set automatically and cannot be changed."
+                  className={`${inputClass} cursor-not-allowed text-muted`}
                 />
+                <p className="mt-1 text-xs text-muted">
+                  Set automatically — can&apos;t be changed, so records stay reliable.
+                </p>
               </div>
               <div>
                 <label htmlFor="e-notes" className="text-sm font-semibold">Notes</label>

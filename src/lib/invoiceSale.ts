@@ -87,7 +87,7 @@ export async function applyInvoicePaid(invoice: InvoiceDocument) {
     total: invoice.total,
     totalCost: invoice.totalCost ?? 0,
     profit: invoice.profit ?? 0,
-    paymentMethod: "other",
+    paymentMethod: invoice.paymentMethod ?? "other",
     status: "completed",
     source: invoice.source ?? "walk-in",
     customerType: invoice.customerType ?? "retail",

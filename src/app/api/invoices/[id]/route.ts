@@ -56,6 +56,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       if (body.dueDate !== undefined) update.dueDate = body.dueDate;
       if (body.customerType !== undefined) update.customerType = body.customerType;
       if (body.source !== undefined) update.source = body.source;
+      if (body.paymentMethod !== undefined) update.paymentMethod = body.paymentMethod;
     }
 
     const invoice = await Invoice.findById(id);

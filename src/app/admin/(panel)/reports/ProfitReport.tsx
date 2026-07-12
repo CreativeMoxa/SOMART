@@ -61,6 +61,14 @@ function firstOfMonth() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
 }
 
+// Monday of the current week (matches the Sales/dashboard week convention).
+function firstOfWeek() {
+  const d = new Date();
+  const offset = (d.getDay() + 6) % 7;
+  d.setDate(d.getDate() - offset);
+  return toDay(d);
+}
+
 function StatCard({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
   return (
     <div className="rounded-2xl border border-line bg-surface p-5">
@@ -223,6 +231,16 @@ export default function ProfitReport({ companyName }: { companyName: string }) {
             <label htmlFor="pf-to" className="text-sm font-semibold">To</label>
             <input id="pf-to" type="date" value={to} onChange={(e) => setTo(e.target.value)} className={inputClass} />
           </div>
+          <button
+            type="button"
+            onClick={() => {
+              setFrom(firstOfWeek());
+              setTo(toDay(new Date()));
+            }}
+            className="cursor-pointer rounded-full border border-line px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-muted transition-colors duration-200 hover:border-gold hover:text-gold"
+          >
+            This week
+          </button>
           <button
             type="button"
             onClick={() => {

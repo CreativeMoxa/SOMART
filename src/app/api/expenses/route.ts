@@ -3,6 +3,15 @@ import { connectDB } from "@/lib/db";
 import { Expense, EXPENSE_CATEGORIES } from "@/models/Expense";
 import { isAdmin } from "@/lib/auth";
 
+// Server-authoritative recording date (local calendar day). Employees never set
+// this — it's the day the expense is entered, so financial data stays reliable.
+function todayStamp() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+    d.getDate()
+  ).padStart(2, "0")}`;
+}
+
 export async function GET() {
   if (!(await isAdmin())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -24,16 +33,24 @@ export async function POST(req: NextRequest) {
   try {
     await connectDB();
     const body = await req.json();
-    if (!body.title || body.amount === undefined || !body.date) {
+    if (!body.title || body.amount === undefined) {
       return NextResponse.json(
-        { error: "Title, amount and date are required" },
+        { error: "Title and amount are required" },
         { status: 400 }
       );
     }
     if (body.category && !EXPENSE_CATEGORIES.includes(body.category)) {
       return NextResponse.json({ error: "Unknown category" }, { status: 400 });
     }
-    const expense = await Expense.create(body);
+    // Build the record explicitly so the client can't set date/createdAt — the
+    // recording date is fixed to today by the server and can't be back-dated.
+    const expense = await Expense.create({
+      title: String(body.title).trim(),
+      category: body.category ?? "other",
+      amount: Math.max(0, Number(body.amount) || 0),
+      notes: String(body.notes ?? ""),
+      date: todayStamp(),
+    });
     return NextResponse.json(expense, { status: 201 });
   } catch (err) {
     console.error("POST /api/expenses failed:", err);

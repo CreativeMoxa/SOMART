@@ -4,6 +4,7 @@ import {
   DEFAULT_CUSTOMER_TYPE,
   type CustomerType,
 } from "@/lib/customerType";
+import { PAYMENT_METHODS } from "@/models/Sale";
 import { Product } from "@/models/Product";
 import { computeProfit, round2 } from "@/lib/profit";
 
@@ -54,6 +55,11 @@ export function shapeDocumentPayload(body: Record<string, unknown>) {
   const customerType = CUSTOMER_TYPES.includes(body.customerType as CustomerType)
     ? (body.customerType as CustomerType)
     : DEFAULT_CUSTOMER_TYPE;
+  const paymentMethod = (PAYMENT_METHODS as readonly string[]).includes(
+    body.paymentMethod as string
+  )
+    ? (body.paymentMethod as string)
+    : "cash";
 
   return {
     items,
@@ -66,6 +72,7 @@ export function shapeDocumentPayload(body: Record<string, unknown>) {
     customerId: body.customerId || null,
     source,
     customerType,
+    paymentMethod,
     notes: String(body.notes ?? ""),
   };
 }

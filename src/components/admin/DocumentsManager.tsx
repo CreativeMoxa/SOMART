@@ -35,6 +35,7 @@ type Doc = {
   status: string;
   source?: string;
   customerType?: string;
+  paymentMethod?: string;
   saleId?: string | null;
   dueDate?: string;
   validUntil?: string;
@@ -73,6 +74,14 @@ const config = {
     } as Record<string, string>,
   },
 };
+
+// Payment options for invoices — the chosen method carries through to the Sale.
+const INVOICE_PAYMENT_METHODS: { value: string; label: string }[] = [
+  { value: "mobile-money", label: "Mobile Money" },
+  { value: "bank-transfer", label: "Bank" },
+  { value: "cash", label: "Cash" },
+  { value: "other", label: "Other" },
+];
 
 const inputClass =
   "mt-1 w-full rounded-xl border border-line bg-background px-3.5 py-2.5 text-sm transition-colors duration-200 focus:border-gold focus:outline-2 focus:outline-offset-1 focus:outline-gold/40";
@@ -146,8 +155,12 @@ export default function DocumentsManager({
   const [tax, setTax] = useState("");
   const [docDate, setDocDate] = useState("");
   const [status, setStatus] = useState("draft");
+  // Status as last saved — a paid invoice already moved stock, so its out-of-stock
+  // guard is relaxed (reprints/edits stay allowed).
+  const [savedStatus, setSavedStatus] = useState("");
   const [source, setSource] = useState<MarketingSource>("walk-in");
   const [customerType, setCustomerType] = useState<CustomerType>(DEFAULT_CUSTOMER_TYPE);
+  const [paymentMethod, setPaymentMethod] = useState("cash");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const printAfterRef = useRef(false);
@@ -215,8 +228,10 @@ export default function DocumentsManager({
     setTax("");
     setDocDate(today());
     setStatus("draft");
+    setSavedStatus("");
     setSource("walk-in");
     setCustomerType(DEFAULT_CUSTOMER_TYPE);
+    setPaymentMethod("cash");
     setNotes("");
     setEditing("");
     setError(null);
@@ -239,6 +254,7 @@ export default function DocumentsManager({
     setTax(doc.tax ? String(doc.tax) : "");
     setDocDate(doc[cfg.dateField] ?? "");
     setStatus(doc.status);
+    setSavedStatus(doc.status);
     setSource(
       MARKETING_SOURCES.includes(doc.source as MarketingSource)
         ? (doc.source as MarketingSource)
@@ -248,6 +264,11 @@ export default function DocumentsManager({
       CUSTOMER_TYPES.includes(doc.customerType as CustomerType)
         ? (doc.customerType as CustomerType)
         : DEFAULT_CUSTOMER_TYPE
+    );
+    setPaymentMethod(
+      INVOICE_PAYMENT_METHODS.some((m) => m.value === doc.paymentMethod)
+        ? (doc.paymentMethod as string)
+        : "cash"
     );
     setNotes(doc.notes);
     setEditing(doc._id);
@@ -289,6 +310,19 @@ export default function DocumentsManager({
   }
 
   const productById = new Map(products.map((p) => [p._id, p]));
+
+  // Invoice lines whose linked product is out of stock. Printing or paying such
+  // an invoice would sell stock that doesn't exist and corrupt sales + money.
+  const outOfStockItems =
+    kind === "invoice"
+      ? items.filter((i) => {
+          const p = i.productId ? productById.get(i.productId) : undefined;
+          return p !== undefined && (p.stockQty ?? 0) <= 0;
+        })
+      : [];
+  // A paid invoice already deducted stock, so don't block reprinting/editing it.
+  const stockBlocks = outOfStockItems.length > 0 && savedStatus !== "paid";
+  const outOfStockNames = outOfStockItems.map((i) => i.name).join(", ");
 
   const subtotal = items.reduce((sum, i) => sum + i.price * i.qty, 0);
   const total = Math.max(0, subtotal - (Number(discount) || 0) + (Number(tax) || 0));
@@ -393,6 +427,17 @@ export default function DocumentsManager({
     e.preventDefault();
     const printAfter = printAfterRef.current;
     printAfterRef.current = false;
+
+    // Block the stock-consuming paths (print, or saving straight to paid) when a
+    // line's product is out of stock — this is what corrupts sales + money.
+    if (kind === "invoice" && stockBlocks && (printAfter || status === "paid")) {
+      setError(
+        `${outOfStockNames} ${outOfStockItems.length === 1 ? "is" : "are"} out of stock — ` +
+          `restock before ${printAfter ? "printing" : "marking this invoice paid"}.`
+      );
+      return;
+    }
+
     setSaving(true);
     setError(null);
     try {
@@ -431,6 +476,7 @@ export default function DocumentsManager({
         status,
         source,
         customerType,
+        paymentMethod,
         notes,
       };
       const res = await fetch(isNew ? cfg.api : `${cfg.api}/${editing}`, {
@@ -748,8 +794,12 @@ export default function DocumentsManager({
                   placeholder="Search customers or type a new name"
                   value={customerName}
                   onChange={(e) => {
-                    setCustomerName(e.target.value);
+                    const value = e.target.value;
+                    setCustomerName(value);
                     setCustomerId(null);
+                    // Clearing the name drops the linked customer's number/details
+                    // so a stale phone doesn't stick to the next customer.
+                    if (!value.trim()) setCustomerPhone("");
                     setCustomerOpen(true);
                   }}
                   onFocus={() => setCustomerOpen(true)}
@@ -1038,6 +1088,35 @@ export default function DocumentsManager({
               </div>
             </div>
 
+            {kind === "invoice" && (
+              <div className="mt-4">
+                <label htmlFor="d-payment" className="text-sm font-semibold">
+                  Payment method{" "}
+                  <span className="font-normal text-muted">(used by Sales)</span>
+                </label>
+                <select
+                  id="d-payment"
+                  value={paymentMethod}
+                  onChange={(e) => setPaymentMethod(e.target.value)}
+                  className={`${inputClass} cursor-pointer`}
+                >
+                  {INVOICE_PAYMENT_METHODS.map((m) => (
+                    <option key={m.value} value={m.value}>
+                      {m.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {kind === "invoice" && stockBlocks && (
+              <p className="mt-4 rounded-xl bg-amber-500/10 px-4 py-3 text-sm font-medium text-amber-500">
+                {outOfStockNames} {outOfStockItems.length === 1 ? "is" : "are"} out of
+                stock. Restock before printing or marking this invoice paid — selling
+                unavailable stock corrupts your sales and money records.
+              </p>
+            )}
+
             <div className="mt-4">
               <label htmlFor="d-notes" className="text-sm font-semibold">Notes</label>
               <textarea
@@ -1076,7 +1155,12 @@ export default function DocumentsManager({
               </button>
               <button
                 type="submit"
-                disabled={saving}
+                disabled={saving || (kind === "invoice" && stockBlocks)}
+                title={
+                  kind === "invoice" && stockBlocks
+                    ? `${outOfStockNames} out of stock — restock before printing`
+                    : undefined
+                }
                 onClick={() => {
                   printAfterRef.current = true;
                 }}

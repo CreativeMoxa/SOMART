@@ -13,7 +13,12 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     await connectDB();
     const { id } = await params;
     const body = await req.json();
+    // The recording date is immutable — editing an expense can change its
+    // details but never back-date it. Strip date/timestamps/id from the update.
     delete body._id;
+    delete body.date;
+    delete body.createdAt;
+    delete body.updatedAt;
     const expense = await Expense.findByIdAndUpdate(
       id,
       { $set: body },

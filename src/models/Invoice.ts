@@ -1,6 +1,7 @@
 import mongoose, { Schema, type InferSchemaType, type Model } from "mongoose";
 import { MARKETING_SOURCES } from "@/lib/marketing";
 import { CUSTOMER_TYPES, DEFAULT_CUSTOMER_TYPE } from "@/lib/customerType";
+import { PAYMENT_METHODS } from "@/models/Sale";
 import { documentLineFields } from "@/models/lineItem";
 
 export const INVOICE_STATUSES = ["draft", "unpaid", "paid", "overdue"] as const;
@@ -20,6 +21,8 @@ const invoiceSchema = new Schema(
     totalCost: { type: Number, default: 0 },
     profit: { type: Number, default: 0 },
     status: { type: String, enum: INVOICE_STATUSES, default: "draft" },
+    // Payment method chosen when billing — inherited by the Sale on payment.
+    paymentMethod: { type: String, enum: PAYMENT_METHODS, default: "cash" },
     source: { type: String, enum: MARKETING_SOURCES, default: "walk-in" },
     customerType: { type: String, enum: CUSTOMER_TYPES, default: DEFAULT_CUSTOMER_TYPE },
     saleId: { type: Schema.Types.ObjectId, ref: "Sale", default: null },
