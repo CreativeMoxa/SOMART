@@ -8,6 +8,7 @@ export type PickerCustomer = {
   name: string;
   phone: string;
   email?: string;
+  address?: string;
 };
 
 const inputClass =

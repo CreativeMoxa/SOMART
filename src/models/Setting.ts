@@ -13,6 +13,8 @@ const settingSchema = new Schema(
     currency: { type: String, default: "USD" },
     currencySymbol: { type: String, default: "$" },
     taxPercent: { type: Number, default: 0 },
+    // Shown on invoices/quotations as the "on this account:" payment line.
+    bankAccount: { type: String, default: "" },
     invoiceFooter: { type: String, default: "Thank you for your business!" },
     // Editable message templates ({placeholder} tokens, see src/lib/templates.ts)
     templateWhatsappProduct: { type: String, default: DEFAULT_TEMPLATES.whatsappProduct },

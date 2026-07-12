@@ -12,6 +12,7 @@ const invoiceSchema = new Schema(
     customerId: { type: Schema.Types.ObjectId, ref: "Customer", default: null },
     customerName: { type: String, required: true },
     customerPhone: { type: String, default: "" },
+    customerAddress: { type: String, default: "" },
     items: { type: [documentLineFields], required: true },
     subtotal: { type: Number, required: true },
     discount: { type: Number, default: 0 },

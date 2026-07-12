@@ -40,6 +40,9 @@ export default async function QuotationPrintPage({
             phone: settings.phone,
             email: settings.email,
             invoiceFooter: settings.invoiceFooter,
+            tagline: settings.tagline,
+            bankAccount: settings.bankAccount,
+            currencySymbol: settings.currencySymbol,
           }}
         />
       </div>

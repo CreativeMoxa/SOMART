@@ -13,6 +13,7 @@ type Settings = {
   currency: string;
   currencySymbol: string;
   taxPercent: number;
+  bankAccount: string;
   invoiceFooter: string;
   templateWhatsappProduct?: string;
   templateWhatsappDocument?: string;
@@ -180,6 +181,18 @@ export default function SettingsManager() {
                 max="100"
                 value={settings.taxPercent}
                 onChange={(e) => set("taxPercent", Number(e.target.value) || 0)}
+                className={inputClass}
+              />
+            </div>
+            <div className="sm:col-span-3">
+              <label htmlFor="st-bank" className="text-sm font-semibold">
+                Payment account number{" "}
+                <span className="font-normal text-muted">(shown on invoices as &quot;on this account:&quot;)</span>
+              </label>
+              <input
+                id="st-bank"
+                value={settings.bankAccount ?? ""}
+                onChange={(e) => set("bankAccount", e.target.value)}
                 className={inputClass}
               />
             </div>

@@ -69,6 +69,7 @@ export function shapeDocumentPayload(body: Record<string, unknown>) {
     total,
     customerName: String(body.customerName ?? "").trim(),
     customerPhone: String(body.customerPhone ?? "").trim(),
+    customerAddress: String(body.customerAddress ?? "").trim(),
     customerId: body.customerId || null,
     source,
     customerType,

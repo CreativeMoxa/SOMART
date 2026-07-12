@@ -27,6 +27,7 @@ type Doc = {
   customerId?: string | null;
   customerName: string;
   customerPhone: string;
+  customerAddress?: string;
   items: LineItem[];
   subtotal: number;
   discount: number;
@@ -148,6 +149,7 @@ export default function DocumentsManager({
   const [customerId, setCustomerId] = useState<string | null>(null);
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
+  const [customerAddress, setCustomerAddress] = useState("");
   const [items, setItems] = useState<LineItem[]>([
     { productId: null, name: "", price: 0, qty: 1 },
   ]);
@@ -223,6 +225,7 @@ export default function DocumentsManager({
     setCustomerId(null);
     setCustomerName("");
     setCustomerPhone("");
+    setCustomerAddress("");
     setItems([{ productId: null, name: "", price: 0, qty: 1 }]);
     setDiscount("");
     setTax("");
@@ -242,6 +245,7 @@ export default function DocumentsManager({
     setCustomerId(doc.customerId ?? null);
     setCustomerName(doc.customerName);
     setCustomerPhone(doc.customerPhone);
+    setCustomerAddress(doc.customerAddress ?? "");
     setItems(
       doc.items.map((i) => ({
         productId: i.productId ?? null,
@@ -284,6 +288,7 @@ export default function DocumentsManager({
     setCustomerId(c._id);
     setCustomerName(c.name);
     setCustomerPhone(c.phone);
+    setCustomerAddress(c.address ?? "");
     setCustomerOpen(false);
   }
 
@@ -341,7 +346,7 @@ export default function DocumentsManager({
     try {
       const biz = await getBusiness();
       const { downloadDocumentPdf } = await import("@/lib/pdf");
-      downloadDocumentPdf(doc, biz, kind);
+      await downloadDocumentPdf(doc, biz, kind);
     } catch (err) {
       setError(err instanceof Error ? err.message : "PDF download failed");
     }
@@ -469,6 +474,7 @@ export default function DocumentsManager({
         customerId: cid,
         customerName,
         customerPhone,
+        customerAddress,
         items: items.filter((i) => i.name.trim()),
         discount: Number(discount) || 0,
         tax: Number(tax) || 0,
@@ -798,8 +804,11 @@ export default function DocumentsManager({
                     setCustomerName(value);
                     setCustomerId(null);
                     // Clearing the name drops the linked customer's number/details
-                    // so a stale phone doesn't stick to the next customer.
-                    if (!value.trim()) setCustomerPhone("");
+                    // so a stale phone/address doesn't stick to the next customer.
+                    if (!value.trim()) {
+                      setCustomerPhone("");
+                      setCustomerAddress("");
+                    }
                     setCustomerOpen(true);
                   }}
                   onFocus={() => setCustomerOpen(true)}
@@ -859,6 +868,17 @@ export default function DocumentsManager({
                   type="tel"
                   value={customerPhone}
                   onChange={(e) => setCustomerPhone(e.target.value)}
+                  className={inputClass}
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <label htmlFor="d-address" className="text-sm font-semibold">
+                  Customer address <span className="font-normal text-muted">(shown on the PDF)</span>
+                </label>
+                <input
+                  id="d-address"
+                  value={customerAddress}
+                  onChange={(e) => setCustomerAddress(e.target.value)}
                   className={inputClass}
                 />
               </div>
