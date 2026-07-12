@@ -174,5 +174,14 @@ export function downloadDocumentPdf(
     });
   }
 
-  pdf.save(`${doc.number}.pdf`);
+  // Manual blob download — reliable in every browser context.
+  const blob = pdf.output("blob");
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${doc.number}.pdf`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
 }

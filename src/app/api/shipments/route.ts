@@ -12,6 +12,13 @@ export async function GET(req: NextRequest) {
   try {
     await connectDB();
     const sp = req.nextUrl.searchParams;
+
+    // Saved cargo/forwarder names for reuse (across air + sea, like customers).
+    if (sp.get("distinct") === "cargo") {
+      const cargos = await Shipment.distinct("cargo", { cargo: { $ne: "" } });
+      return NextResponse.json(cargos.sort());
+    }
+
     const type = sp.get("type");
     const status = sp.get("status");
     const q = sp.get("q");
@@ -23,8 +30,10 @@ export async function GET(req: NextRequest) {
       filter.$or = [
         { number: { $regex: q, $options: "i" } },
         { name: { $regex: q, $options: "i" } },
+        { cargo: { $regex: q, $options: "i" } },
         { trackingNumber: { $regex: q, $options: "i" } },
         { "items.name": { $regex: q, $options: "i" } },
+        { "items.trackingNumber": { $regex: q, $options: "i" } },
       ];
     }
 

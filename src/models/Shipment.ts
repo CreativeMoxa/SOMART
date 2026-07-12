@@ -8,11 +8,21 @@ const shipmentItemFields = {
   name: { type: String, required: true },
   imageUrl: { type: String, default: "" },
   link1688: { type: String, default: "" },
+  // Every product travels with its own tracking number.
+  trackingNumber: { type: String, default: "" },
   qty: { type: Number, required: true, min: 1 },
   costPrice: { type: Number, default: 0, min: 0 },
   sellingPrice: { type: Number, default: 0, min: 0 },
+  // Silent product info — used to build the store product on receive
+  // (not shown on printed documents, like the marketing field on invoices).
+  brand: { type: String, default: "" },
   category: { type: String, default: "" },
+  minStock: { type: Number, default: 5, min: 0 },
+  description: { type: String, default: "" },
   note: { type: String, default: "" },
+  // Per-item receive verification: arrived items are checked in one by one.
+  received: { type: Boolean, default: false },
+  receivedAt: { type: Date, default: null },
 };
 
 const shipmentSchema = new Schema(
@@ -20,7 +30,9 @@ const shipmentSchema = new Schema(
     number: { type: String, required: true, unique: true },
     freightType: { type: String, enum: FREIGHT_TYPES, required: true, index: true },
     name: { type: String, default: "" },
-    trackingNumber: { type: String, default: "" },
+    // The cargo/forwarder company carrying this shipment (reusable, like customers).
+    cargo: { type: String, default: "" },
+    trackingNumber: { type: String, default: "" }, // legacy shipment-level tracking
     shippingDate: { type: String, default: "" },
     expectedArrival: { type: String, default: "" },
     status: { type: String, enum: SHIPMENT_STATUSES, default: "preparing" },

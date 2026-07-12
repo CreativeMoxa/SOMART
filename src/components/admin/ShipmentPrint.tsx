@@ -8,6 +8,7 @@ import {
 
 type Item = {
   name: string;
+  trackingNumber?: string;
   qty: number;
   costPrice: number;
   sellingPrice: number;
@@ -18,6 +19,7 @@ export type PrintableShipment = {
   number: string;
   freightType: FreightType;
   name: string;
+  cargo?: string;
   trackingNumber: string;
   shippingDate: string;
   expectedArrival: string;
@@ -79,6 +81,7 @@ export default function ShipmentPrint({
         <div>
           <p className="font-bold uppercase tracking-wider text-neutral-500">Shipment</p>
           {shipment.name && <p className="mt-1 text-base font-semibold">{shipment.name}</p>}
+          {shipment.cargo && <p className="text-neutral-600">Cargo: {shipment.cargo}</p>}
           {shipment.trackingNumber && (
             <p className="text-neutral-600">Tracking: {shipment.trackingNumber}</p>
           )}
@@ -103,6 +106,7 @@ export default function ShipmentPrint({
         <thead>
           <tr className="border-b-2 border-black text-xs uppercase tracking-wider">
             <th className="py-2">Product</th>
+            <th className="py-2">Track</th>
             <th className="py-2 text-right">Qty</th>
             <th className="py-2 text-right">Cost Price</th>
             <th className="py-2 text-right">Total Cost</th>
@@ -115,6 +119,7 @@ export default function ShipmentPrint({
                 {item.name}
                 {item.note && <span className="block text-xs text-neutral-500">{item.note}</span>}
               </td>
+              <td className="py-2.5 font-mono text-xs">{item.trackingNumber || "—"}</td>
               <td className="py-2.5 text-right">{item.qty}</td>
               <td className="py-2.5 text-right">{money(item.costPrice)}</td>
               <td className="py-2.5 text-right font-semibold">{money(item.costPrice * item.qty)}</td>

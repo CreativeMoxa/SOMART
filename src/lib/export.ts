@@ -23,16 +23,42 @@ export function exportExcel(filename: string, rows: Record<string, unknown>[]) {
   XLSX.writeFile(workbook, `${filename}.xlsx`);
 }
 
+// Reliable download that works in every browser context (jsPDF's built-in
+// save() can silently no-op in some embedded/webview environments).
+export function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+}
+
+export function savePdf(pdf: jsPDF, filename: string) {
+  downloadBlob(pdf.output("blob"), filename);
+}
+
 // The logo files are white-on-black JPEGs; invert them so they read correctly
 // on a white PDF page (same trick the print page uses with CSS invert).
+// Time-boxed: if the image doesn't load quickly we fall back to a text header
+// instead of hanging the export forever.
 let cachedLogo: { dataUrl: string; width: number; height: number } | null = null;
 export async function loadInvertedLogo() {
   if (cachedLogo) return cachedLogo;
   try {
     const img = await new Promise<HTMLImageElement>((resolve, reject) => {
       const el = new Image();
-      el.onload = () => resolve(el);
-      el.onerror = reject;
+      const timer = setTimeout(() => reject(new Error("logo timeout")), 3000);
+      el.onload = () => {
+        clearTimeout(timer);
+        resolve(el);
+      };
+      el.onerror = (e) => {
+        clearTimeout(timer);
+        reject(e);
+      };
       el.src = "/logo-wordmark.jpeg";
     });
     const canvas = document.createElement("canvas");
@@ -177,5 +203,5 @@ export async function exportPdf({
     },
   });
 
-  pdf.save(`${filename}.pdf`);
+  savePdf(pdf, `${filename}.pdf`);
 }

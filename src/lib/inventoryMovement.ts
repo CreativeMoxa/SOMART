@@ -3,6 +3,8 @@
 export const MOVEMENT_TYPES = [
   "received-air",
   "received-sea",
+  "unreceived-air",
+  "unreceived-sea",
   "manual-receive",
   "manual-adjustment",
   "stock-count",
@@ -17,6 +19,8 @@ export type MovementType = (typeof MOVEMENT_TYPES)[number];
 export const MOVEMENT_LABELS: Record<MovementType, string> = {
   "received-air": "Received from Air Freight",
   "received-sea": "Received from Sea Freight",
+  "unreceived-air": "Returned to Air Freight",
+  "unreceived-sea": "Returned to Sea Freight",
   "manual-receive": "Manual Stock Received",
   "manual-adjustment": "Manual Stock Adjustment",
   "stock-count": "Stock Count",
