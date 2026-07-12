@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import ThemeToggle from "@/components/ThemeToggle";
+import MobileAdminNav from "@/components/admin/MobileAdminNav";
 
 const links = [
   { href: "/products", label: "Shop All" },
@@ -21,10 +22,12 @@ export default function Navbar() {
   return (
     <header className="sticky top-0 z-50 border-b border-line bg-background/85 backdrop-blur-md print:hidden">
       <nav className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
-        <Link
-          href={isAdmin ? "/admin" : "/"}
-          className="flex cursor-pointer items-center gap-2.5"
-        >
+        <div className="flex items-center gap-1.5">
+          {isAdmin && <MobileAdminNav />}
+          <Link
+            href={isAdmin ? "/admin" : "/"}
+            className="flex cursor-pointer items-center gap-2.5"
+          >
           <Image
             src="/logo-mark.jpeg"
             alt=""
@@ -40,7 +43,8 @@ export default function Navbar() {
             className="logo-adaptive hidden sm:block"
             priority
           />
-        </Link>
+          </Link>
+        </div>
 
         {!isAdmin && (
           <ul className="hidden items-center gap-6 text-xs font-semibold uppercase tracking-[0.18em] text-muted lg:flex">
