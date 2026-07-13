@@ -152,3 +152,50 @@ h4 {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Mobile responsiveness (desktop >= 1024px is intentionally left untouched)
+   --------------------------------------------------------------------------- */
+
+/* Comfortable touch targets and — crucially — a >= 16px font size so iOS does
+   not zoom the viewport when a field is focused (which is what makes the
+   keyboard appear to "cover" inputs). Phones only; tablets/desktop keep the
+   compact desktop styling. */
+@media (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea {
+    font-size: 16px;
+    min-height: 44px;
+  }
+  textarea {
+    min-height: 88px;
+  }
+}
+
+/* Safety net against stray horizontal overflow on phones and tablets. `clip`
+   hides sideways overflow WITHOUT creating a scroll container, so sticky
+   headers/sidebars keep working. Real offenders are still fixed at source. */
+@media (max-width: 1023px) {
+  html,
+  body {
+    overflow-x: clip;
+    max-width: 100%;
+  }
+}
+
+/* Media never forces the page wider than the screen. */
+img,
+video,
+canvas {
+  max-width: 100%;
+}
+
+/* Keep a focused field clear of a sticky header when the browser scrolls it
+   into view (helps when the mobile keyboard opens). */
+input,
+select,
+textarea {
+  scroll-margin-top: 80px;
+  scroll-margin-bottom: 96px;
+}

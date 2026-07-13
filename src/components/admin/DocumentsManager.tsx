@@ -890,7 +890,11 @@ export default function DocumentsManager({
                 const matched = item.productId ? productById.get(item.productId) : undefined;
                 const matches = productMatches(item.name);
                 return (
-                  <div key={i} className="flex items-end gap-2">
+                  <div
+                    key={i}
+                    className="flex flex-col gap-2 rounded-xl border border-line p-3 sm:flex-row sm:items-end sm:gap-2 sm:rounded-none sm:border-0 sm:p-0"
+                  >
+                    <div className="flex min-w-0 flex-1 items-end gap-2">
                     {matched?.imageUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
@@ -901,7 +905,10 @@ export default function DocumentsManager({
                     ) : (
                       <div className="h-10 w-10 shrink-0 rounded-lg border border-dashed border-line" />
                     )}
-                    <div className="relative flex-1">
+                    <div className="relative min-w-0 flex-1">
+                      <label className="mb-1 block text-xs font-semibold text-muted sm:hidden">
+                        Product
+                      </label>
                       <input
                         aria-label={`Item ${i + 1} description`}
                         placeholder="Search products or type a description"
@@ -969,7 +976,12 @@ export default function DocumentsManager({
                         </div>
                       )}
                     </div>
-                    <div className="w-28">
+                    </div>
+                    <div className="flex items-end gap-2 sm:contents">
+                    <div className="min-w-0 flex-1 sm:w-28 sm:flex-none">
+                      <label className="mb-1 block text-xs font-semibold text-muted sm:hidden">
+                        Price
+                      </label>
                       <input
                         aria-label={`Item ${i + 1} price`}
                         type="number"
@@ -981,7 +993,10 @@ export default function DocumentsManager({
                         className={inputClass}
                       />
                     </div>
-                    <div className="w-20">
+                    <div className="w-20 shrink-0">
+                      <label className="mb-1 block text-xs font-semibold text-muted sm:hidden">
+                        Qty
+                      </label>
                       <input
                         aria-label={`Item ${i + 1} quantity`}
                         type="number"
@@ -996,10 +1011,11 @@ export default function DocumentsManager({
                       onClick={() => setItems((rows) => rows.filter((_, j) => j !== i))}
                       disabled={items.length === 1}
                       aria-label="Remove line"
-                      className="cursor-pointer rounded-lg p-2.5 text-muted transition-colors duration-200 hover:bg-surface hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-40"
+                      className="shrink-0 cursor-pointer rounded-lg p-2.5 text-muted transition-colors duration-200 hover:bg-surface hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       <TrashIcon className="h-4.5 w-4.5" />
                     </button>
+                    </div>
                   </div>
                 );
               })}

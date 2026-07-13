@@ -484,8 +484,14 @@ export default function SalesManager({ initialRange = "" }: { initialRange?: str
               {cart.map((row, i) => {
                 const product = products.find((p) => p._id === row.productId);
                 return (
-                  <div key={i} className="flex items-end gap-2">
-                    <div className="flex-1">
+                  <div
+                    key={i}
+                    className="flex flex-col gap-2 rounded-xl border border-line p-3 sm:flex-row sm:items-end sm:gap-2 sm:rounded-none sm:border-0 sm:p-0"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <label className="mb-1 block text-xs font-semibold text-muted sm:hidden">
+                        Product
+                      </label>
                       <select
                         aria-label={`Product ${i + 1}`}
                         value={row.productId}
@@ -501,26 +507,31 @@ export default function SalesManager({ initialRange = "" }: { initialRange?: str
                         ))}
                       </select>
                     </div>
-                    <div className="w-20">
-                      <input
-                        aria-label={`Quantity ${i + 1}`}
-                        type="number"
-                        min="1"
-                        max={product?.stockQty ?? 999}
-                        value={row.qty}
-                        onChange={(e) => setRow(i, { qty: Math.max(1, Number(e.target.value) || 1) })}
-                        className={inputClass}
-                      />
+                    <div className="flex items-end gap-2 sm:contents">
+                      <div className="min-w-0 flex-1 sm:w-20 sm:flex-none">
+                        <label className="mb-1 block text-xs font-semibold text-muted sm:hidden">
+                          Qty
+                        </label>
+                        <input
+                          aria-label={`Quantity ${i + 1}`}
+                          type="number"
+                          min="1"
+                          max={product?.stockQty ?? 999}
+                          value={row.qty}
+                          onChange={(e) => setRow(i, { qty: Math.max(1, Number(e.target.value) || 1) })}
+                          className={inputClass}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setCart((rows) => rows.filter((_, j) => j !== i))}
+                        disabled={cart.length === 1}
+                        aria-label="Remove row"
+                        className="shrink-0 cursor-pointer rounded-lg p-2.5 text-muted transition-colors duration-200 hover:bg-surface hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        <TrashIcon className="h-4.5 w-4.5" />
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setCart((rows) => rows.filter((_, j) => j !== i))}
-                      disabled={cart.length === 1}
-                      aria-label="Remove row"
-                      className="cursor-pointer rounded-lg p-2.5 text-muted transition-colors duration-200 hover:bg-surface hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      <TrashIcon className="h-4.5 w-4.5" />
-                    </button>
                   </div>
                 );
               })}
