@@ -174,7 +174,7 @@ export default async function HomePage() {
               key={label}
               href={href}
               style={{ animationDelay: `${i * 120}ms` }}
-              className="group animate-fade-up relative cursor-pointer overflow-hidden rounded-3xl border border-line bg-surface p-8 transition-all duration-300 hover:-translate-y-1 hover:border-gold/60 hover:shadow-xl hover:shadow-black/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold dark:hover:shadow-black/40"
+              className="glow-card group animate-fade-up relative cursor-pointer overflow-hidden rounded-3xl border border-line bg-surface p-8 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
             >
               <Icon className="h-10 w-10 text-gold transition-transform duration-300 group-hover:scale-110" />
               <h2 className="mt-5 text-2xl font-semibold">{label}</h2>

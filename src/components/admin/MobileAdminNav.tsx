@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -106,10 +106,9 @@ export default function MobileAdminNav() {
                 href={link.href}
                 onClick={() => setOpen(false)}
                 aria-current={active ? "page" : undefined}
-                className={`cursor-pointer rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors duration-200 ${
-                  active
-                    ? "bg-foreground text-background"
-                    : "text-muted hover:bg-surface hover:text-foreground"
+                style={{ "--accent": link.accent } as CSSProperties}
+                className={`cursor-pointer rounded-xl px-3 py-2.5 text-sm font-semibold ${
+                  active ? "bg-foreground text-background" : "nav-glow text-muted"
                 }`}
               >
                 {link.label}

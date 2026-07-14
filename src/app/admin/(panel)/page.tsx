@@ -32,7 +32,7 @@ function StatCard({
     return (
       <Link
         href={href}
-        className="group block cursor-pointer rounded-2xl border border-line bg-surface p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-gold/60 hover:shadow-lg hover:shadow-black/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold dark:hover:shadow-black/20"
+        className="glow-card group block cursor-pointer rounded-2xl border border-line bg-surface p-5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
       >
         {inner}
       </Link>

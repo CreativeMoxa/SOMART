@@ -1,5 +1,6 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { LogoutIcon } from "@/components/icons";
@@ -28,10 +29,9 @@ export default function AdminSidebar() {
           <Link
             key={link.href}
             href={link.href}
-            className={`cursor-pointer rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors duration-200 ${
-              active
-                ? "bg-foreground text-background"
-                : "text-muted hover:bg-surface hover:text-foreground"
+            style={{ "--accent": link.accent } as CSSProperties}
+            className={`cursor-pointer rounded-xl px-3 py-2.5 text-sm font-semibold ${
+              active ? "bg-foreground text-background" : "nav-glow text-muted"
             }`}
           >
             {link.label}

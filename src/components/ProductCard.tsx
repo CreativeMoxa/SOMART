@@ -42,7 +42,7 @@ export default function ProductCard({
     <Link
       href={`/products/${product.slug}`}
       style={{ animationDelay: `${Math.min(index, 7) * 80}ms` }}
-      className="group animate-fade-up cursor-pointer overflow-hidden rounded-2xl border border-line bg-surface transition-all duration-300 hover:-translate-y-1 hover:border-gold/60 hover:shadow-xl hover:shadow-black/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold dark:hover:shadow-black/40"
+      className="glow-card group animate-fade-up cursor-pointer overflow-hidden rounded-2xl border border-line bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
     >
       <div className="relative overflow-hidden">
         {product.imageUrl ? (

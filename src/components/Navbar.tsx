@@ -52,7 +52,7 @@ export default function Navbar() {
               <li key={link.label}>
                 <Link
                   href={link.href}
-                  className={`cursor-pointer transition-colors duration-200 hover:text-gold ${
+                  className={`link-glow cursor-pointer transition-colors duration-200 hover:text-gold ${
                     link.label === "Sale" ? "text-red-500 hover:text-red-400" : ""
                   }`}
                 >
