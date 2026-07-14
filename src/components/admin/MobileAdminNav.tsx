@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { LogoutIcon, MenuIcon, XIcon } from "@/components/icons";
@@ -14,6 +15,9 @@ export default function MobileAdminNav() {
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  // Portal target only exists in the browser; render the overlay after mount.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   // Close the drawer whenever the route changes (i.e. a link was tapped).
   useEffect(() => {
@@ -53,6 +57,12 @@ export default function MobileAdminNav() {
         <MenuIcon className="h-6 w-6" />
       </button>
 
+      {/* The overlay is portaled to <body>: the sticky header's backdrop-blur
+          makes the header the containing block for fixed descendants, which
+          would trap the "full-screen" drawer inside the 64px header. */}
+      {mounted &&
+        createPortal(
+          <>
       {/* Backdrop — tapping outside closes the drawer. */}
       <div
         onClick={() => setOpen(false)}
@@ -116,6 +126,9 @@ export default function MobileAdminNav() {
           <LogoutIcon className="h-4 w-4" /> Logout
         </button>
       </aside>
+          </>,
+          document.body
+        )}
     </>
   );
 }
