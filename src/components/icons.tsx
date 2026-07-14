@@ -164,3 +164,58 @@ export function ArrowRightIcon(props: IconProps) {
     </svg>
   );
 }
+
+export function ShieldIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M12 3 5 6v5c0 4.6 3 7.7 7 9 4-1.3 7-4.4 7-9V6l-7-3Z" />
+      <path d="m9 12 2 2 4-4" />
+    </svg>
+  );
+}
+
+export function TruckIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M3 6.5h11v9H3z" />
+      <path d="M14 9.5h3.5l2.5 3v3H14z" />
+      <circle cx="7" cy="17.5" r="1.6" />
+      <circle cx="17" cy="17.5" r="1.6" />
+    </svg>
+  );
+}
+
+export function MapPinIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M12 21s6-5.2 6-10a6 6 0 1 0-12 0c0 4.8 6 10 6 10Z" />
+      <circle cx="12" cy="11" r="2.3" />
+    </svg>
+  );
+}
+
+export function StarIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M12 3.5 14.4 8.5 20 9.3l-4 3.9.9 5.5L12 16.1 7.1 18.7l.9-5.5-4-3.9 5.6-.8L12 3.5Z" />
+    </svg>
+  );
+}
+
+export function TrendingUpIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M4 15.5 10 9.5l3.5 3.5L20 6.5" />
+      <path d="M15 6.5h5v5" />
+    </svg>
+  );
+}
+
+export function CreditCardIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <rect x="3" y="6" width="18" height="12" rx="2" />
+      <path d="M3 10h18" />
+    </svg>
+  );
+}

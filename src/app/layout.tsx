@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
-import { Cormorant, Montserrat } from "next/font/google";
+import { Poppins, Montserrat } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 
-const cormorant = Cormorant({
+const poppins = Poppins({
   variable: "--font-heading",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+  weight: ["500", "600", "700", "800"],
 });
 
 const montserrat = Montserrat({
@@ -35,7 +35,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${cormorant.variable} ${montserrat.variable} dark h-full antialiased`}
+      className={`${poppins.variable} ${montserrat.variable} dark h-full antialiased`}
       suppressHydrationWarning
     >
       <head>
