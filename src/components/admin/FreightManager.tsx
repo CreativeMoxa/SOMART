@@ -716,8 +716,8 @@ export default function FreightManager({ freightType }: { freightType: FreightTy
                           ✓ Received into inventory — un-receive it from the shipment list to edit.
                         </p>
                       )}
-                      <div className="flex items-start gap-3">
-                        <div className="relative shrink-0">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+                        <div className="relative flex shrink-0 items-start gap-2 sm:block">
                           {item.imageUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img src={item.imageUrl} alt="" className="h-16 w-16 rounded-xl border border-line object-cover" />
@@ -817,7 +817,7 @@ export default function FreightManager({ freightType }: { freightType: FreightTy
                               </option>
                             ))}
                           </select>
-                          <div className="grid grid-cols-4 gap-2">
+                          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                             <input aria-label={`Product ${i + 1} qty`} type="number" min="1" placeholder="Qty" disabled={locked} value={item.qty || ""} onChange={(e) => setItem(i, { qty: Math.max(1, Number(e.target.value) || 1) })} className={inputClass} />
                             <input aria-label={`Product ${i + 1} cost`} type="number" min="0" step="0.01" placeholder="Cost" disabled={locked} value={item.costPrice || ""} onChange={(e) => setItem(i, { costPrice: Number(e.target.value) || 0 })} className={inputClass} />
                             <input aria-label={`Product ${i + 1} selling`} type="number" min="0" step="0.01" placeholder="Sell" disabled={locked} value={item.sellingPrice || ""} onChange={(e) => setItem(i, { sellingPrice: Number(e.target.value) || 0 })} className={inputClass} />
