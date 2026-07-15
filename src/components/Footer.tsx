@@ -27,8 +27,19 @@ export default async function Footer() {
     // footer still renders without settings
   }
 
-  const s = settings ?? {};
-  const wa = (s.whatsappNumber ?? "").replace(/[^0-9]/g, "");
+  const s = {
+    companyName: settings?.companyName ?? "",
+    tagline: settings?.tagline ?? "",
+    whatsappNumber: settings?.whatsappNumber ?? "",
+    salesPhone: settings?.salesPhone ?? "",
+    operationsPhone: settings?.operationsPhone ?? "",
+    phone: settings?.phone ?? "",
+    email: settings?.email ?? "",
+    website: settings?.website ?? "",
+    address: settings?.address ?? "",
+    businessHours: settings?.businessHours ?? "",
+  };
+  const wa = s.whatsappNumber.replace(/[^0-9]/g, "");
 
   const contactRows: ContactRow[] = [
     s.salesPhone && {
