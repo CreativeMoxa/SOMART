@@ -42,29 +42,37 @@ export default function QuickAddProduct({
   const [price, setPrice] = useState("");
   const [stockQty, setStockQty] = useState("");
   const [imageUrl, setImageUrl] = useState("");
+  const [images, setImages] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   async function handleUpload(files: FileList) {
-    const file = files[0];
-    if (!file) return;
     setUploading(true);
     setError(null);
     try {
-      const data = new FormData();
-      data.append("file", file);
-      const res = await fetch("/api/upload", { method: "POST", body: data });
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.error ?? "Upload failed");
-      setImageUrl(body.url);
+      for (const file of Array.from(files)) {
+        const data = new FormData();
+        data.append("file", file);
+        const res = await fetch("/api/upload", { method: "POST", body: data });
+        const body = await res.json();
+        if (!res.ok) throw new Error(body.error ?? "Upload failed");
+        setImages((prev) => [...prev, body.url]);
+        setImageUrl((prev) => prev || body.url);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed");
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = "";
     }
+  }
+
+  function removeImage(url: string) {
+    const next = images.filter((u) => u !== url);
+    setImages(next);
+    if (imageUrl === url) setImageUrl(next[0] ?? "");
   }
 
   async function createProduct(slug: string) {
@@ -80,8 +88,8 @@ export default function QuickAddProduct({
         price: Number(price),
         stockQty: qty,
         inStock: qty > 0,
-        imageUrl,
-        images: imageUrl ? [imageUrl] : [],
+        imageUrl: imageUrl || images[0] || "",
+        images,
       }),
     });
     const body = await res.json();
@@ -203,32 +211,59 @@ export default function QuickAddProduct({
           </div>
 
           <div>
-            <span className="text-sm font-semibold">Photo</span>
-            <div className="mt-1 flex items-center gap-3">
-              {imageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={imageUrl}
-                  alt=""
-                  className="h-14 w-14 rounded-xl border border-line object-cover"
-                />
-              ) : (
-                <div className="flex h-14 w-14 items-center justify-center rounded-xl border border-dashed border-line text-muted">
-                  <UploadIcon className="h-5 w-5" />
+            <span className="text-sm font-semibold">
+              Photos{" "}
+              <span className="font-normal text-muted">
+                (add several — first is the main; great for colours/variations)
+              </span>
+            </span>
+            <div className="mt-2 flex flex-wrap items-center gap-3">
+              {images.map((url) => (
+                <div key={url} className="group relative">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={url}
+                    alt=""
+                    className={`h-16 w-16 rounded-xl border-2 object-cover ${
+                      imageUrl === url ? "border-gold" : "border-line"
+                    }`}
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center gap-1 rounded-xl bg-black/50 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                    <button
+                      type="button"
+                      onClick={() => setImageUrl(url)}
+                      title="Set as main photo"
+                      className="cursor-pointer rounded bg-white/90 px-1.5 py-0.5 text-[10px] font-bold text-black"
+                    >
+                      Main
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => removeImage(url)}
+                      title="Remove"
+                      className="cursor-pointer rounded bg-red-500/90 px-1.5 py-0.5 text-[10px] font-bold text-white"
+                    >
+                      ✕
+                    </button>
+                  </div>
                 </div>
-              )}
-              <label className="cursor-pointer rounded-full border border-line px-4 py-2 text-xs font-semibold text-muted transition-colors duration-200 hover:border-gold hover:text-gold">
-                {uploading ? "Uploading…" : imageUrl ? "Replace photo" : "Upload photo"}
+              ))}
+              <label className="flex h-16 w-16 cursor-pointer items-center justify-center rounded-xl border border-dashed border-line text-muted transition-colors duration-200 hover:border-gold hover:text-gold">
+                <UploadIcon className="h-6 w-6" />
                 <input
                   ref={fileRef}
                   type="file"
                   accept="image/*"
-                  className="hidden"
+                  multiple
+                  className="sr-only"
                   disabled={uploading}
-                  onChange={(e) => e.target.files && handleUpload(e.target.files)}
+                  onChange={(e) => {
+                    if (e.target.files?.length) handleUpload(e.target.files);
+                  }}
                 />
               </label>
             </div>
+            {uploading && <p className="mt-2 text-xs text-gold">Uploading…</p>}
           </div>
         </div>
 
