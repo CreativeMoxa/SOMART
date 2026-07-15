@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ProductDoc } from "@/models/Product";
 import {
+  ArrowRightIcon,
   GlassesIcon,
   SparklesIcon,
   SunglassesIcon,
@@ -36,7 +37,6 @@ export default function ProductCard({
 }) {
   const Icon = categoryIcons[product.category] ?? SparklesIcon;
   const onSale = (product.discountPercent ?? 0) > 0;
-  const price = finalPrice(product);
 
   return (
     <Link
@@ -61,11 +61,11 @@ export default function ProductCard({
         <div className="absolute left-3 top-3 flex gap-1.5">
           {onSale && (
             <span className="rounded-full bg-red-500 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white">
-              −{product.discountPercent}%
+              Sale
             </span>
           )}
           {product.featured && (
-            <span className="rounded-full bg-gold-bright px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-black">
+            <span className="rounded-full bg-gold-bright px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider">
               Featured
             </span>
           )}
@@ -79,14 +79,10 @@ export default function ProductCard({
           {product.name}
         </h3>
         <div className="mt-2 flex items-center justify-between">
-          <p className="font-semibold text-gold">
-            ${price.toFixed(2)}
-            {onSale && (
-              <span className="ml-2 text-sm font-normal text-muted line-through">
-                ${product.price.toFixed(2)}
-              </span>
-            )}
-          </p>
+          <span className="flex items-center gap-1 text-sm font-semibold text-gold">
+            Ask on WhatsApp
+            <ArrowRightIcon className="h-3.5 w-3.5 transition-transform duration-200 group-hover:translate-x-1" />
+          </span>
           {(product.stockQty ?? 0) === 0 && (
             <span className="rounded-full border border-line px-2 py-0.5 text-xs text-muted">
               Out of stock

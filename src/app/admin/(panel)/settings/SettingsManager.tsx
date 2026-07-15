@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { DEFAULT_TEMPLATES, TEMPLATE_PLACEHOLDERS } from "@/lib/templates";
 import { UploadIcon } from "@/components/icons";
+
+type SaleItem = { imageUrl: string; title: string; subtitle: string };
 
 type Settings = {
   companyName: string;
@@ -16,7 +18,7 @@ type Settings = {
   address: string;
   businessHours?: string;
   heroImageUrl?: string;
-  weeklyOfferProductIds?: string[];
+  saleItems?: SaleItem[];
   currency: string;
   currencySymbol: string;
   taxPercent: number;
@@ -26,35 +28,23 @@ type Settings = {
   templateWhatsappDocument?: string;
 };
 
-type PickerProduct = {
-  _id: string;
-  name: string;
-  brand?: string;
-  category?: string;
-  imageUrl?: string;
-};
+const EMPTY_SALE: SaleItem = { imageUrl: "", title: "", subtitle: "" };
 
 const inputClass =
   "mt-1 w-full rounded-xl border border-line bg-background px-3.5 py-2.5 text-sm transition-colors duration-200 focus:border-gold focus:outline-2 focus:outline-offset-1 focus:outline-gold/40";
 
 export default function SettingsManager() {
   const [settings, setSettings] = useState<Settings | null>(null);
-  const [products, setProducts] = useState<PickerProduct[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const heroFileRef = useRef<HTMLInputElement>(null);
+  const [uploadingKey, setUploadingKey] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/settings")
       .then((res) => res.json())
       .then(setSettings)
       .catch(() => setError("Failed to load settings"));
-    fetch("/api/products?slim=1")
-      .then((res) => res.json())
-      .then((data) => Array.isArray(data) && setProducts(data))
-      .catch(() => {});
   }, []);
 
   function set<K extends keyof Settings>(key: K, value: Settings[K]) {
@@ -62,36 +52,47 @@ export default function SettingsManager() {
     setSaved(false);
   }
 
-  function toggleOffer(id: string) {
+  // Always work with exactly 3 sale slots in the UI.
+  function saleSlots(): SaleItem[] {
+    const items = settings?.saleItems ?? [];
+    return [0, 1, 2].map((i) => items[i] ?? { ...EMPTY_SALE });
+  }
+
+  function setSaleItem(index: number, patch: Partial<SaleItem>) {
     setSettings((s) => {
       if (!s) return s;
-      const current = s.weeklyOfferProductIds ?? [];
-      const next = current.includes(id)
-        ? current.filter((x) => x !== id)
-        : [...current, id];
-      return { ...s, weeklyOfferProductIds: next };
+      const slots = [0, 1, 2].map((i) => (s.saleItems ?? [])[i] ?? { ...EMPTY_SALE });
+      slots[index] = { ...slots[index], ...patch };
+      return { ...s, saleItems: slots };
     });
     setSaved(false);
   }
 
-  async function handleHeroUpload(files: FileList | null) {
-    const file = files?.[0];
+  async function uploadImage(file: File): Promise<string> {
+    const data = new FormData();
+    data.append("file", file);
+    const res = await fetch("/api/upload", { method: "POST", body: data });
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.error ?? "Upload failed");
+    return body.url as string;
+  }
+
+  function handleUpload(
+    key: string,
+    input: HTMLInputElement,
+    apply: (url: string) => void
+  ) {
+    const file = input.files?.[0];
     if (!file) return;
-    setUploading(true);
+    setUploadingKey(key);
     setError(null);
-    try {
-      const data = new FormData();
-      data.append("file", file);
-      const res = await fetch("/api/upload", { method: "POST", body: data });
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.error ?? "Upload failed");
-      set("heroImageUrl", body.url);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Upload failed");
-    } finally {
-      setUploading(false);
-      if (heroFileRef.current) heroFileRef.current.value = "";
-    }
+    uploadImage(file)
+      .then(apply)
+      .catch((err) => setError(err instanceof Error ? err.message : "Upload failed"))
+      .finally(() => {
+        setUploadingKey(null);
+        input.value = "";
+      });
   }
 
   async function handleSave(e: FormEvent) {
@@ -124,7 +125,7 @@ export default function SettingsManager() {
     );
   }
 
-  const offerIds = settings.weeklyOfferProductIds ?? [];
+  const slots = saleSlots();
 
   return (
     <div>
@@ -261,7 +262,7 @@ export default function SettingsManager() {
         <div className="rounded-2xl border border-line bg-surface p-6">
           <h2 className="text-lg font-bold">Public Website</h2>
           <p className="mt-1 text-sm text-muted">
-            Control what shows on the homepage.
+            Control the homepage feature photo.
           </p>
 
           <div className="mt-5">
@@ -284,14 +285,19 @@ export default function SettingsManager() {
               )}
               <div className="flex flex-col gap-2">
                 <label className="cursor-pointer rounded-full border border-line px-4 py-2 text-xs font-semibold text-muted transition-colors duration-200 hover:border-gold hover:text-gold">
-                  {uploading ? "Uploading…" : settings.heroImageUrl ? "Replace photo" : "Upload photo"}
+                  {uploadingKey === "hero"
+                    ? "Uploading…"
+                    : settings.heroImageUrl
+                      ? "Replace photo"
+                      : "Upload photo"}
                   <input
-                    ref={heroFileRef}
                     type="file"
                     accept="image/*"
                     className="hidden"
-                    disabled={uploading}
-                    onChange={(e) => handleHeroUpload(e.target.files)}
+                    disabled={uploadingKey !== null}
+                    onChange={(e) =>
+                      handleUpload("hero", e.currentTarget, (url) => set("heroImageUrl", url))
+                    }
                   />
                 </label>
                 {settings.heroImageUrl && (
@@ -306,54 +312,91 @@ export default function SettingsManager() {
               </div>
             </div>
           </div>
+        </div>
 
-          <div className="mt-6">
-            <span className="text-sm font-semibold">
-              Weekly offer products{" "}
-              <span className="font-normal text-muted">
-                ({offerIds.length} selected)
-              </span>
-            </span>
-            <p className="text-xs text-muted">
-              Tick the products to feature in the homepage &quot;This Week&apos;s Offers&quot; row.
-            </p>
-            {products.length === 0 ? (
-              <p className="mt-3 text-sm text-muted">No products to choose from yet.</p>
-            ) : (
-              <div className="mt-3 max-h-72 space-y-1 overflow-y-auto rounded-xl border border-line bg-background p-2">
-                {products.map((p) => {
-                  const checked = offerIds.includes(p._id);
-                  return (
-                    <label
-                      key={p._id}
-                      className={`flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors duration-200 ${
-                        checked ? "bg-brand/12" : "hover:bg-surface"
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => toggleOffer(p._id)}
-                        className="h-4 w-4 accent-brand"
+        {/* ---------------- Sale section (3 custom slots) ---------------- */}
+        <div className="rounded-2xl border border-line bg-surface p-6">
+          <h2 className="text-lg font-bold">Sale</h2>
+          <p className="mt-1 text-sm text-muted">
+            Add up to 3 sale items. These are the only products shown on the
+            homepage — each with a photo, a title and a short note. Customers tap
+            &quot;Ask price on WhatsApp&quot; to order. Leave a slot empty to hide it.
+          </p>
+          <div className="mt-5 space-y-4">
+            {slots.map((slot, i) => (
+              <div key={i} className="rounded-2xl border border-line bg-background p-4">
+                <p className="text-xs font-bold uppercase tracking-[0.15em] text-gold">
+                  Sale slot {i + 1}
+                </p>
+                <div className="mt-3 flex flex-col gap-4 sm:flex-row">
+                  <div className="flex shrink-0 items-start gap-2">
+                    {slot.imageUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={slot.imageUrl}
+                        alt=""
+                        className="h-20 w-20 rounded-xl border border-line object-cover"
                       />
-                      {p.imageUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={p.imageUrl} alt="" className="h-8 w-8 rounded-md object-cover" />
-                      ) : (
-                        <span className="h-8 w-8 rounded-md bg-line" />
+                    ) : (
+                      <div className="flex h-20 w-20 items-center justify-center rounded-xl border border-dashed border-line text-muted">
+                        <UploadIcon className="h-5 w-5" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 space-y-3">
+                    <div>
+                      <label className="text-sm font-semibold">Title</label>
+                      <input
+                        value={slot.title}
+                        onChange={(e) => setSaleItem(i, { title: e.target.value })}
+                        placeholder="e.g. Ray-Ban Aviator — Gold"
+                        className={inputClass}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-semibold">
+                        Short note <span className="font-normal text-muted">(optional)</span>
+                      </label>
+                      <input
+                        value={slot.subtitle}
+                        onChange={(e) => setSaleItem(i, { subtitle: e.target.value })}
+                        placeholder="e.g. Limited stock — polarized lenses"
+                        className={inputClass}
+                      />
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <label className="cursor-pointer rounded-full border border-line px-4 py-2 text-xs font-semibold text-muted transition-colors duration-200 hover:border-gold hover:text-gold">
+                        {uploadingKey === `sale-${i}`
+                          ? "Uploading…"
+                          : slot.imageUrl
+                            ? "Replace photo"
+                            : "Upload photo"}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          disabled={uploadingKey !== null}
+                          onChange={(e) =>
+                            handleUpload(`sale-${i}`, e.currentTarget, (url) =>
+                              setSaleItem(i, { imageUrl: url })
+                            )
+                          }
+                        />
+                      </label>
+                      {(slot.title || slot.subtitle || slot.imageUrl) && (
+                        <button
+                          type="button"
+                          onClick={() => setSaleItem(i, { ...EMPTY_SALE })}
+                          className="cursor-pointer text-xs font-semibold text-red-400 hover:underline"
+                        >
+                          Clear slot
+                        </button>
                       )}
-                      <span className="flex-1">
-                        <span className="font-medium">{p.name}</span>
-                        {p.brand && <span className="text-muted"> · {p.brand}</span>}
-                      </span>
-                      {checked && (
-                        <span className="text-xs font-semibold text-gold">Featured</span>
-                      )}
-                    </label>
-                  );
-                })}
+                    </div>
+                  </div>
+                </div>
               </div>
-            )}
+            ))}
           </div>
         </div>
 

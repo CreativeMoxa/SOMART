@@ -6,7 +6,7 @@ import { connectDB } from "@/lib/db";
 import { Product } from "@/models/Product";
 import { getSettings } from "@/models/Setting";
 import { DEFAULT_TEMPLATES, renderTemplate } from "@/lib/templates";
-import ProductCard, { finalPrice, type ProductJSON } from "@/components/ProductCard";
+import ProductCard, { type ProductJSON } from "@/components/ProductCard";
 import Gallery from "./Gallery";
 import {
   ArrowRightIcon,
@@ -88,7 +88,6 @@ export default async function ProductDetailPage({
   const { product, related, whatsapp, businessName, whatsappTemplate } = data;
   const Icon = categoryIcons[product.category] ?? SparklesIcon;
   const onSale = (product.discountPercent ?? 0) > 0;
-  const price = finalPrice(product);
   const inStock = (product.stockQty ?? 0) > 0;
   const images =
     product.images && product.images.length > 0
@@ -102,7 +101,8 @@ export default async function ProductDetailPage({
       business_name: businessName,
       product_name: product.name,
       brand: product.brand,
-      price: `$${price.toFixed(2)}`,
+      // Prices are shared over WhatsApp, not shown on the site.
+      price: "",
     })
   );
 
@@ -139,17 +139,14 @@ export default async function ProductDetailPage({
           </p>
           <h1 className="mt-2 text-4xl font-semibold">{product.name}</h1>
 
-          <div className="mt-4 flex items-baseline gap-3">
-            <p className="text-3xl font-semibold text-gold">${price.toFixed(2)}</p>
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <span className="inline-flex items-center gap-2 rounded-full border border-brand/30 bg-brand/10 px-4 py-2 text-sm font-semibold text-gold">
+              <WhatsAppIcon className="h-4 w-4" /> Ask for price on WhatsApp
+            </span>
             {onSale && (
-              <>
-                <p className="text-xl text-muted line-through">
-                  ${product.price.toFixed(2)}
-                </p>
-                <span className="rounded-full bg-red-500 px-2.5 py-1 text-xs font-bold uppercase tracking-wider text-white">
-                  Save {product.discountPercent}%
-                </span>
-              </>
+              <span className="rounded-full bg-red-500 px-2.5 py-1 text-xs font-bold uppercase tracking-wider text-white">
+                On Sale
+              </span>
             )}
           </div>
 

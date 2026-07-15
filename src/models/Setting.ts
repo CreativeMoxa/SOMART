@@ -16,7 +16,19 @@ const settingSchema = new Schema(
     businessHours: { type: String, default: "Mon–Sat: 9am – 7pm" },
     // Public-website controls (managed from admin → Settings → Public Website).
     heroImageUrl: { type: String, default: "" },
-    weeklyOfferProductIds: { type: [String], default: [] },
+    // Homepage "Sale" section — up to 3 custom slots (photo + title + text).
+    // Not tied to catalogue products; each links customers to WhatsApp.
+    saleItems: {
+      type: [
+        {
+          _id: false,
+          imageUrl: { type: String, default: "" },
+          title: { type: String, default: "" },
+          subtitle: { type: String, default: "" },
+        },
+      ],
+      default: [],
+    },
     currency: { type: String, default: "USD" },
     currencySymbol: { type: String, default: "$" },
     taxPercent: { type: Number, default: 0 },
@@ -35,10 +47,8 @@ export type SettingDoc = InferSchemaType<typeof settingSchema>;
 export const Setting: Model<SettingDoc> =
   mongoose.models.Setting || mongoose.model<SettingDoc>("Setting", settingSchema);
 
-export async function getSettings() {
-  let doc = await Setting.findOne({ key: "business" }).lean();
-  if (!doc) {
-    doc = (await Setting.create({ key: "business" })).toObject();
-  }
-  return doc;
+export async function getSettings(): Promise<SettingDoc> {
+  const existing = await Setting.findOne({ key: "business" }).lean<SettingDoc>();
+  if (existing) return existing;
+  return (await Setting.create({ key: "business" })).toObject() as SettingDoc;
 }

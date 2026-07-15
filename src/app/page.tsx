@@ -2,7 +2,6 @@ import Link from "next/link";
 import { connectDB } from "@/lib/db";
 import { Product } from "@/models/Product";
 import { getSettings } from "@/models/Setting";
-import ProductCard, { finalPrice, type ProductJSON } from "@/components/ProductCard";
 import {
   ArrowRightIcon,
   CheckCircleIcon,
@@ -116,115 +115,50 @@ const heroActions = [
   { Icon: SparklesIcon, label: "More", href: "/products?category=accessories" },
 ];
 
+type SaleItem = { imageUrl: string; title: string; subtitle: string };
+
 type HomeData = {
-  featured: ProductJSON[];
-  hotSale: ProductJSON[];
-  newArrivals: ProductJSON[];
-  bestSellers: ProductJSON[];
-  weeklyOffers: ProductJSON[];
-  heroImageUrl: string;
+  heroImage: string;
+  showcaseName: string;
+  saleItems: SaleItem[];
   whatsapp: string;
 };
 
 async function getHomeData(): Promise<HomeData> {
   try {
     await connectDB();
-    const [featured, hotSale, newArrivals, bestSellers, settings] = await Promise.all([
-      Product.find({ featured: true }).limit(4).lean(),
-      Product.find({ discountPercent: { $gt: 0 } })
-        .sort({ discountPercent: -1 })
-        .limit(4)
-        .lean(),
-      Product.find().sort({ createdAt: -1 }).limit(4).lean(),
-      Product.find({ soldCount: { $gt: 0 } }).sort({ soldCount: -1 }).limit(4).lean(),
+    const [featured, settings] = await Promise.all([
+      Product.find({ featured: true }).limit(1).lean(),
       getSettings(),
     ]);
+    const showcase = featured[0] ? JSON.parse(JSON.stringify(featured[0])) : null;
 
-    // Weekly offers are hand-picked by the admin in Settings → Public Website.
-    // Guard against non-ObjectId strings so a stray id can never blank the page.
-    const offerIds = (settings.weeklyOfferProductIds ?? []).filter(
-      (id): id is string => typeof id === "string" && /^[a-f0-9]{24}$/i.test(id)
-    );
-    let weeklyOffers: unknown[] = [];
-    if (offerIds.length > 0) {
-      const found = await Product.find({ _id: { $in: offerIds } }).lean();
-      // Preserve the admin's chosen order.
-      const byId = new Map(found.map((p) => [String(p._id), p]));
-      weeklyOffers = offerIds.map((id) => byId.get(String(id))).filter(Boolean);
-    }
+    // The homepage "Sale" section is fully hand-authored in admin → Settings →
+    // Sale: up to three custom slots (photo + title + text), no prices.
+    const saleItems: SaleItem[] = (settings.saleItems ?? [])
+      .map((s) => ({
+        imageUrl: s?.imageUrl ?? "",
+        title: s?.title ?? "",
+        subtitle: s?.subtitle ?? "",
+      }))
+      .filter((s) => s.title || s.imageUrl)
+      .slice(0, 3);
 
     return {
-      featured: JSON.parse(JSON.stringify(featured)),
-      hotSale: JSON.parse(JSON.stringify(hotSale)),
-      newArrivals: JSON.parse(JSON.stringify(newArrivals)),
-      bestSellers: JSON.parse(JSON.stringify(bestSellers)),
-      weeklyOffers: JSON.parse(JSON.stringify(weeklyOffers)),
-      heroImageUrl: settings.heroImageUrl ?? "",
+      heroImage: settings.heroImageUrl || showcase?.imageUrl || "",
+      showcaseName: showcase?.name ?? "",
+      saleItems,
       whatsapp: settings.whatsappNumber?.replace(/[^0-9]/g, "") ?? "",
     };
   } catch (err) {
     console.error("Failed to load home data:", err);
-    return {
-      featured: [],
-      hotSale: [],
-      newArrivals: [],
-      bestSellers: [],
-      weeklyOffers: [],
-      heroImageUrl: "",
-      whatsapp: "",
-    };
+    return { heroImage: "", showcaseName: "", saleItems: [], whatsapp: "" };
   }
 }
 
-function ProductRow({
-  eyebrow,
-  title,
-  products,
-  moreHref,
-  eyebrowClass = "text-gold",
-}: {
-  eyebrow: string;
-  title: string;
-  products: ProductJSON[];
-  moreHref: string;
-  eyebrowClass?: string;
-}) {
-  if (products.length === 0) return null;
-  return (
-    <section className="mx-auto max-w-6xl px-4 pb-16 sm:px-6">
-      <div className="flex items-end justify-between">
-        <div>
-          <p className={`text-[11px] font-semibold uppercase tracking-[0.25em] ${eyebrowClass}`}>
-            {eyebrow}
-          </p>
-          <h2 className="mt-1 text-3xl font-bold">{title}</h2>
-        </div>
-        <Link
-          href={moreHref}
-          className="cursor-pointer text-xs font-semibold uppercase tracking-[0.15em] text-muted transition-colors duration-200 hover:text-gold"
-        >
-          View all →
-        </Link>
-      </div>
-      <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {products.map((product, i) => (
-          <ProductCard key={product._id} product={product} index={i} />
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function money(n: number) {
-  return `$${n.toFixed(2)}`;
-}
-
 export default async function HomePage() {
-  const { featured, hotSale, newArrivals, bestSellers, weeklyOffers, heroImageUrl, whatsapp } =
-    await getHomeData();
-  const showcase = featured[0] ?? bestSellers[0] ?? newArrivals[0] ?? null;
-  const heroImage = heroImageUrl || showcase?.imageUrl || "";
-  const miniList = newArrivals.filter((p) => p._id !== showcase?._id).slice(0, 2);
+  const { heroImage, showcaseName, saleItems, whatsapp } = await getHomeData();
+  const heroSale = saleItems.slice(0, 2);
   const waLink = (text: string) =>
     whatsapp ? `https://wa.me/${whatsapp}?text=${encodeURIComponent(text)}` : "/products";
 
@@ -299,7 +233,7 @@ export default async function HomePage() {
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={heroImage}
-                      alt={showcase?.name ?? "SOMART featured piece"}
+                      alt={showcaseName || "SOMART featured piece"}
                       className="h-44 w-full object-cover"
                     />
                   ) : (
@@ -309,14 +243,14 @@ export default async function HomePage() {
                   )}
                 </div>
               </div>
-              <div className="mt-3 flex items-end justify-between">
+              <div className="mt-3 flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-semibold">{showcase?.name ?? "SOMART Signature"}</p>
-                  <p className="text-xs text-muted">{showcase?.brand ?? "Curated selection"}</p>
+                  <p className="text-sm font-semibold">{showcaseName || "SOMART Signature"}</p>
+                  <p className="text-xs text-muted">Curated selection</p>
                 </div>
-                <p className="text-xl font-extrabold text-gradient">
-                  {showcase ? money(finalPrice(showcase)) : "In store"}
-                </p>
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-brand/12 px-3 py-1.5 text-xs font-semibold text-gold">
+                  <WhatsAppIcon className="h-3.5 w-3.5" /> Ask price
+                </span>
               </div>
 
               {/* Quick actions */}
@@ -335,26 +269,31 @@ export default async function HomePage() {
                 ))}
               </div>
 
-              {/* Mini recent list */}
-              {miniList.length > 0 && (
+              {/* Mini list — current sale items (no prices) */}
+              {heroSale.length > 0 && (
                 <div className="mt-5">
                   <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted">
-                    Just landed
+                    On sale now
                   </p>
                   <ul className="space-y-2">
-                    {miniList.map((p) => (
+                    {heroSale.map((item, i) => (
                       <li
-                        key={p._id}
+                        key={i}
                         className="flex items-center justify-between rounded-2xl border border-line bg-background px-3 py-2.5"
                       >
                         <span className="flex items-center gap-2.5">
-                          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand/12 text-gold">
-                            <SparklesIcon className="h-4 w-4" />
-                          </span>
-                          <span className="text-sm font-medium">{p.name}</span>
+                          {item.imageUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={item.imageUrl} alt="" className="h-8 w-8 rounded-lg object-cover" />
+                          ) : (
+                            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand/12 text-gold">
+                              <SparklesIcon className="h-4 w-4" />
+                            </span>
+                          )}
+                          <span className="text-sm font-medium">{item.title}</span>
                         </span>
-                        <span className="text-sm font-bold text-gold">
-                          {money(finalPrice(p))}
+                        <span className="rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-bold uppercase text-white">
+                          Sale
                         </span>
                       </li>
                     ))}
@@ -396,6 +335,66 @@ export default async function HomePage() {
           ))}
         </div>
       </section>
+
+      {/* ==================== SALE — 3 custom slots from Settings ==================== */}
+      {saleItems.length > 0 && (
+        <section className="mx-auto max-w-6xl px-4 py-16 text-center sm:px-6">
+          <span className="inline-flex items-center gap-2 rounded-full border border-red-500/30 bg-red-500/10 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] text-red-400">
+            Limited Time
+          </span>
+          <h2 className="mx-auto mt-5 max-w-3xl text-4xl font-extrabold sm:text-5xl">
+            On <span className="text-gradient">Sale</span> Now
+          </h2>
+          <p className="mx-auto mt-4 max-w-xl text-lg text-muted">
+            Our hand-picked deals of the moment. Message us on WhatsApp for the
+            price and to order.
+          </p>
+          <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {saleItems.map((item, i) => (
+              <div
+                key={i}
+                className="glow-card group flex flex-col overflow-hidden rounded-3xl border border-line bg-surface text-left"
+              >
+                <div className="relative overflow-hidden">
+                  {item.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={item.imageUrl}
+                      alt={item.title}
+                      className="aspect-[4/3] w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    />
+                  ) : (
+                    <div className="flex aspect-[4/3] w-full items-center justify-center bg-gradient-to-br from-brand/20 to-brand-2/20 text-foreground">
+                      <SparklesIcon className="h-14 w-14" />
+                    </div>
+                  )}
+                  <span className="absolute left-3 top-3 rounded-full bg-red-500 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white">
+                    Sale
+                  </span>
+                </div>
+                <div className="flex flex-1 flex-col p-5">
+                  <h3 className="text-xl font-bold">{item.title || "Special offer"}</h3>
+                  {item.subtitle && (
+                    <p className="mt-1.5 flex-1 text-sm leading-relaxed text-muted">
+                      {item.subtitle}
+                    </p>
+                  )}
+                  <a
+                    href={waLink(
+                      `Hi SOMART! I'm interested in your sale item: ${item.title}. What's the price?`
+                    )}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-5 inline-flex cursor-pointer items-center justify-center gap-2 rounded-full bg-[#25D366] px-5 py-3 text-sm font-bold uppercase tracking-[0.1em] text-white transition-transform duration-200 hover:scale-[1.02]"
+                  >
+                    <WhatsAppIcon className="h-4.5 w-4.5" /> Ask price on WhatsApp
+                  </a>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* ==================== Choose Your Order Type ==================== */}
       <section className="mx-auto max-w-6xl px-4 py-16 text-center sm:px-6">
@@ -458,33 +457,6 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ==================== Real product rows ==================== */}
-      <ProductRow
-        eyebrow="This week only"
-        title="This Week's Offers"
-        products={weeklyOffers}
-        moreHref="/products?filter=sale"
-      />
-      <ProductRow
-        eyebrow="Limited time"
-        title="Hot Sale"
-        products={hotSale}
-        moreHref="/products?filter=sale"
-        eyebrowClass="text-red-400"
-      />
-      <ProductRow
-        eyebrow="Just landed"
-        title="New Arrivals"
-        products={newArrivals}
-        moreHref="/products?filter=new"
-      />
-      <ProductRow
-        eyebrow="Customer favorites"
-        title="Best Sellers"
-        products={bestSellers}
-        moreHref="/products"
-      />
-
       {/* ==================== Delivery: East Africa cities ==================== */}
       <section className="border-y border-line bg-surface">
         <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
@@ -543,13 +515,11 @@ export default async function HomePage() {
                   </p>
                   <div className="mt-3 rounded-2xl bg-brand-gradient p-4 text-center text-white">
                     <p className="text-[11px] uppercase tracking-[0.15em] opacity-80">
-                      Your cart
+                      Cash on Delivery
                     </p>
-                    <p className="mt-1 text-2xl font-extrabold">
-                      {showcase ? money(finalPrice(showcase)) : "$0.00"}
-                    </p>
+                    <p className="mt-1 text-xl font-extrabold">Order in Minutes</p>
                     <p className="mt-1 inline-flex items-center gap-1 text-xs">
-                      <MapPinIcon className="h-3.5 w-3.5" /> Free delivery
+                      <MapPinIcon className="h-3.5 w-3.5" /> Delivered to your door
                     </p>
                   </div>
                   <div className="mt-3 grid grid-cols-4 gap-1.5">
@@ -563,18 +533,18 @@ export default async function HomePage() {
                     ))}
                   </div>
                   <ul className="mt-3 space-y-2">
-                    {(miniList.length > 0 ? miniList : [showcase]).filter(Boolean).map((p) => (
+                    {heroActions.slice(0, 3).map(({ Icon, label }) => (
                       <li
-                        key={p!._id}
+                        key={label}
                         className="flex items-center justify-between rounded-xl bg-background px-2.5 py-2"
                       >
                         <span className="flex items-center gap-2">
-                          <span className="h-6 w-6 rounded-md bg-brand/15" />
-                          <span className="text-[11px] font-medium">{p!.name}</span>
+                          <span className="flex h-6 w-6 items-center justify-center rounded-md bg-brand/15 text-gold">
+                            <Icon className="h-3.5 w-3.5" />
+                          </span>
+                          <span className="text-[11px] font-medium">{label}</span>
                         </span>
-                        <span className="text-[11px] font-bold text-gold">
-                          {money(finalPrice(p!))}
-                        </span>
+                        <ArrowRightIcon className="h-3 w-3 text-muted" />
                       </li>
                     ))}
                   </ul>
