@@ -21,22 +21,20 @@ import {
 // Serve a cached page and refresh it in the background at most once a minute.
 export const revalidate = 60;
 
-// Cities we deliver to — Somali cities only (no country names).
+// Cities we deliver to across East Africa (city names only, no country names).
 const cities = [
-  "Mogadishu",
   "Hargeisa",
-  "Bosaso",
-  "Kismayo",
-  "Berbera",
-  "Baidoa",
-  "Galkayo",
-  "Beledweyne",
+  "Mogadisho",
+  "Djibouti",
   "Garowe",
+  "Bosaso",
+  "Erigavo",
+  "Las'anod",
+  "Berbera",
   "Burco",
-  "Marka",
-  "Jowhar",
-  "Afgooye",
-  "Baardheere",
+  "Jigjiga",
+  "Borama",
+  "Diredawa",
 ];
 
 const features = [
@@ -68,7 +66,7 @@ const features = [
     Icon: TruckIcon,
     accent: "#fb923c",
     title: "Nationwide Delivery",
-    desc: "Fast, reliable delivery to every city in Somalia, with cash on delivery available.",
+    desc: "Fast, reliable delivery to every East African city we serve, with cash on delivery available.",
   },
   {
     Icon: StarIcon,
@@ -123,6 +121,8 @@ type HomeData = {
   hotSale: ProductJSON[];
   newArrivals: ProductJSON[];
   bestSellers: ProductJSON[];
+  weeklyOffers: ProductJSON[];
+  heroImageUrl: string;
   whatsapp: string;
 };
 
@@ -139,16 +139,40 @@ async function getHomeData(): Promise<HomeData> {
       Product.find({ soldCount: { $gt: 0 } }).sort({ soldCount: -1 }).limit(4).lean(),
       getSettings(),
     ]);
+
+    // Weekly offers are hand-picked by the admin in Settings → Public Website.
+    // Guard against non-ObjectId strings so a stray id can never blank the page.
+    const offerIds = (settings.weeklyOfferProductIds ?? []).filter(
+      (id): id is string => typeof id === "string" && /^[a-f0-9]{24}$/i.test(id)
+    );
+    let weeklyOffers: unknown[] = [];
+    if (offerIds.length > 0) {
+      const found = await Product.find({ _id: { $in: offerIds } }).lean();
+      // Preserve the admin's chosen order.
+      const byId = new Map(found.map((p) => [String(p._id), p]));
+      weeklyOffers = offerIds.map((id) => byId.get(String(id))).filter(Boolean);
+    }
+
     return {
       featured: JSON.parse(JSON.stringify(featured)),
       hotSale: JSON.parse(JSON.stringify(hotSale)),
       newArrivals: JSON.parse(JSON.stringify(newArrivals)),
       bestSellers: JSON.parse(JSON.stringify(bestSellers)),
+      weeklyOffers: JSON.parse(JSON.stringify(weeklyOffers)),
+      heroImageUrl: settings.heroImageUrl ?? "",
       whatsapp: settings.whatsappNumber?.replace(/[^0-9]/g, "") ?? "",
     };
   } catch (err) {
     console.error("Failed to load home data:", err);
-    return { featured: [], hotSale: [], newArrivals: [], bestSellers: [], whatsapp: "" };
+    return {
+      featured: [],
+      hotSale: [],
+      newArrivals: [],
+      bestSellers: [],
+      weeklyOffers: [],
+      heroImageUrl: "",
+      whatsapp: "",
+    };
   }
 }
 
@@ -196,8 +220,10 @@ function money(n: number) {
 }
 
 export default async function HomePage() {
-  const { featured, hotSale, newArrivals, bestSellers, whatsapp } = await getHomeData();
+  const { featured, hotSale, newArrivals, bestSellers, weeklyOffers, heroImageUrl, whatsapp } =
+    await getHomeData();
   const showcase = featured[0] ?? bestSellers[0] ?? newArrivals[0] ?? null;
+  const heroImage = heroImageUrl || showcase?.imageUrl || "";
   const miniList = newArrivals.filter((p) => p._id !== showcase?._id).slice(0, 2);
   const waLink = (text: string) =>
     whatsapp ? `https://wa.me/${whatsapp}?text=${encodeURIComponent(text)}` : "/products";
@@ -218,7 +244,7 @@ export default async function HomePage() {
           {/* Left: copy */}
           <div className="flex flex-col items-start">
             <span className="animate-fade-up inline-flex items-center gap-2 rounded-full border border-brand/30 bg-brand/10 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] text-gold">
-              <ShieldIcon className="h-4 w-4" /> 100% Authentic · Somalia-wide
+              <ShieldIcon className="h-4 w-4" /> 100% Authentic · East Africa
             </span>
             <h1 className="animate-fade-up delay-100 mt-6 max-w-2xl text-5xl font-extrabold leading-[1.02] sm:text-7xl">
               Style Made
@@ -227,7 +253,7 @@ export default async function HomePage() {
             </h1>
             <p className="animate-fade-up delay-200 mt-6 max-w-lg text-lg leading-relaxed text-muted">
               Discover designer eyewear, luxury watches and standout accessories —
-              curated by SOMART and delivered to your door, anywhere in Somalia.
+              curated by SOMART and delivered to your door, anywhere in East Africa.
             </p>
             <div className="animate-fade-up delay-300 mt-8 flex flex-wrap gap-3">
               <Link
@@ -269,11 +295,11 @@ export default async function HomePage() {
               </p>
               <div className="mt-3 overflow-hidden rounded-2xl bg-brand-gradient p-[1px]">
                 <div className="overflow-hidden rounded-2xl bg-background">
-                  {showcase?.imageUrl ? (
+                  {heroImage ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
-                      src={showcase.imageUrl}
-                      alt={showcase.name}
+                      src={heroImage}
+                      alt={showcase?.name ?? "SOMART featured piece"}
                       className="h-44 w-full object-cover"
                     />
                   ) : (
@@ -434,6 +460,12 @@ export default async function HomePage() {
 
       {/* ==================== Real product rows ==================== */}
       <ProductRow
+        eyebrow="This week only"
+        title="This Week's Offers"
+        products={weeklyOffers}
+        moreHref="/products?filter=sale"
+      />
+      <ProductRow
         eyebrow="Limited time"
         title="Hot Sale"
         products={hotSale}
@@ -453,21 +485,21 @@ export default async function HomePage() {
         moreHref="/products"
       />
 
-      {/* ==================== Delivery: every Somali city ==================== */}
+      {/* ==================== Delivery: East Africa cities ==================== */}
       <section className="border-y border-line bg-surface">
         <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
           <div className="grid items-center gap-12 lg:grid-cols-2">
             {/* Left: copy + stats */}
             <div className="animate-fade-up">
               <span className="inline-flex items-center gap-2 rounded-full border border-brand/30 bg-brand/10 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] text-gold">
-                <TruckIcon className="h-4 w-4" /> Nationwide Delivery
+                <TruckIcon className="h-4 w-4" /> Fast Delivery
               </span>
               <h2 className="mt-5 text-4xl font-extrabold sm:text-5xl">
-                Delivered to Every <span className="text-gradient">Somali City</span>
+                Delivered Across <span className="text-gradient">East Africa</span>
               </h2>
               <p className="mt-4 max-w-lg text-lg leading-relaxed text-muted">
-                From Mogadishu to Hargeisa, Bosaso to Kismayo — order online and we
-                bring your pieces straight to your door. Cash on delivery available.
+                From Hargeisa to Mogadisho, Djibouti to Dire Dawa — order online and
+                we bring your pieces straight to your door. Cash on delivery available.
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
                 <a
@@ -489,7 +521,7 @@ export default async function HomePage() {
                 {[
                   { value: "4.9", label: "Avg. Rating" },
                   { value: "10K+", label: "Orders Delivered" },
-                  { value: "14+", label: "Cities Covered" },
+                  { value: "12+", label: "Cities Covered" },
                 ].map((s) => (
                   <div key={s.label}>
                     <p className="text-3xl font-extrabold text-gradient">{s.value}</p>
@@ -553,7 +585,73 @@ export default async function HomePage() {
 
           {/* City chips */}
           <div className="mt-14">
-            <p className="text-center text-xs font-semibold uppercase tracking-[0.2em] text-muted">
+            {/* Delivery cargo cartoon (brand-gradient, system colors) */}
+            <div className="flex justify-center">
+              <svg
+                viewBox="0 0 300 150"
+                role="img"
+                aria-label="SOMART delivery van"
+                className="h-32 w-auto animate-fade-up"
+              >
+                <defs>
+                  <linearGradient id="somart-van" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stopColor="#3b82f6" />
+                    <stop offset="100%" stopColor="#8b5cf6" />
+                  </linearGradient>
+                </defs>
+                {/* motion lines */}
+                <g stroke="#8b5cf6" strokeWidth="4" strokeLinecap="round" opacity="0.5">
+                  <path d="M14 66h34" />
+                  <path d="M4 84h26" />
+                  <path d="M20 102h30" />
+                </g>
+                {/* sparkles */}
+                <g fill="#60a5fa">
+                  <circle cx="250" cy="34" r="3" />
+                  <circle cx="272" cy="52" r="2" />
+                  <circle cx="238" cy="20" r="2" />
+                </g>
+                {/* van cargo body */}
+                <rect x="70" y="46" width="120" height="66" rx="12" fill="url(#somart-van)" />
+                {/* SOMART label on the side */}
+                <rect x="86" y="64" width="74" height="30" rx="7" fill="#ffffff" opacity="0.92" />
+                <text
+                  x="123"
+                  y="84"
+                  textAnchor="middle"
+                  fontSize="15"
+                  fontWeight="800"
+                  fill="#4f46e5"
+                  fontFamily="system-ui, sans-serif"
+                >
+                  SOMART
+                </text>
+                {/* cab */}
+                <path
+                  d="M190 60h26l22 22v30a4 4 0 0 1-4 4h-44V60Z"
+                  fill="url(#somart-van)"
+                />
+                {/* windshield */}
+                <path d="M196 66h16l14 14h-30V66Z" fill="#0b1220" opacity="0.55" />
+                {/* headlight */}
+                <circle cx="234" cy="102" r="3.5" fill="#fde68a" />
+                {/* wheels */}
+                <g>
+                  <circle cx="104" cy="116" r="16" fill="#0b1220" />
+                  <circle cx="104" cy="116" r="6.5" fill="#93a1bd" />
+                  <circle cx="204" cy="116" r="16" fill="#0b1220" />
+                  <circle cx="204" cy="116" r="6.5" fill="#93a1bd" />
+                </g>
+                {/* ground */}
+                <path
+                  d="M50 134h210"
+                  stroke="#232c44"
+                  strokeWidth="4"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </div>
+            <p className="mt-4 text-center text-xs font-semibold uppercase tracking-[0.2em] text-muted">
               We deliver to
             </p>
             <div className="mt-5 flex flex-wrap justify-center gap-2.5">

@@ -44,17 +44,27 @@ export default async function ContactPage() {
           <h2 className="text-lg font-semibold">Store Details</h2>
           <ul className="mt-3 space-y-2 text-sm text-muted">
             {settings?.address && <li>{settings.address}</li>}
-            {settings?.phone && <li>Phone: {settings.phone}</li>}
-            {settings?.email && <li>Email: {settings.email}</li>}
-            {!settings?.address && !settings?.phone && !settings?.email && (
-              <li>Contact details coming soon.</li>
+            {settings?.salesPhone && <li>Sales: {settings.salesPhone}</li>}
+            {settings?.operationsPhone && <li>Operations: {settings.operationsPhone}</li>}
+            {!settings?.salesPhone && !settings?.operationsPhone && settings?.phone && (
+              <li>Phone: {settings.phone}</li>
             )}
+            {settings?.email && <li>Email: {settings.email}</li>}
+            {settings?.website && <li>Web: {settings.website.replace(/^https?:\/\//, "")}</li>}
+            {!settings?.address &&
+              !settings?.phone &&
+              !settings?.salesPhone &&
+              !settings?.email && <li>Contact details coming soon.</li>}
           </ul>
         </div>
         <div className="rounded-3xl border border-line bg-surface p-6">
           <h2 className="text-lg font-semibold">Opening Hours</h2>
           <ul className="mt-3 space-y-2 text-sm text-muted">
-            <li>Monday – Saturday: 9:00 AM – 7:00 PM</li>
+            {settings?.businessHours ? (
+              <li>{settings.businessHours}</li>
+            ) : (
+              <li>Monday – Saturday: 9:00 AM – 7:00 PM</li>
+            )}
             <li>Sunday: Closed</li>
           </ul>
         </div>
