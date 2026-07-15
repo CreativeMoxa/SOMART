@@ -703,7 +703,7 @@ export default function FreightManager({ freightType }: { freightType: FreightTy
             <div className="mt-6">
               <span className="text-sm font-semibold">Products in this shipment</span>
               <p className="text-xs text-muted">
-                Brand, category and min-stock are silent info — used to create the store product on receive, never printed.
+                Brand and category are silent info — used to create the store product on receive, never printed.
               </p>
               <div className="mt-2 space-y-3">
                 {items.map((item, i) => {
@@ -817,11 +817,10 @@ export default function FreightManager({ freightType }: { freightType: FreightTy
                               </option>
                             ))}
                           </select>
-                          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                          <div className="grid grid-cols-3 gap-2">
                             <input aria-label={`Product ${i + 1} qty`} type="number" min="1" placeholder="Qty" disabled={locked} value={item.qty || ""} onChange={(e) => setItem(i, { qty: Math.max(1, Number(e.target.value) || 1) })} className={inputClass} />
                             <input aria-label={`Product ${i + 1} cost`} type="number" min="0" step="0.01" placeholder="Cost" disabled={locked} value={item.costPrice || ""} onChange={(e) => setItem(i, { costPrice: Number(e.target.value) || 0 })} className={inputClass} />
                             <input aria-label={`Product ${i + 1} selling`} type="number" min="0" step="0.01" placeholder="Sell" disabled={locked} value={item.sellingPrice || ""} onChange={(e) => setItem(i, { sellingPrice: Number(e.target.value) || 0 })} className={inputClass} />
-                            <input aria-label={`Product ${i + 1} min stock`} type="number" min="0" placeholder="Min" title="Minimum stock (low-stock alert)" disabled={locked} value={item.minStock ?? ""} onChange={(e) => setItem(i, { minStock: Math.max(0, Number(e.target.value) || 0) })} className={inputClass} />
                           </div>
                           <input
                             aria-label={`Product ${i + 1} note`}
