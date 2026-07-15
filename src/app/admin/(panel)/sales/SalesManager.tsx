@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { PlusIcon, TrashIcon, XIcon } from "@/components/icons";
+import { confirmDialog } from "@/components/admin/ConfirmDialog";
 import { MARKETING_SOURCES, SOURCE_LABELS, type MarketingSource } from "@/lib/marketing";
 import {
   DATE_RANGES,
@@ -237,9 +238,9 @@ export default function SalesManager({ initialRange = "" }: { initialRange?: str
 
   async function handleBulkDelete() {
     if (
-      !confirm(
+      !(await confirmDialog(
         `Delete ${selected.size} sale${selected.size === 1 ? "" : "s"}? Stock of completed sales will be restored.`
-      )
+      ))
     )
       return;
     setBulkDeleting(true);
@@ -262,7 +263,7 @@ export default function SalesManager({ initialRange = "" }: { initialRange?: str
   }
 
   async function handleDelete(sale: Sale) {
-    if (!confirm(`Delete sale ${sale.number}? Stock will be restored (acts as a return).`))
+    if (!(await confirmDialog(`Delete sale ${sale.number}? Stock will be restored (acts as a return).`)))
       return;
     try {
       const res = await fetch(`/api/sales/${sale._id}`, { method: "DELETE" });

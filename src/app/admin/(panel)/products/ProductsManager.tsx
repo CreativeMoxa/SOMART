@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from "react"
 import { usePathname, useRouter } from "next/navigation";
 import type { ProductJSON } from "@/components/ProductCard";
 import { useSelection, BulkBar, checkboxClass } from "@/components/admin/TableTools";
+import { confirmDialog } from "@/components/admin/ConfirmDialog";
 import { computeProfit } from "@/lib/profit";
 
 // Stock filters used by the dashboard "Low Stock Items" drill-down.
@@ -105,9 +106,9 @@ export default function ProductsManager({ initialFilter = "" }: { initialFilter?
 
   async function handleBulkDelete() {
     if (
-      !confirm(
+      !(await confirmDialog(
         `Delete ${selected.size} product${selected.size === 1 ? "" : "s"}? This cannot be undone.`
-      )
+      ))
     )
       return;
     setBulkDeleting(true);
@@ -250,7 +251,7 @@ export default function ProductsManager({ initialFilter = "" }: { initialFilter?
   }
 
   async function handleDelete(product: ProductJSON) {
-    if (!confirm(`Delete "${product.name}"? This cannot be undone.`)) return;
+    if (!(await confirmDialog(`Delete "${product.name}"? This cannot be undone.`))) return;
     setError(null);
     try {
       const res = await fetch(`/api/products/${product.slug}`, { method: "DELETE" });

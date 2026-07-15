@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { PencilIcon, PlusIcon, TrashIcon, XIcon } from "@/components/icons";
+import { confirmDialog } from "@/components/admin/ConfirmDialog";
 import QuickAddProduct, { type PickerProduct } from "@/components/admin/QuickAddProduct";
 import QuickAddCustomer, { type PickerCustomer } from "@/components/admin/QuickAddCustomer";
 import { MARKETING_SOURCES, SOURCE_LABELS, type MarketingSource } from "@/lib/marketing";
@@ -407,7 +408,7 @@ export default function DocumentsManager({
   }
 
   async function handleBulkDelete() {
-    if (!confirm(`Delete ${selected.size} ${cfg.title.toLowerCase()}? This cannot be undone.`))
+    if (!(await confirmDialog(`Delete ${selected.size} ${cfg.title.toLowerCase()}? This cannot be undone.`)))
       return;
     setBulkDeleting(true);
     setError(null);
@@ -525,7 +526,7 @@ export default function DocumentsManager({
   }
 
   async function handleDelete(doc: Doc) {
-    if (!confirm(`Delete ${cfg.singular.toLowerCase()} ${doc.number}?`)) return;
+    if (!(await confirmDialog(`Delete ${cfg.singular.toLowerCase()} ${doc.number}?`))) return;
     try {
       const res = await fetch(`${cfg.api}/${doc._id}`, { method: "DELETE" });
       if (!res.ok) throw new Error((await res.json()).error ?? "Delete failed");

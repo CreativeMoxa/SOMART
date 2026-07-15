@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { PencilIcon, PlusIcon, TrashIcon, XIcon } from "@/components/icons";
 import { useSelection, BulkBar, ExportButtons, checkboxClass } from "@/components/admin/TableTools";
+import { confirmDialog } from "@/components/admin/ConfirmDialog";
 import {
   DATE_RANGES,
   RANGE_LABELS,
@@ -126,7 +127,7 @@ export default function ExpensesManager({ initialRange = "" }: { initialRange?: 
   }
 
   async function handleDelete(expense: Expense) {
-    if (!confirm(`Delete expense "${expense.title}"?`)) return;
+    if (!(await confirmDialog(`Delete expense "${expense.title}"?`))) return;
     try {
       const res = await fetch(`/api/expenses/${expense._id}`, { method: "DELETE" });
       if (!res.ok) throw new Error((await res.json()).error ?? "Delete failed");
@@ -184,7 +185,7 @@ export default function ExpensesManager({ initialRange = "" }: { initialRange?: 
   }
 
   async function handleBulkDelete() {
-    if (!confirm(`Delete ${selected.size} expense${selected.size === 1 ? "" : "s"}?`)) return;
+    if (!(await confirmDialog(`Delete ${selected.size} expense${selected.size === 1 ? "" : "s"}?`))) return;
     setBulkDeleting(true);
     setError(null);
     try {

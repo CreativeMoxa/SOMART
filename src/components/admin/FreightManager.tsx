@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { PencilIcon, PlusIcon, TrashIcon, UploadIcon, XIcon } from "@/components/icons";
+import { confirmDialog } from "@/components/admin/ConfirmDialog";
 import {
   FREIGHT_META,
   SHIPMENT_STATUSES,
@@ -304,7 +305,7 @@ export default function FreightManager({ freightType }: { freightType: FreightTy
   }
 
   async function remove(s: Shipment) {
-    if (!confirm(`Delete ${s.number}?`)) return;
+    if (!(await confirmDialog(`Delete ${s.number}?`))) return;
     try {
       const res = await fetch(`/api/shipments/${s._id}`, { method: "DELETE" });
       if (!res.ok) throw new Error((await res.json()).error ?? "Delete failed");

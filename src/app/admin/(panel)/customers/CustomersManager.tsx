@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { PencilIcon, PlusIcon, TrashIcon, UploadIcon, XIcon } from "@/components/icons";
 import { useSelection, BulkBar, ExportButtons, checkboxClass } from "@/components/admin/TableTools";
+import { confirmDialog } from "@/components/admin/ConfirmDialog";
 
 type Customer = {
   _id: string;
@@ -255,7 +256,7 @@ export default function CustomersManager() {
   }
 
   async function handleBulkDelete() {
-    if (!confirm(`Delete ${selected.size} customer${selected.size === 1 ? "" : "s"}?`)) return;
+    if (!(await confirmDialog(`Delete ${selected.size} customer${selected.size === 1 ? "" : "s"}?`))) return;
     setBulkDeleting(true);
     setError(null);
     try {
@@ -276,7 +277,7 @@ export default function CustomersManager() {
   }
 
   async function handleDelete(customer: Customer) {
-    if (!confirm(`Delete customer "${customer.name}"?`)) return;
+    if (!(await confirmDialog(`Delete customer "${customer.name}"?`))) return;
     try {
       const res = await fetch(`/api/customers/${customer._id}`, { method: "DELETE" });
       if (!res.ok) throw new Error((await res.json()).error ?? "Delete failed");
