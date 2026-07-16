@@ -10,6 +10,9 @@ export async function GET(req: NextRequest) {
     const { searchParams } = req.nextUrl;
     const filter: Record<string, unknown> = {};
 
+    // Non-admin callers only ever see public (visible) products.
+    if (!(await isAdmin())) filter.visible = { $ne: false };
+
     const category = searchParams.get("category");
     if (category) filter.category = category;
 

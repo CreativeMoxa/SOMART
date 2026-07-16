@@ -129,7 +129,7 @@ async function getHomeData(): Promise<HomeData> {
   try {
     await connectDB();
     const [featured, settings] = await Promise.all([
-      Product.find({ featured: true }).limit(1).lean(),
+      Product.find({ featured: true, visible: { $ne: false } }).limit(1).lean(),
       getSettings(),
     ]);
     const showcase = featured[0] ? JSON.parse(JSON.stringify(featured[0])) : null;

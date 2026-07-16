@@ -38,7 +38,8 @@ type Search = {
 async function getProducts(params: Search) {
   try {
     await connectDB();
-    const filter: Record<string, unknown> = {};
+    // Only public (visible) products; hidden ones stay admin-only.
+    const filter: Record<string, unknown> = { visible: { $ne: false } };
     if (params.category) filter.category = params.category;
     if (params.filter === "sale") filter.discountPercent = { $gt: 0 };
     if (params.filter === "new") {

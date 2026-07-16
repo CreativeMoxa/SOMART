@@ -17,6 +17,8 @@ function normalizeStock(v: string | null | undefined): StockFilter {
   return v && v in STOCK_FILTERS ? (v as StockFilter) : "";
 }
 import {
+  EyeIcon,
+  EyeOffIcon,
   PencilIcon,
   PlusIcon,
   TrashIcon,
@@ -41,6 +43,7 @@ const emptyForm = {
   specs: "",
   gender: "unisex",
   featured: false,
+  visible: true,
 };
 
 type FormState = typeof emptyForm;
@@ -74,6 +77,7 @@ function toForm(p: ProductJSON): FormState {
     specs: (p.specs ?? []).map((s) => `${s.label}: ${s.value}`).join("\n"),
     gender: p.gender ?? "unisex",
     featured: p.featured,
+    visible: p.visible ?? true,
   };
 }
 
@@ -227,6 +231,7 @@ export default function ProductsManager({ initialFilter = "" }: { initialFilter?
         .filter((s) => s.label && s.value),
       gender: form.gender,
       featured: form.featured,
+      visible: form.visible,
     };
 
     try {
@@ -274,6 +279,23 @@ export default function ProductsManager({ initialFilter = "" }: { initialFilter?
         list.map((p) =>
           p.slug === product.slug ? { ...p, featured: !p.featured } : p
         )
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Update failed");
+    }
+  }
+
+  async function toggleVisible(product: ProductJSON) {
+    const nextVisible = !(product.visible ?? true);
+    try {
+      const res = await fetch(`/api/products/${product.slug}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ visible: nextVisible }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? "Update failed");
+      setProducts((list) =>
+        list.map((p) => (p.slug === product.slug ? { ...p, visible: nextVisible } : p))
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Update failed");
@@ -406,7 +428,14 @@ export default function ProductsManager({ initialFilter = "" }: { initialFilter?
                         <div className="h-11 w-11 rounded-lg bg-surface" />
                       )}
                       <div>
-                        <p className="font-semibold">{product.name}</p>
+                        <p className="flex items-center gap-2 font-semibold">
+                          {product.name}
+                          {!(product.visible ?? true) && (
+                            <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-500">
+                              Hidden
+                            </span>
+                          )}
+                        </p>
                         <p className="text-xs text-muted">{product.brand}</p>
                       </div>
                     </div>
@@ -467,6 +496,31 @@ export default function ProductsManager({ initialFilter = "" }: { initialFilter?
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex justify-end gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => toggleVisible(product)}
+                        aria-label={
+                          (product.visible ?? true)
+                            ? `Hide ${product.name} from the public site`
+                            : `Show ${product.name} on the public site`
+                        }
+                        title={
+                          (product.visible ?? true)
+                            ? "Visible on the public site — click to hide"
+                            : "Hidden (admin only) — click to show"
+                        }
+                        className={`cursor-pointer rounded-lg p-2 transition-colors duration-200 hover:bg-surface ${
+                          (product.visible ?? true)
+                            ? "text-muted hover:text-gold"
+                            : "text-amber-500 hover:text-amber-400"
+                        }`}
+                      >
+                        {(product.visible ?? true) ? (
+                          <EyeIcon className="h-4.5 w-4.5" />
+                        ) : (
+                          <EyeOffIcon className="h-4.5 w-4.5" />
+                        )}
+                      </button>
                       <button
                         type="button"
                         onClick={() => openEdit(product)}
@@ -767,7 +821,7 @@ export default function ProductsManager({ initialFilter = "" }: { initialFilter?
               {uploading && <p className="mt-2 text-xs text-gold">Uploading to Cloudinary…</p>}
             </div>
 
-            <div className="mt-5">
+            <div className="mt-5 space-y-3">
               <label className="flex cursor-pointer items-center gap-2 text-sm font-semibold">
                 <input
                   type="checkbox"
@@ -776,6 +830,16 @@ export default function ProductsManager({ initialFilter = "" }: { initialFilter?
                   className="h-4 w-4 cursor-pointer accent-current"
                 />
                 Featured on homepage
+              </label>
+              <label className="flex cursor-pointer items-center gap-2 text-sm font-semibold">
+                <input
+                  type="checkbox"
+                  checked={form.visible}
+                  onChange={(e) => set("visible", e.target.checked)}
+                  className="h-4 w-4 cursor-pointer accent-current"
+                />
+                Show on public website{" "}
+                <span className="font-normal text-muted">(uncheck to keep it admin-only)</span>
               </label>
             </div>
 

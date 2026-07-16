@@ -43,6 +43,9 @@ const productSchema = new Schema(
     lastRestockedAt: { type: Date, default: null },
     lastSoldAt: { type: Date, default: null },
     featured: { type: Boolean, default: false },
+    // When false the product is hidden from the public website (shop, homepage,
+    // detail page) but stays fully visible/usable in the admin.
+    visible: { type: Boolean, default: true },
   },
   {
     timestamps: true,

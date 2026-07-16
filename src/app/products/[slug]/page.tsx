@@ -44,10 +44,11 @@ const categoryLabels: Record<string, string> = {
 const getData = cache(async function getData(slug: string) {
   try {
     await connectDB();
-    const product = await Product.findOne({ slug }).lean();
+    // Hidden (private) products are not reachable on the public site.
+    const product = await Product.findOne({ slug, visible: { $ne: false } }).lean();
     if (!product) return null;
     const [related, settings] = await Promise.all([
-      Product.find({ category: product.category, slug: { $ne: slug } })
+      Product.find({ category: product.category, slug: { $ne: slug }, visible: { $ne: false } })
         .limit(4)
         .lean(),
       getSettings(),
