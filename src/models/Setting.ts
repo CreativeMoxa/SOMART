@@ -16,6 +16,8 @@ const settingSchema = new Schema(
     businessHours: { type: String, default: "Mon–Sat: 9am – 7pm" },
     // Public-website controls (managed from admin → Settings → Public Website).
     heroImageUrl: { type: String, default: "" },
+    heroImageTitle: { type: String, default: "" },
+    heroImageSubtitle: { type: String, default: "" },
     // Homepage "Sale" section — up to 3 custom slots (photo + title + text).
     // Not tied to catalogue products; each links customers to WhatsApp.
     saleItems: {

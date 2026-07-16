@@ -120,6 +120,7 @@ type SaleItem = { imageUrl: string; title: string; subtitle: string };
 type HomeData = {
   heroImage: string;
   showcaseName: string;
+  showcaseSubtitle: string;
   saleItems: SaleItem[];
   whatsapp: string;
 };
@@ -146,18 +147,21 @@ async function getHomeData(): Promise<HomeData> {
 
     return {
       heroImage: settings.heroImageUrl || showcase?.imageUrl || "",
-      showcaseName: showcase?.name ?? "",
+      // Name shown on the hero "featured piece" — managed in Settings. When
+      // empty it shows a brand default (never a raw product name).
+      showcaseName: settings.heroImageTitle || "",
+      showcaseSubtitle: settings.heroImageSubtitle || "",
       saleItems,
       whatsapp: settings.whatsappNumber?.replace(/[^0-9]/g, "") ?? "",
     };
   } catch (err) {
     console.error("Failed to load home data:", err);
-    return { heroImage: "", showcaseName: "", saleItems: [], whatsapp: "" };
+    return { heroImage: "", showcaseName: "", showcaseSubtitle: "", saleItems: [], whatsapp: "" };
   }
 }
 
 export default async function HomePage() {
-  const { heroImage, showcaseName, saleItems, whatsapp } = await getHomeData();
+  const { heroImage, showcaseName, showcaseSubtitle, saleItems, whatsapp } = await getHomeData();
   const heroSale = saleItems.slice(0, 2);
   const waLink = (text: string) =>
     whatsapp ? `https://wa.me/${whatsapp}?text=${encodeURIComponent(text)}` : "/products";
@@ -246,7 +250,7 @@ export default async function HomePage() {
               <div className="mt-3 flex items-center justify-between">
                 <div>
                   <p className="text-sm font-semibold">{showcaseName || "SOMART Signature"}</p>
-                  <p className="text-xs text-muted">Curated selection</p>
+                  <p className="text-xs text-muted">{showcaseSubtitle || "Curated selection"}</p>
                 </div>
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-brand/12 px-3 py-1.5 text-xs font-semibold text-gold">
                   <WhatsAppIcon className="h-3.5 w-3.5" /> Ask price

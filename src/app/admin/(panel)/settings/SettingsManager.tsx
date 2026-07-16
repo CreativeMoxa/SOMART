@@ -18,6 +18,8 @@ type Settings = {
   address: string;
   businessHours?: string;
   heroImageUrl?: string;
+  heroImageTitle?: string;
+  heroImageSubtitle?: string;
   saleItems?: SaleItem[];
   currency: string;
   currencySymbol: string;
@@ -311,6 +313,36 @@ export default function SettingsManager() {
                 )}
               </div>
             </div>
+          </div>
+
+          <div className="mt-6">
+            <label htmlFor="st-hero-title" className="text-sm font-semibold">
+              Feature photo name
+            </label>
+            <input
+              id="st-hero-title"
+              value={settings.heroImageTitle ?? ""}
+              onChange={(e) => set("heroImageTitle", e.target.value)}
+              placeholder="e.g. Ray-Ban Aviator — Gold"
+              className={inputClass}
+            />
+            <p className="mt-1 text-xs text-muted">
+              The name shown on the homepage hero &quot;featured piece&quot; card.
+              Leave empty to show your brand name.
+            </p>
+          </div>
+          <div className="mt-4">
+            <label htmlFor="st-hero-sub" className="text-sm font-semibold">
+              Feature photo caption{" "}
+              <span className="font-normal text-muted">(optional)</span>
+            </label>
+            <input
+              id="st-hero-sub"
+              value={settings.heroImageSubtitle ?? ""}
+              onChange={(e) => set("heroImageSubtitle", e.target.value)}
+              placeholder="e.g. New this week"
+              className={inputClass}
+            />
           </div>
         </div>
 
