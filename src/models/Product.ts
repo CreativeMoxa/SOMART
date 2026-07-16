@@ -23,6 +23,9 @@ const productSchema = new Schema(
     costPrice: { type: Number, default: 0, min: 0 },
     discountPercent: { type: Number, default: 0, min: 0, max: 90 },
     description: { type: String, default: "" },
+    // Supplier link (e.g. 1688) carried over from the freight shipment line.
+    // Internal/admin only — never shown on the public storefront.
+    link1688: { type: String, default: "" },
     imageUrl: { type: String, default: "" },
     images: { type: [String], default: [] },
     specs: {

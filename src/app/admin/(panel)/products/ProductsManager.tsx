@@ -36,6 +36,7 @@ const emptyForm = {
   discountPercent: "",
   stockQty: "",
   description: "",
+  link1688: "",
   imageUrl: "",
   images: [] as string[],
   colors: "",
@@ -70,6 +71,7 @@ function toForm(p: ProductJSON): FormState {
     discountPercent: String(p.discountPercent ?? 0),
     stockQty: String(p.stockQty ?? 0),
     description: p.description ?? "",
+    link1688: p.link1688 ?? "",
     imageUrl: p.imageUrl ?? "",
     images: p.images ?? [],
     colors: (p.colors ?? []).join(", "),
@@ -218,6 +220,7 @@ export default function ProductsManager({ initialFilter = "" }: { initialFilter?
       stockQty,
       inStock: stockQty > 0,
       description: form.description,
+      link1688: form.link1688,
       imageUrl: form.imageUrl,
       images: form.images,
       colors: form.colors.split(",").map((c) => c.trim()).filter(Boolean),
@@ -437,6 +440,17 @@ export default function ProductsManager({ initialFilter = "" }: { initialFilter?
                           )}
                         </p>
                         <p className="text-xs text-muted">{product.brand}</p>
+                        {product.link1688 && (
+                          <a
+                            href={product.link1688}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="mt-0.5 inline-flex cursor-pointer items-center gap-1 text-[11px] font-semibold text-gold hover:underline"
+                          >
+                            1688 link ↗
+                          </a>
+                        )}
                       </div>
                     </div>
                   </td>
@@ -753,6 +767,22 @@ export default function ProductsManager({ initialFilter = "" }: { initialFilter?
                 rows={3}
                 value={form.description}
                 onChange={(e) => set("description", e.target.value)}
+                className={inputClass}
+              />
+            </div>
+
+            <div className="mt-4">
+              <label htmlFor="p-link1688" className="text-sm font-semibold">
+                Supplier link{" "}
+                <span className="font-normal text-muted">(1688 — internal, not shown to customers)</span>
+              </label>
+              <input
+                id="p-link1688"
+                type="url"
+                inputMode="url"
+                placeholder="https://detail.1688.com/…"
+                value={form.link1688}
+                onChange={(e) => set("link1688", e.target.value)}
                 className={inputClass}
               />
             </div>

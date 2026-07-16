@@ -12,6 +12,7 @@ type Product = {
   slug: string;
   category: string;
   imageUrl?: string;
+  link1688?: string;
   price: number;
   costPrice?: number;
   stockQty?: number;
@@ -374,6 +375,16 @@ export default function InventoryManager() {
                         <div>
                           <p className="font-semibold">{p.name}</p>
                           <p className="text-xs capitalize text-muted">{p.category}</p>
+                          {p.link1688 && (
+                            <a
+                              href={p.link1688}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="mt-0.5 inline-flex cursor-pointer items-center gap-1 text-[11px] font-semibold text-gold hover:underline"
+                            >
+                              1688 link ↗
+                            </a>
+                          )}
                         </div>
                       </div>
                     </td>

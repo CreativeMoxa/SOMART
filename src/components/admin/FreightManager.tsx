@@ -57,6 +57,7 @@ type ProductOption = {
   price: number;
   costPrice?: number;
   imageUrl?: string;
+  link1688?: string;
 };
 
 const CATEGORIES = ["eyeglasses", "sunglasses", "watches", "accessories"];
@@ -221,6 +222,8 @@ export default function FreightManager({ freightType }: { freightType: FreightTy
       costPrice: p.costPrice ?? 0,
       sellingPrice: p.price,
       imageUrl: p.imageUrl || "",
+      // Carry the product's saved supplier link into this shipment line.
+      link1688: p.link1688 || "",
     });
     setPickerOpenAt(null);
   }

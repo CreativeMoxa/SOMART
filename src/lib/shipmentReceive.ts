@@ -43,6 +43,7 @@ export async function receiveItem(shipment: ShipmentDocument, item: ShipmentItem
       price: item.sellingPrice || item.costPrice || 0,
       costPrice: item.costPrice || 0,
       description: item.description || "",
+      link1688: item.link1688 || "",
       imageUrl: item.imageUrl || "",
       images: item.imageUrl ? [item.imageUrl] : [],
       minStock: item.minStock ?? 5,
@@ -54,6 +55,7 @@ export async function receiveItem(shipment: ShipmentDocument, item: ShipmentItem
     // Fill gaps on the existing product from the shipment line.
     if ((product.costPrice ?? 0) === 0 && item.costPrice) product.costPrice = item.costPrice;
     if ((product.price ?? 0) === 0 && item.sellingPrice) product.price = item.sellingPrice;
+    if (!product.link1688 && item.link1688) product.link1688 = item.link1688;
     if (!product.imageUrl && item.imageUrl) {
       product.imageUrl = item.imageUrl;
       if (!product.images?.length) product.images = [item.imageUrl];

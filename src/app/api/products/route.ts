@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
     const slim = searchParams.get("slim") === "1";
     const query = Product.find(filter).sort({ createdAt: -1 });
     if (slim) {
-      query.select("name slug brand category price discountPercent imageUrl stockQty inStock");
+      query.select("name slug brand category price discountPercent imageUrl stockQty inStock link1688");
     }
     const products = await query.lean();
     return NextResponse.json(products);
