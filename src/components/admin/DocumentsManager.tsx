@@ -924,7 +924,10 @@ export default function DocumentsManager({
                         className={inputClass}
                       />
                       {productOpenAt === i && (
-                        <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-64 overflow-y-auto rounded-xl border border-line bg-background shadow-xl">
+                        // On phones the product input sits low in the form, so a
+                        // downward dropdown hides behind the keyboard and can't be
+                        // scrolled — open it UPWARD on mobile, downward on sm+.
+                        <div className="absolute left-0 right-0 z-20 max-h-56 overflow-y-auto overscroll-contain rounded-xl border border-line bg-background shadow-xl bottom-full mb-1 sm:bottom-auto sm:top-full sm:mb-0 sm:mt-1 sm:max-h-64">
                           {matches.map((p) => (
                             <button
                               key={p._id}

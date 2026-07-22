@@ -763,7 +763,7 @@ export default function FreightManager({ freightType }: { freightType: FreightTy
                               className={inputClass}
                             />
                             {!locked && pickerOpenAt === i && matches.length > 0 && (
-                              <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-56 overflow-y-auto rounded-xl border border-line bg-background shadow-xl">
+                              <div className="absolute left-0 right-0 z-20 max-h-56 overflow-y-auto overscroll-contain rounded-xl border border-line bg-background shadow-xl bottom-full mb-1 sm:bottom-auto sm:top-full sm:mb-0 sm:mt-1">
                                 {matches.map((p) => (
                                   <button
                                     key={p._id}
