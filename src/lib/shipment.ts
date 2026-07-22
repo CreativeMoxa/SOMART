@@ -1,6 +1,7 @@
 import { Shipment } from "@/models/Shipment";
 import { FREIGHT_META, SHIPMENT_STATUSES, type FreightType, type ShipmentStatus } from "@/lib/freight";
 import { round2 } from "@/lib/profit";
+import { cleanVariants, sumVariants } from "@/models/Product";
 
 const OBJECT_ID = /^[0-9a-f]{24}$/i;
 
@@ -11,6 +12,7 @@ export type ShipmentItemInput = {
   link1688?: unknown;
   trackingNumber?: unknown;
   qty?: unknown;
+  variants?: unknown;
   costPrice?: unknown;
   sellingPrice?: unknown;
   brand?: unknown;
@@ -33,7 +35,12 @@ export function shapeShipmentPayload(body: Record<string, unknown>) {
   const items = rawItems
     .map((i) => {
       const pid = String(i.productId ?? "");
-      const qty = Math.max(1, Math.floor(Number(i.qty) || 1));
+      const variants = cleanVariants(i.variants);
+      // With variants, the line qty is their sum; otherwise the typed qty.
+      const qty =
+        variants.length > 0
+          ? Math.max(1, sumVariants(variants))
+          : Math.max(1, Math.floor(Number(i.qty) || 1));
       const costPrice = Math.max(0, Number(i.costPrice) || 0);
       const sellingPrice = Math.max(0, Number(i.sellingPrice) || 0);
       const received = i.received === true;
@@ -44,6 +51,7 @@ export function shapeShipmentPayload(body: Record<string, unknown>) {
         link1688: String(i.link1688 ?? "").trim(),
         trackingNumber: String(i.trackingNumber ?? "").trim(),
         qty,
+        variants,
         costPrice,
         sellingPrice,
         brand: String(i.brand ?? "").trim(),

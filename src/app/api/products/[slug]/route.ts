@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
-import { Product } from "@/models/Product";
+import { Product, cleanVariants, sumVariants } from "@/models/Product";
 import { isAdmin } from "@/lib/auth";
 
 export async function GET(
@@ -34,6 +34,16 @@ export async function PATCH(
     const { slug } = await params;
     const body = await req.json();
     delete body._id;
+
+    // Keep stockQty in sync with variant counts when variants are edited.
+    if (Array.isArray(body.variants)) {
+      const variants = cleanVariants(body.variants);
+      body.variants = variants;
+      if (variants.length > 0) {
+        body.stockQty = sumVariants(variants);
+        body.inStock = body.stockQty > 0;
+      }
+    }
 
     const product = await Product.findOneAndUpdate(
       { slug },

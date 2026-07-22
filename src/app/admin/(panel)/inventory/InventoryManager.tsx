@@ -13,6 +13,7 @@ type Product = {
   category: string;
   imageUrl?: string;
   link1688?: string;
+  variants?: { name: string; qty: number }[];
   price: number;
   costPrice?: number;
   stockQty?: number;
@@ -384,6 +385,18 @@ export default function InventoryManager() {
                             >
                               1688 link ↗
                             </a>
+                          )}
+                          {(p.variants ?? []).length > 0 && (
+                            <span className="mt-1 flex flex-wrap gap-1">
+                              {p.variants!.map((v, i) => (
+                                <span
+                                  key={i}
+                                  className="rounded bg-background px-1.5 py-0.5 text-[10px] font-medium text-muted"
+                                >
+                                  {v.name} {v.qty}
+                                </span>
+                              ))}
+                            </span>
                           )}
                         </div>
                       </div>

@@ -19,6 +19,7 @@ type ShipmentItem = {
   link1688: string;
   trackingNumber: string;
   qty: number;
+  variants: { name: string; qty: number }[];
   costPrice: number;
   sellingPrice: number;
   brand: string;
@@ -58,12 +59,15 @@ type ProductOption = {
   costPrice?: number;
   imageUrl?: string;
   link1688?: string;
+  variants?: { name: string; qty: number }[];
 };
 
 const CATEGORIES = ["eyeglasses", "sunglasses", "watches", "accessories"];
 
 const inputClass =
   "mt-1 w-full rounded-xl border border-line bg-background px-3.5 py-2.5 text-sm transition-colors duration-200 focus:border-gold focus:outline-2 focus:outline-offset-1 focus:outline-gold/40 disabled:cursor-not-allowed disabled:opacity-50";
+const variantInputClass =
+  "rounded-xl border border-line bg-background px-3 py-2 text-sm transition-colors duration-200 focus:border-gold focus:outline-2 focus:outline-offset-1 focus:outline-gold/40 disabled:cursor-not-allowed disabled:opacity-50";
 
 function money(n: number) {
   return `$${(n ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -80,6 +84,7 @@ function emptyItem(): ShipmentItem {
     link1688: "",
     trackingNumber: "",
     qty: 1,
+    variants: [],
     costPrice: 0,
     sellingPrice: 0,
     brand: "",
@@ -213,7 +218,42 @@ export default function FreightManager({ freightType }: { freightType: FreightTy
     setItems((rows) => rows.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
   }
 
+  // ── Per-line colour/size variants ────────────────────────────────────────
+  const lineVariantsTotal = (item: ShipmentItem) =>
+    (item.variants ?? []).reduce((s, v) => s + (Math.max(0, Math.floor(Number(v.qty) || 0))), 0);
+
+  function updateLineVariants(i: number, variants: { name: string; qty: number }[]) {
+    setItems((rows) =>
+      rows.map((r, idx) => {
+        if (idx !== i) return r;
+        const total = variants.reduce((s, v) => s + Math.max(0, Math.floor(Number(v.qty) || 0)), 0);
+        // When variants exist, the line qty is their sum.
+        return { ...r, variants, qty: variants.length > 0 ? Math.max(1, total) : r.qty };
+      })
+    );
+  }
+  function addLineVariant(i: number) {
+    const item = items[i];
+    updateLineVariants(i, [...(item.variants ?? []), { name: "", qty: 0 }]);
+  }
+  function setLineVariant(i: number, vi: number, patch: Partial<{ name: string; qty: number }>) {
+    const item = items[i];
+    updateLineVariants(
+      i,
+      (item.variants ?? []).map((v, j) => (j === vi ? { ...v, ...patch } : v))
+    );
+  }
+  function removeLineVariant(i: number, vi: number) {
+    const item = items[i];
+    updateLineVariants(
+      i,
+      (item.variants ?? []).filter((_, j) => j !== vi)
+    );
+  }
+
   function linkProduct(i: number, p: ProductOption) {
+    // Bring the product's colour names so you only fill in this order's counts.
+    const variants = (p.variants ?? []).map((v) => ({ name: v.name, qty: 0 }));
     setItem(i, {
       productId: p._id,
       name: p.name,
@@ -224,6 +264,7 @@ export default function FreightManager({ freightType }: { freightType: FreightTy
       imageUrl: p.imageUrl || "",
       // Carry the product's saved supplier link into this shipment line.
       link1688: p.link1688 || "",
+      variants,
     });
     setPickerOpenAt(null);
   }
@@ -822,10 +863,59 @@ export default function FreightManager({ freightType }: { freightType: FreightTy
                             ))}
                           </select>
                           <div className="grid grid-cols-3 gap-2">
-                            <input aria-label={`Product ${i + 1} qty`} type="number" min="1" placeholder="Qty" disabled={locked} value={item.qty || ""} onChange={(e) => setItem(i, { qty: Math.max(1, Number(e.target.value) || 1) })} className={inputClass} />
+                            <input aria-label={`Product ${i + 1} qty`} type="number" min="1" placeholder="Qty" disabled={locked || (item.variants ?? []).length > 0} value={(item.variants ?? []).length > 0 ? lineVariantsTotal(item) : (item.qty || "")} onChange={(e) => setItem(i, { qty: Math.max(1, Number(e.target.value) || 1) })} className={inputClass} />
                             <input aria-label={`Product ${i + 1} cost`} type="number" min="0" step="0.01" placeholder="Cost" disabled={locked} value={item.costPrice || ""} onChange={(e) => setItem(i, { costPrice: Number(e.target.value) || 0 })} className={inputClass} />
                             <input aria-label={`Product ${i + 1} selling`} type="number" min="0" step="0.01" placeholder="Sell" disabled={locked} value={item.sellingPrice || ""} onChange={(e) => setItem(i, { sellingPrice: Number(e.target.value) || 0 })} className={inputClass} />
                           </div>
+
+                          {/* Colour/size variants for this line (White 30, Blue 30, …) */}
+                          {!locked && (
+                            <div className="rounded-xl border border-dashed border-line p-2.5">
+                              <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted">
+                                Variants
+                                {(item.variants ?? []).length > 0 ? ` · ${lineVariantsTotal(item)} total` : ""}
+                              </span>
+                              {(item.variants ?? []).length > 0 && (
+                                <div className="mt-2 space-y-1.5">
+                                  {item.variants.map((v, vi) => (
+                                    <div key={vi} className="flex gap-1.5">
+                                      <input
+                                        aria-label={`Product ${i + 1} variant ${vi + 1} colour`}
+                                        placeholder="Colour"
+                                        value={v.name}
+                                        onChange={(e) => setLineVariant(i, vi, { name: e.target.value })}
+                                        className={`${variantInputClass} flex-1`}
+                                      />
+                                      <input
+                                        aria-label={`Product ${i + 1} variant ${vi + 1} qty`}
+                                        type="number"
+                                        min="0"
+                                        placeholder="Qty"
+                                        value={v.qty || ""}
+                                        onChange={(e) => setLineVariant(i, vi, { qty: Math.max(0, Number(e.target.value) || 0) })}
+                                        className={`${variantInputClass} w-20`}
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() => removeLineVariant(i, vi)}
+                                        aria-label="Remove variant"
+                                        className="shrink-0 cursor-pointer rounded-lg p-1.5 text-muted transition-colors duration-200 hover:text-red-500"
+                                      >
+                                        <TrashIcon className="h-4 w-4" />
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => addLineVariant(i)}
+                                className="mt-2 cursor-pointer text-[11px] font-semibold uppercase tracking-[0.1em] text-gold hover:underline"
+                              >
+                                + Add colour variant
+                              </button>
+                            </div>
+                          )}
                           <input
                             aria-label={`Product ${i + 1} note`}
                             placeholder="Note (optional)"

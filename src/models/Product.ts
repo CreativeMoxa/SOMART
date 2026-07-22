@@ -40,6 +40,13 @@ const productSchema = new Schema(
       default: "unisex",
     },
     stockQty: { type: Number, default: 0, min: 0 },
+    // Colour/size variants with per-variant counts, e.g. White 30, Blue 30.
+    // When present, stockQty is kept as the sum of variant counts. Selling still
+    // deducts from the overall stockQty (variants are a breakdown + display).
+    variants: {
+      type: [{ _id: false, name: { type: String, default: "" }, qty: { type: Number, default: 0, min: 0 } }],
+      default: [],
+    },
     minStock: { type: Number, default: 5, min: 0 }, // low-stock threshold
     inStock: { type: Boolean, default: true },
     soldCount: { type: Number, default: 0 },
@@ -75,6 +82,23 @@ export type ProductDoc = InferSchemaType<typeof productSchema> & {
   markupPercent: number;
   marginPercent: number;
 };
+
+export type ProductVariant = { name: string; qty: number };
+
+// Normalise a raw variants array: keep only named rows, clamp qty ≥ 0.
+export function cleanVariants(raw: unknown): ProductVariant[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((v) => ({
+      name: String((v as ProductVariant)?.name ?? "").trim(),
+      qty: Math.max(0, Math.floor(Number((v as ProductVariant)?.qty) || 0)),
+    }))
+    .filter((v) => v.name);
+}
+
+export function sumVariants(variants: ProductVariant[] | undefined | null): number {
+  return (variants ?? []).reduce((s, v) => s + (Number(v.qty) || 0), 0);
+}
 
 export function salePrice(p: { price: number; discountPercent?: number }) {
   const pct = p.discountPercent ?? 0;

@@ -11,6 +11,12 @@ const shipmentItemFields = {
   // Every product travels with its own tracking number.
   trackingNumber: { type: String, default: "" },
   qty: { type: Number, required: true, min: 1 },
+  // Colour/size variants for this line, e.g. White 30, Blue 30. When present,
+  // qty is the sum of these. Rolled onto the product on receive.
+  variants: {
+    type: [{ _id: false, name: { type: String, default: "" }, qty: { type: Number, default: 0, min: 0 } }],
+    default: [],
+  },
   costPrice: { type: Number, default: 0, min: 0 },
   sellingPrice: { type: Number, default: 0, min: 0 },
   // Silent product info — used to build the store product on receive

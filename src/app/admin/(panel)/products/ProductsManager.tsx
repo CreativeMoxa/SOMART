@@ -45,12 +45,15 @@ const emptyForm = {
   gender: "unisex",
   featured: false,
   visible: true,
+  variants: [] as { name: string; qty: string }[],
 };
 
 type FormState = typeof emptyForm;
 
 const inputClass =
   "mt-1 w-full rounded-xl border border-line bg-background px-3.5 py-2.5 text-sm transition-colors duration-200 focus:border-gold focus:outline-2 focus:outline-offset-1 focus:outline-gold/40";
+const variantInputClass =
+  "rounded-xl border border-line bg-background px-3.5 py-2.5 text-sm transition-colors duration-200 focus:border-gold focus:outline-2 focus:outline-offset-1 focus:outline-gold/40";
 
 function slugify(value: string) {
   return value
@@ -80,6 +83,7 @@ function toForm(p: ProductJSON): FormState {
     gender: p.gender ?? "unisex",
     featured: p.featured,
     visible: p.visible ?? true,
+    variants: (p.variants ?? []).map((v) => ({ name: v.name ?? "", qty: String(v.qty ?? 0) })),
   };
 }
 
@@ -156,6 +160,24 @@ export default function ProductsManager({ initialFilter = "" }: { initialFilter?
     setForm((f) => ({ ...f, [key]: value }));
   }
 
+  // ── Colour/size variants (name + count) ──────────────────────────────────
+  const variantsTotal = form.variants.reduce(
+    (s, v) => s + Math.max(0, Math.floor(Number(v.qty) || 0)),
+    0
+  );
+  function addVariant() {
+    setForm((f) => ({ ...f, variants: [...f.variants, { name: "", qty: "" }] }));
+  }
+  function setVariant(i: number, patch: Partial<{ name: string; qty: string }>) {
+    setForm((f) => ({
+      ...f,
+      variants: f.variants.map((v, j) => (j === i ? { ...v, ...patch } : v)),
+    }));
+  }
+  function removeVariant(i: number) {
+    setForm((f) => ({ ...f, variants: f.variants.filter((_, j) => j !== i) }));
+  }
+
   function openNew() {
     setForm(emptyForm);
     setEditing("");
@@ -208,7 +230,14 @@ export default function ProductsManager({ initialFilter = "" }: { initialFilter?
     setSaving(true);
     setError(null);
 
-    const stockQty = Math.max(0, Math.floor(Number(form.stockQty) || 0));
+    // With variants, stock is their sum; otherwise the typed quantity.
+    const variants = form.variants
+      .map((v) => ({ name: v.name.trim(), qty: Math.max(0, Math.floor(Number(v.qty) || 0)) }))
+      .filter((v) => v.name);
+    const stockQty =
+      variants.length > 0
+        ? variants.reduce((s, v) => s + v.qty, 0)
+        : Math.max(0, Math.floor(Number(form.stockQty) || 0));
     const payload = {
       name: form.name,
       slug: form.slug || slugify(form.name),
@@ -219,6 +248,7 @@ export default function ProductsManager({ initialFilter = "" }: { initialFilter?
       discountPercent: Math.min(90, Math.max(0, Number(form.discountPercent) || 0)),
       stockQty,
       inStock: stockQty > 0,
+      variants,
       description: form.description,
       link1688: form.link1688,
       imageUrl: form.imageUrl,
@@ -450,6 +480,18 @@ export default function ProductsManager({ initialFilter = "" }: { initialFilter?
                           >
                             1688 link ↗
                           </a>
+                        )}
+                        {(product.variants ?? []).length > 0 && (
+                          <span className="mt-1 flex flex-wrap gap-1">
+                            {product.variants!.map((v, i) => (
+                              <span
+                                key={i}
+                                className="rounded bg-surface px-1.5 py-0.5 text-[10px] font-medium text-muted"
+                              >
+                                {v.name} {v.qty}
+                              </span>
+                            ))}
+                          </span>
                         )}
                       </div>
                     </div>
@@ -686,14 +728,20 @@ export default function ProductsManager({ initialFilter = "" }: { initialFilter?
                 />
               </div>
               <div>
-                <label htmlFor="p-stock" className="text-sm font-semibold">Stock Quantity</label>
+                <label htmlFor="p-stock" className="text-sm font-semibold">
+                  Stock Quantity
+                  {form.variants.length > 0 && (
+                    <span className="font-normal text-muted"> (from variants)</span>
+                  )}
+                </label>
                 <input
                   id="p-stock"
                   type="number"
                   min="0"
-                  value={form.stockQty}
+                  value={form.variants.length > 0 ? variantsTotal : form.stockQty}
                   onChange={(e) => set("stockQty", e.target.value)}
-                  className={inputClass}
+                  disabled={form.variants.length > 0}
+                  className={`${inputClass} ${form.variants.length > 0 ? "opacity-60" : ""}`}
                 />
               </div>
               <div>
@@ -716,6 +764,65 @@ export default function ProductsManager({ initialFilter = "" }: { initialFilter?
                   className={inputClass}
                 />
               </div>
+            </div>
+
+            {/* Variants: colour/size + count (White 30, Blue 30, …) */}
+            <div className="mt-4 rounded-2xl border border-line bg-surface p-4">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-semibold">
+                  Variants{" "}
+                  <span className="font-normal text-muted">
+                    (colour/size + count, e.g. White 30)
+                  </span>
+                </span>
+                {form.variants.length > 0 && (
+                  <span className="text-xs font-semibold text-gold">Total: {variantsTotal}</span>
+                )}
+              </div>
+              {form.variants.length > 0 && (
+                <div className="mt-3 space-y-2">
+                  {form.variants.map((v, i) => (
+                    <div key={i} className="flex gap-2">
+                      <input
+                        aria-label={`Variant ${i + 1} name`}
+                        placeholder="e.g. White"
+                        value={v.name}
+                        onChange={(e) => setVariant(i, { name: e.target.value })}
+                        className={`${variantInputClass} flex-1`}
+                      />
+                      <input
+                        aria-label={`Variant ${i + 1} quantity`}
+                        type="number"
+                        min="0"
+                        placeholder="Qty"
+                        value={v.qty}
+                        onChange={(e) => setVariant(i, { qty: e.target.value })}
+                        className={`${variantInputClass} w-24`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeVariant(i)}
+                        aria-label={`Remove variant ${i + 1}`}
+                        className="shrink-0 cursor-pointer rounded-lg p-2 text-muted transition-colors duration-200 hover:bg-background hover:text-red-500"
+                      >
+                        <TrashIcon className="h-4.5 w-4.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={addVariant}
+                className="mt-3 cursor-pointer text-xs font-semibold uppercase tracking-[0.12em] text-gold hover:underline"
+              >
+                + Add variant
+              </button>
+              {form.variants.length > 0 && (
+                <p className="mt-2 text-xs text-muted">
+                  Stock quantity is set automatically from the total of your variants.
+                </p>
+              )}
             </div>
 
             {(() => {

@@ -1,7 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
-import { Product } from "@/models/Product";
+import { Product, cleanVariants, sumVariants } from "@/models/Product";
 import { isAdmin } from "@/lib/auth";
+
+// When variants are supplied, keep stockQty (the sellable total) as their sum.
+function applyVariantTotals(body: Record<string, unknown>) {
+  if (Array.isArray(body.variants)) {
+    const variants = cleanVariants(body.variants);
+    body.variants = variants;
+    if (variants.length > 0) {
+      body.stockQty = sumVariants(variants);
+      body.inStock = (body.stockQty as number) > 0;
+    }
+  }
+}
 
 export async function GET(req: NextRequest) {
   try {
@@ -33,7 +45,7 @@ export async function GET(req: NextRequest) {
     const slim = searchParams.get("slim") === "1";
     const query = Product.find(filter).sort({ createdAt: -1 });
     if (slim) {
-      query.select("name slug brand category price discountPercent imageUrl stockQty inStock link1688");
+      query.select("name slug brand category price discountPercent imageUrl stockQty inStock link1688 variants");
     }
     const products = await query.lean();
     return NextResponse.json(products);
@@ -51,6 +63,7 @@ export async function POST(req: NextRequest) {
   try {
     await connectDB();
     const body = await req.json();
+    applyVariantTotals(body);
     const product = await Product.create(body);
     return NextResponse.json(product, { status: 201 });
   } catch (err) {

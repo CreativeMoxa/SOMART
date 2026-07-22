@@ -1,10 +1,30 @@
 import type { HydratedDocument } from "mongoose";
-import { Product, PRODUCT_CATEGORIES } from "@/models/Product";
+import { Product, PRODUCT_CATEGORIES, type ProductVariant } from "@/models/Product";
 import type { ShipmentDoc } from "@/models/Shipment";
 import { applyStock } from "@/lib/inventory";
 
 type ShipmentDocument = HydratedDocument<ShipmentDoc>;
 type ShipmentItem = ShipmentDocument["items"][number];
+
+// Add incoming variant counts onto the product's existing breakdown, matching
+// by colour name (case-insensitive) and appending anything new.
+function mergeVariants(
+  existing: ProductVariant[] | undefined,
+  incoming: ProductVariant[] | undefined
+): ProductVariant[] {
+  const out: ProductVariant[] = (existing ?? []).map((v) => ({
+    name: v.name,
+    qty: Number(v.qty) || 0,
+  }));
+  for (const inc of incoming ?? []) {
+    const name = String(inc.name ?? "").trim();
+    if (!name) continue;
+    const match = out.find((v) => v.name.toLowerCase() === name.toLowerCase());
+    if (match) match.qty += Number(inc.qty) || 0;
+    else out.push({ name, qty: Number(inc.qty) || 0 });
+  }
+  return out;
+}
 
 function slugify(value: string) {
   return value
@@ -46,6 +66,7 @@ export async function receiveItem(shipment: ShipmentDocument, item: ShipmentItem
       link1688: item.link1688 || "",
       imageUrl: item.imageUrl || "",
       images: item.imageUrl ? [item.imageUrl] : [],
+      variants: (item.variants ?? []).map((v) => ({ name: v.name, qty: Number(v.qty) || 0 })),
       minStock: item.minStock ?? 5,
       stockQty: 0,
       inStock: false,
@@ -60,6 +81,10 @@ export async function receiveItem(shipment: ShipmentDocument, item: ShipmentItem
       product.imageUrl = item.imageUrl;
       if (!product.images?.length) product.images = [item.imageUrl];
     }
+    // Roll this line's colour counts onto the product's breakdown.
+    if ((item.variants ?? []).length > 0) {
+      product.set("variants", mergeVariants(product.variants, item.variants));
+    }
   }
 
   await applyStock(product, item.qty, movementType, {
@@ -70,6 +95,9 @@ export async function receiveItem(shipment: ShipmentDocument, item: ShipmentItem
 
   item.received = true;
   item.receivedAt = new Date();
+  // The tracking number is only needed in transit — once the product is in
+  // inventory it is cleared from the shipment line.
+  item.trackingNumber = "";
 }
 
 // Reverse a received line (product missing / mistake): pull the stock back out
@@ -81,9 +109,18 @@ export async function unreceiveItem(shipment: ShipmentDocument, item: ShipmentIt
   if (item.productId) {
     const product = await Product.findById(item.productId);
     if (product) {
+      // Pull this line's colour counts back out of the breakdown.
+      if ((item.variants ?? []).length > 0 && (product.variants ?? []).length > 0) {
+        for (const inc of item.variants) {
+          const match = product.variants.find(
+            (v) => v.name.toLowerCase() === String(inc.name ?? "").trim().toLowerCase()
+          );
+          if (match) match.qty = Math.max(0, (Number(match.qty) || 0) - (Number(inc.qty) || 0));
+        }
+      }
       await applyStock(product, -item.qty, movementType, {
         reference: shipment.number,
-        note: item.trackingNumber ? `${item.name} · track ${item.trackingNumber}` : item.name,
+        note: item.name,
       });
     }
   }

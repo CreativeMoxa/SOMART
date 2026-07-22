@@ -177,12 +177,28 @@ export default async function ProductDetailPage({
                 <dd className="text-muted">{product.material}</dd>
               </div>
             )}
-            {(product.colors ?? []).length > 0 && (
-              <div className="flex gap-2">
-                <dt className="font-semibold">Colors:</dt>
-                <dd className="text-muted">{product.colors.join(", ")}</dd>
-              </div>
-            )}
+            {(() => {
+              // Show available colours from in-stock variants, else the colours list.
+              const fromVariants = (product.variants ?? [])
+                .filter((v) => (v.qty ?? 0) > 0)
+                .map((v) => v.name);
+              const colours = fromVariants.length > 0 ? fromVariants : product.colors ?? [];
+              return colours.length > 0 ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  <dt className="font-semibold">Colours:</dt>
+                  <dd className="flex flex-wrap gap-1.5">
+                    {colours.map((c, i) => (
+                      <span
+                        key={i}
+                        className="rounded-full border border-line bg-surface px-2.5 py-0.5 text-xs font-medium"
+                      >
+                        {c}
+                      </span>
+                    ))}
+                  </dd>
+                </div>
+              ) : null;
+            })()}
             <div className="flex gap-2">
               <dt className="font-semibold">Fit:</dt>
               <dd className="capitalize text-muted">{product.gender}</dd>
