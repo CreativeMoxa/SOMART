@@ -1005,8 +1005,14 @@ export default function DocumentsManager({
                         aria-label={`Item ${i + 1} quantity`}
                         type="number"
                         min="1"
-                        value={item.qty}
-                        onChange={(e) => setItem(i, { qty: Math.max(1, Number(e.target.value) || 1) })}
+                        value={item.qty || ""}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setItem(i, { qty: v === "" ? 0 : Math.max(0, Math.floor(Number(v) || 0)) });
+                        }}
+                        onBlur={(e) => {
+                          if (!e.target.value || Number(e.target.value) < 1) setItem(i, { qty: 1 });
+                        }}
                         className={inputClass}
                       />
                     </div>

@@ -18,7 +18,7 @@ export default function AdminSidebar() {
   }
 
   return (
-    <aside className="sticky top-24 hidden h-fit w-52 shrink-0 flex-col gap-1 print:hidden lg:flex">
+    <aside className="sticky top-20 hidden max-h-[calc(100vh-6rem)] w-52 shrink-0 flex-col gap-1 overflow-y-auto overscroll-contain pr-1 print:hidden lg:flex">
       <p className="px-3 pb-2 text-[10px] font-bold uppercase tracking-[0.25em] text-gold">
         Store Manager
       </p>

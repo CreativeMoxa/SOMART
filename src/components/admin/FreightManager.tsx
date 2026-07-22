@@ -863,7 +863,7 @@ export default function FreightManager({ freightType }: { freightType: FreightTy
                             ))}
                           </select>
                           <div className="grid grid-cols-3 gap-2">
-                            <input aria-label={`Product ${i + 1} qty`} type="number" min="1" placeholder="Qty" disabled={locked || (item.variants ?? []).length > 0} value={(item.variants ?? []).length > 0 ? lineVariantsTotal(item) : (item.qty || "")} onChange={(e) => setItem(i, { qty: Math.max(1, Number(e.target.value) || 1) })} className={inputClass} />
+                            <input aria-label={`Product ${i + 1} qty`} type="number" min="1" placeholder="Qty" disabled={locked || (item.variants ?? []).length > 0} value={(item.variants ?? []).length > 0 ? lineVariantsTotal(item) : (item.qty || "")} onChange={(e) => { const v = e.target.value; setItem(i, { qty: v === "" ? 0 : Math.max(0, Math.floor(Number(v) || 0)) }); }} onBlur={(e) => { if ((item.variants ?? []).length === 0 && (!e.target.value || Number(e.target.value) < 1)) setItem(i, { qty: 1 }); }} className={inputClass} />
                             <input aria-label={`Product ${i + 1} cost`} type="number" min="0" step="0.01" placeholder="Cost" disabled={locked} value={item.costPrice || ""} onChange={(e) => setItem(i, { costPrice: Number(e.target.value) || 0 })} className={inputClass} />
                             <input aria-label={`Product ${i + 1} selling`} type="number" min="0" step="0.01" placeholder="Sell" disabled={locked} value={item.sellingPrice || ""} onChange={(e) => setItem(i, { sellingPrice: Number(e.target.value) || 0 })} className={inputClass} />
                           </div>

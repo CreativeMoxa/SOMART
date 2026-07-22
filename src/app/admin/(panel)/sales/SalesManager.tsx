@@ -518,8 +518,14 @@ export default function SalesManager({ initialRange = "" }: { initialRange?: str
                           type="number"
                           min="1"
                           max={product?.stockQty ?? 999}
-                          value={row.qty}
-                          onChange={(e) => setRow(i, { qty: Math.max(1, Number(e.target.value) || 1) })}
+                          value={row.qty || ""}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            setRow(i, { qty: v === "" ? 0 : Math.max(0, Math.floor(Number(v) || 0)) });
+                          }}
+                          onBlur={(e) => {
+                            if (!e.target.value || Number(e.target.value) < 1) setRow(i, { qty: 1 });
+                          }}
                           className={inputClass}
                         />
                       </div>
