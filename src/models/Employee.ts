@@ -54,6 +54,33 @@ export function normalizeEmail(value: unknown): string {
   return String(value ?? "").trim().toLowerCase();
 }
 
+// Make sure a Founder & CEO always exists so the owner can register and manage
+// the team. Idempotent — does nothing once any CEO is present, so the address
+// can be changed later from the Employees module.
+export async function ensureFounderCeo() {
+  const existing = await Employee.findOne({ role: "founder-ceo" });
+  if (existing) return existing;
+  const email = normalizeEmail(
+    process.env.FOUNDER_EMAIL || "mohamedalitahir5@gmail.com"
+  );
+  const alreadyByEmail = await Employee.findOne({ email });
+  if (alreadyByEmail) {
+    alreadyByEmail.role = "founder-ceo";
+    alreadyByEmail.status = "active";
+    await alreadyByEmail.save();
+    return alreadyByEmail;
+  }
+  return Employee.create({
+    name: process.env.FOUNDER_NAME || "Mohamed Ali Dahir",
+    email,
+    role: "founder-ceo",
+    status: "active",
+    allowMultipleDevices: true,
+    createdBy: "system",
+    updatedBy: "system",
+  });
+}
+
 // An employee may sign in only when they are active AND have finished
 // registering (i.e. they have a password).
 export function canSignIn(e: Pick<EmployeeDoc, "status" | "passwordHash">) {
