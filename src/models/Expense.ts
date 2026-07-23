@@ -1,4 +1,5 @@
 import mongoose, { Schema, type InferSchemaType, type Model } from "mongoose";
+import { auditFields } from "@/lib/auditFields";
 
 export const EXPENSE_CATEGORIES = [
   "rent",
@@ -12,6 +13,7 @@ export const EXPENSE_CATEGORIES = [
 
 const expenseSchema = new Schema(
   {
+    ...auditFields,
     title: { type: String, required: true, trim: true },
     category: { type: String, enum: EXPENSE_CATEGORIES, default: "other" },
     amount: { type: Number, required: true, min: 0 },

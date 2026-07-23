@@ -4,6 +4,7 @@ import { Invoice, INVOICE_STATUSES } from "@/models/Invoice";
 import { shapeDocumentPayload, enrichItemsWithProfit } from "@/lib/documents";
 import { applyInvoicePaid, revertInvoicePaid, removeInvoiceSale } from "@/lib/invoiceSale";
 import { isAdmin } from "@/lib/auth";
+import { actorName, recordAction } from "@/lib/audit";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -64,11 +65,17 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     const wasPaid = invoice.status === "paid";
 
     invoice.set(update);
+    invoice.updatedBy = await actorName();
     await invoice.save();
 
     // Paid ⇄ unpaid transitions move inventory and the linked sale record.
     if (!wasPaid && invoice.status === "paid") await applyInvoicePaid(invoice);
     if (wasPaid && invoice.status !== "paid") await revertInvoicePaid(invoice);
+
+    // Distinguish a status change (e.g. sent / paid) from a normal edit.
+    const verb =
+      body.status && body.status !== "draft" ? `marked ${body.status}` : "edited";
+    await recordAction(`${verb} Invoice ${invoice.number}`, "invoices", invoice.number);
 
     return NextResponse.json(invoice.toObject());
   } catch (err) {
@@ -89,7 +96,9 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
     if (!invoice) return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
     // Deleting a paid invoice restores stock and removes its linked sale.
     await removeInvoiceSale(invoice);
+    const number = invoice.number;
     await invoice.deleteOne();
+    await recordAction(`deleted Invoice ${number}`, "invoices", number);
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("DELETE /api/invoices/[id] failed:", err);

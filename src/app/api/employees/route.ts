@@ -9,6 +9,7 @@ import {
 import { requireModule, requestContext } from "@/lib/auth";
 import { isRole, ROLE_LABELS } from "@/lib/roles";
 import { logActivity } from "@/models/ActivityLog";
+import { sendInviteEmail } from "@/lib/email";
 
 // Employees is a Founder & CEO-only module — enforced here as well as in the UI.
 export async function GET() {
@@ -67,6 +68,19 @@ export async function POST(req: NextRequest) {
       updatedBy: user.name || user.email,
     });
 
+    // Option 1: email them a registration link. Option 2 (always available):
+    // they simply visit Register and use their approved address.
+    let invited = false;
+    if (body.sendInvite === true) {
+      const registerUrl = new URL("/admin/login?tab=register", req.nextUrl.origin).toString();
+      invited = await sendInviteEmail(
+        email,
+        name,
+        ROLE_LABELS[employee.role as keyof typeof ROLE_LABELS],
+        registerUrl
+      );
+    }
+
     const ctx = await requestContext();
     await logActivity({
       employeeId: user.isEnvAdmin ? null : user.id,
@@ -80,7 +94,7 @@ export async function POST(req: NextRequest) {
 
     const doc = employee.toObject() as Record<string, unknown>;
     delete doc.passwordHash;
-    return NextResponse.json(doc, { status: 201 });
+    return NextResponse.json({ ...doc, invited }, { status: 201 });
   } catch (err) {
     console.error("POST /api/employees failed:", err);
     const message = err instanceof Error ? err.message : "Failed to create employee";

@@ -1,5 +1,6 @@
 import mongoose, { Schema, type InferSchemaType, type Model } from "mongoose";
 import { computeProfit } from "@/lib/profit";
+import { auditFields } from "@/lib/auditFields";
 
 export const PRODUCT_CATEGORIES = [
   "eyeglasses",
@@ -10,6 +11,7 @@ export const PRODUCT_CATEGORIES = [
 
 const productSchema = new Schema(
   {
+    ...auditFields,
     name: { type: String, required: true, trim: true },
     slug: { type: String, required: true, unique: true, lowercase: true },
     brand: { type: String, required: true, trim: true },

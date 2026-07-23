@@ -47,6 +47,7 @@ const emptyForm = {
   role: "cashier" as Role,
   status: "active" as EmployeeStatus,
   allowMultipleDevices: true,
+  sendInvite: true,
 };
 type FormState = typeof emptyForm;
 
@@ -68,10 +69,25 @@ function fmtDateTime(value?: string | null) {
   });
 }
 
+type ActivityEntry = {
+  _id: string;
+  employeeName?: string;
+  employeeRole: Role;
+  action: string;
+  module?: string;
+  reference?: string;
+  ip?: string;
+  device?: string;
+  createdAt: string;
+};
+
 export default function EmployeesManager() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [tab, setTab] = useState<"team" | "activity">("team");
+  const [activity, setActivity] = useState<ActivityEntry[]>([]);
+  const [activityLoading, setActivityLoading] = useState(false);
 
   // null = closed, "" = creating, id = editing
   const [editing, setEditing] = useState<string | null>(null);
@@ -96,6 +112,17 @@ export default function EmployeesManager() {
     load();
   }, [load]);
 
+  // Load the rolling activity log the first time the tab is opened.
+  useEffect(() => {
+    if (tab !== "activity") return;
+    setActivityLoading(true);
+    fetch("/api/activity")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((d) => Array.isArray(d) && setActivity(d))
+      .catch(() => {})
+      .finally(() => setActivityLoading(false));
+  }, [tab]);
+
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((f) => ({ ...f, [key]: value }));
   }
@@ -115,6 +142,7 @@ export default function EmployeesManager() {
       role: e.role,
       status: e.status,
       allowMultipleDevices: e.allowMultipleDevices !== false,
+      sendInvite: false,
     });
     setEditing(e._id);
     setError(null);
@@ -217,13 +245,35 @@ export default function EmployeesManager() {
             Founder &amp; CEO can manage this list
           </p>
         </div>
-        <button
-          type="button"
-          onClick={openNew}
-          className="flex cursor-pointer items-center gap-2 rounded-full bg-gold-bright px-5 py-2.5 text-xs font-bold uppercase tracking-[0.12em]"
-        >
-          <PlusIcon className="h-4 w-4" /> New Employee
-        </button>
+        {tab === "team" && (
+          <button
+            type="button"
+            onClick={openNew}
+            className="flex cursor-pointer items-center gap-2 rounded-full bg-gold-bright px-5 py-2.5 text-xs font-bold uppercase tracking-[0.12em]"
+          >
+            <PlusIcon className="h-4 w-4" /> New Employee
+          </button>
+        )}
+      </div>
+
+      <div className="mt-6 flex flex-wrap items-center gap-2">
+        {([
+          ["team", "Team"],
+          ["activity", "Activity Log"],
+        ] as const).map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setTab(key)}
+            className={`cursor-pointer rounded-full px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.12em] transition-colors duration-200 ${
+              tab === key
+                ? "bg-foreground text-background"
+                : "border border-line bg-surface text-muted hover:border-gold hover:text-gold"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
       {error && (
@@ -232,7 +282,60 @@ export default function EmployeesManager() {
         </p>
       )}
 
-      {loading ? (
+      {tab === "activity" ? (
+        activityLoading ? (
+          <div className="mt-8 h-64 animate-pulse rounded-2xl bg-surface" />
+        ) : activity.length === 0 ? (
+          <div className="mt-10 rounded-3xl border border-dashed border-line p-12 text-center text-muted">
+            <p className="font-semibold">No activity recorded yet.</p>
+            <p className="mt-1 text-sm">
+              Actions appear here as your team works. Entries are kept for 7 days,
+              then removed automatically.
+            </p>
+          </div>
+        ) : (
+          <>
+            <p className="mt-6 text-xs text-muted">
+              Showing the last {activity.length} actions · entries older than 7 days are
+              deleted automatically.
+            </p>
+            <div className="mt-3 overflow-x-auto rounded-2xl border border-line">
+              <table className="w-full min-w-[900px] text-left text-sm">
+                <thead className="border-b border-line bg-surface text-xs uppercase tracking-wider text-muted">
+                  <tr>
+                    <th className="px-4 py-3 font-semibold">Employee</th>
+                    <th className="px-4 py-3 font-semibold">Action</th>
+                    <th className="px-4 py-3 font-semibold">Module</th>
+                    <th className="px-4 py-3 font-semibold">Date &amp; Time</th>
+                    <th className="px-4 py-3 font-semibold">IP</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {activity.map((a) => (
+                    <tr key={a._id} className="border-b border-line last:border-0">
+                      <td className="px-4 py-3">
+                        <p className="font-semibold">{a.employeeName || "—"}</p>
+                        <p className="text-xs text-muted">
+                          {ROLE_LABELS[a.employeeRole] ?? a.employeeRole}
+                        </p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="font-medium">{a.employeeName || "Someone"}</span>{" "}
+                        <span className="text-muted">{a.action}</span>
+                      </td>
+                      <td className="px-4 py-3 capitalize text-muted">
+                        {(a.module || "—").replace("-", " ")}
+                      </td>
+                      <td className="px-4 py-3 text-muted">{fmtDateTime(a.createdAt)}</td>
+                      <td className="px-4 py-3 text-xs text-muted">{a.ip || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )
+      ) : loading ? (
         <div className="mt-8 h-64 animate-pulse rounded-2xl bg-surface" />
       ) : employees.length === 0 ? (
         <div className="mt-10 rounded-3xl border border-dashed border-line p-12 text-center text-muted">
@@ -566,20 +669,39 @@ export default function EmployeesManager() {
               </div>
             </div>
 
-            <label className="mt-5 flex cursor-pointer items-start gap-2 text-sm font-semibold">
-              <input
-                type="checkbox"
-                checked={form.allowMultipleDevices}
-                onChange={(e) => set("allowMultipleDevices", e.target.checked)}
-                className="mt-0.5 h-4 w-4 cursor-pointer accent-current"
-              />
-              <span>
-                Allow multiple devices
-                <span className="block font-normal text-muted">
-                  Off = only one active session; signing in elsewhere ends the previous one.
+            <div className="mt-5 space-y-3">
+              <label className="flex cursor-pointer items-start gap-2 text-sm font-semibold">
+                <input
+                  type="checkbox"
+                  checked={form.allowMultipleDevices}
+                  onChange={(e) => set("allowMultipleDevices", e.target.checked)}
+                  className="mt-0.5 h-4 w-4 cursor-pointer accent-current"
+                />
+                <span>
+                  Allow multiple devices
+                  <span className="block font-normal text-muted">
+                    Off = only one active session; signing in elsewhere ends the previous one.
+                  </span>
                 </span>
-              </span>
-            </label>
+              </label>
+              {editing === "" && (
+                <label className="flex cursor-pointer items-start gap-2 text-sm font-semibold">
+                  <input
+                    type="checkbox"
+                    checked={form.sendInvite}
+                    onChange={(e) => set("sendInvite", e.target.checked)}
+                    className="mt-0.5 h-4 w-4 cursor-pointer accent-current"
+                  />
+                  <span>
+                    Send invitation email
+                    <span className="block font-normal text-muted">
+                      Emails a registration link. Either way they can register themselves
+                      at the login page with this address.
+                    </span>
+                  </span>
+                </label>
+              )}
+            </div>
 
             {error && (
               <p role="alert" className="mt-4 rounded-xl bg-red-500/10 px-4 py-3 text-sm font-medium text-red-500">

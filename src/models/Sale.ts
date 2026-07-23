@@ -2,6 +2,7 @@ import mongoose, { Schema, type InferSchemaType, type Model } from "mongoose";
 import { MARKETING_SOURCES } from "@/lib/marketing";
 import { CUSTOMER_TYPES, DEFAULT_CUSTOMER_TYPE } from "@/lib/customerType";
 import { documentLineFields } from "@/models/lineItem";
+import { auditFields } from "@/lib/auditFields";
 
 export const PAYMENT_METHODS = [
   "cash",
@@ -16,6 +17,7 @@ export const SALE_STATUSES = ["completed", "pending"] as const;
 
 const saleSchema = new Schema(
   {
+    ...auditFields,
     number: { type: String, required: true, unique: true },
     items: { type: [documentLineFields], required: true },
     customerId: { type: Schema.Types.ObjectId, ref: "Customer", default: null },

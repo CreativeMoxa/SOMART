@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { Product, cleanVariants, sumVariants, cleanLinks } from "@/models/Product";
 import { isAdmin } from "@/lib/auth";
+import { stampAudit, recordAction } from "@/lib/audit";
 
 // When variants are supplied, keep stockQty (the sellable total) as their sum,
 // and keep the legacy single supplier link in sync with the links list.
@@ -70,7 +71,9 @@ export async function POST(req: NextRequest) {
     await connectDB();
     const body = await req.json();
     applyVariantTotals(body);
+    await stampAudit(body, "create");
     const product = await Product.create(body);
+    await recordAction(`created Product ${product.name}`, "products", product.slug);
     return NextResponse.json(product, { status: 201 });
   } catch (err) {
     console.error("POST /api/products failed:", err);

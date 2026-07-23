@@ -1,5 +1,6 @@
 import mongoose, { Schema, type InferSchemaType, type Model } from "mongoose";
 import { FREIGHT_TYPES, SHIPMENT_STATUSES } from "@/lib/freight";
+import { auditFields } from "@/lib/auditFields";
 
 // One shipment (Air or Sea) of incoming products. This is NOT store inventory —
 // stock only moves into products when the shipment is Received.
@@ -36,6 +37,7 @@ const shipmentItemFields = {
 
 const shipmentSchema = new Schema(
   {
+    ...auditFields,
     number: { type: String, required: true, unique: true },
     freightType: { type: String, enum: FREIGHT_TYPES, required: true, index: true },
     name: { type: String, default: "" },

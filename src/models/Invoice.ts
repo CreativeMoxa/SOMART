@@ -3,11 +3,13 @@ import { MARKETING_SOURCES } from "@/lib/marketing";
 import { CUSTOMER_TYPES, DEFAULT_CUSTOMER_TYPE } from "@/lib/customerType";
 import { PAYMENT_METHODS } from "@/models/Sale";
 import { documentLineFields } from "@/models/lineItem";
+import { auditFields } from "@/lib/auditFields";
 
 export const INVOICE_STATUSES = ["draft", "unpaid", "paid", "overdue"] as const;
 
 const invoiceSchema = new Schema(
   {
+    ...auditFields,
     number: { type: String, required: true, unique: true },
     customerId: { type: Schema.Types.ObjectId, ref: "Customer", default: null },
     customerName: { type: String, required: true },

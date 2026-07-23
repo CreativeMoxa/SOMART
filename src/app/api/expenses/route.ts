@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { Expense, EXPENSE_CATEGORIES } from "@/models/Expense";
 import { isAdmin } from "@/lib/auth";
+import { stampAudit, recordAction } from "@/lib/audit";
 
 // Server-authoritative recording date (local calendar day). Employees never set
 // this — it's the day the expense is entered, so financial data stays reliable.
@@ -50,7 +51,9 @@ export async function POST(req: NextRequest) {
       amount: Math.max(0, Number(body.amount) || 0),
       notes: String(body.notes ?? ""),
       date: todayStamp(),
+      ...(await stampAudit({}, "create")),
     });
+    await recordAction(`recorded Expense ${expense.title}`, "accounting", expense.title);
     return NextResponse.json(expense, { status: 201 });
   } catch (err) {
     console.error("POST /api/expenses failed:", err);

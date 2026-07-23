@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { Product, cleanVariants, sumVariants, cleanLinks } from "@/models/Product";
 import { isAdmin } from "@/lib/auth";
+import { stampAudit, recordAction } from "@/lib/audit";
 
 export async function GET(
   _req: NextRequest,
@@ -51,6 +52,7 @@ export async function PATCH(
       body.link1688 = links[0] ?? "";
     }
 
+    await stampAudit(body, "update");
     const product = await Product.findOneAndUpdate(
       { slug },
       { $set: body },
@@ -60,6 +62,9 @@ export async function PATCH(
     if (!product) {
       return NextResponse.json({ error: "Product not found" }, { status: 404 });
     }
+    // Name the price change explicitly — it's the edit worth auditing most.
+    const what = body.price !== undefined ? "changed the price of" : "edited";
+    await recordAction(`${what} Product ${product.name}`, "products", product.slug);
     return NextResponse.json(product);
   } catch (err) {
     console.error("PATCH /api/products/[slug] failed:", err);
@@ -83,6 +88,7 @@ export async function DELETE(
     if (!product) {
       return NextResponse.json({ error: "Product not found" }, { status: 404 });
     }
+    await recordAction(`deleted Product ${product.name}`, "products", slug);
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("DELETE /api/products/[slug] failed:", err);

@@ -4,6 +4,7 @@ import { Quotation, QUOTATION_STATUSES } from "@/models/Quotation";
 import { nextNumber } from "@/lib/numbering";
 import { shapeDocumentPayload, enrichItemsWithProfit } from "@/lib/documents";
 import { isAdmin } from "@/lib/auth";
+import { stampAudit, recordAction } from "@/lib/audit";
 
 export async function GET(req: NextRequest) {
   if (!(await isAdmin())) {
@@ -51,7 +52,13 @@ export async function POST(req: NextRequest) {
       number: await nextNumber(Quotation, "QUO"),
       status,
       validUntil: body.validUntil ?? "",
+      ...(await stampAudit({}, "create")),
     });
+    await recordAction(
+      `created Quotation ${quotation.number}`,
+      "quotations",
+      quotation.number
+    );
     return NextResponse.json(quotation, { status: 201 });
   } catch (err) {
     console.error("POST /api/quotations failed:", err);

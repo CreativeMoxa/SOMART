@@ -1,7 +1,9 @@
 import mongoose, { Schema, type InferSchemaType, type Model } from "mongoose";
+import { auditFields } from "@/lib/auditFields";
 
 const customerSchema = new Schema(
   {
+    ...auditFields,
     name: { type: String, required: true, trim: true },
     phone: { type: String, required: true, trim: true },
     email: { type: String, default: "", trim: true, lowercase: true },

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { Customer } from "@/models/Customer";
 import { isAdmin } from "@/lib/auth";
+import { stampAudit, recordAction } from "@/lib/audit";
 
 export async function GET(req: NextRequest) {
   if (!(await isAdmin())) {
@@ -43,7 +44,9 @@ export async function POST(req: NextRequest) {
     if (!body.name || !body.phone) {
       return NextResponse.json({ error: "Name and phone are required" }, { status: 400 });
     }
+    await stampAudit(body, "create");
     const customer = await Customer.create(body);
+    await recordAction(`added Customer ${customer.name}`, "customers", customer.name);
     return NextResponse.json(customer, { status: 201 });
   } catch (err) {
     console.error("POST /api/customers failed:", err);

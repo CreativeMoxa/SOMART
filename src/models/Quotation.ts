@@ -2,11 +2,13 @@ import mongoose, { Schema, type InferSchemaType, type Model } from "mongoose";
 import { MARKETING_SOURCES } from "@/lib/marketing";
 import { CUSTOMER_TYPES, DEFAULT_CUSTOMER_TYPE } from "@/lib/customerType";
 import { documentLineFields } from "@/models/lineItem";
+import { auditFields } from "@/lib/auditFields";
 
 export const QUOTATION_STATUSES = ["draft", "sent", "approved", "rejected"] as const;
 
 const quotationSchema = new Schema(
   {
+    ...auditFields,
     number: { type: String, required: true, unique: true },
     customerId: { type: Schema.Types.ObjectId, ref: "Customer", default: null },
     customerName: { type: String, required: true },

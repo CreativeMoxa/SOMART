@@ -5,6 +5,7 @@ import { nextNumber } from "@/lib/numbering";
 import { shapeDocumentPayload, enrichItemsWithProfit } from "@/lib/documents";
 import { applyInvoicePaid } from "@/lib/invoiceSale";
 import { isAdmin } from "@/lib/auth";
+import { stampAudit, recordAction } from "@/lib/audit";
 
 export async function GET(req: NextRequest) {
   if (!(await isAdmin())) {
@@ -52,9 +53,11 @@ export async function POST(req: NextRequest) {
       number: await nextNumber(Invoice, "INV"),
       status,
       dueDate: body.dueDate ?? "",
+      ...(await stampAudit({}, "create")),
     });
     // An invoice created directly as paid records the sale + stock movement.
     if (invoice.status === "paid") await applyInvoicePaid(invoice);
+    await recordAction(`created Invoice ${invoice.number}`, "invoices", invoice.number);
     return NextResponse.json(invoice, { status: 201 });
   } catch (err) {
     console.error("POST /api/invoices failed:", err);
