@@ -210,7 +210,7 @@ export default function SettingsManager() {
                 id="st-sales"
                 value={settings.salesPhone ?? ""}
                 onChange={(e) => set("salesPhone", e.target.value)}
-                placeholder="+252 63 888 4837"
+                placeholder="252 ......"
                 className={inputClass}
               />
             </div>
@@ -220,7 +220,7 @@ export default function SettingsManager() {
                 id="st-ops"
                 value={settings.operationsPhone ?? ""}
                 onChange={(e) => set("operationsPhone", e.target.value)}
-                placeholder="+252 63 888 4835"
+                placeholder="252 ......"
                 className={inputClass}
               />
             </div>
