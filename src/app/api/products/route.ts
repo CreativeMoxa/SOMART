@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
-import { Product, cleanVariants, sumVariants } from "@/models/Product";
+import { Product, cleanVariants, sumVariants, cleanLinks } from "@/models/Product";
 import { isAdmin } from "@/lib/auth";
 
-// When variants are supplied, keep stockQty (the sellable total) as their sum.
+// When variants are supplied, keep stockQty (the sellable total) as their sum,
+// and keep the legacy single supplier link in sync with the links list.
 function applyVariantTotals(body: Record<string, unknown>) {
   if (Array.isArray(body.variants)) {
     const variants = cleanVariants(body.variants);
@@ -12,6 +13,11 @@ function applyVariantTotals(body: Record<string, unknown>) {
       body.stockQty = sumVariants(variants);
       body.inStock = (body.stockQty as number) > 0;
     }
+  }
+  if (Array.isArray(body.links1688) || body.link1688 !== undefined) {
+    const links = cleanLinks(body.links1688, body.link1688);
+    body.links1688 = links;
+    body.link1688 = links[0] ?? "";
   }
 }
 
@@ -45,7 +51,7 @@ export async function GET(req: NextRequest) {
     const slim = searchParams.get("slim") === "1";
     const query = Product.find(filter).sort({ createdAt: -1 });
     if (slim) {
-      query.select("name slug brand category price discountPercent imageUrl stockQty inStock link1688 variants");
+      query.select("name slug brand category price discountPercent imageUrl stockQty inStock link1688 links1688 variants");
     }
     const products = await query.lean();
     return NextResponse.json(products);

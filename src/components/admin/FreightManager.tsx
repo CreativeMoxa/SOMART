@@ -17,6 +17,7 @@ type ShipmentItem = {
   name: string;
   imageUrl: string;
   link1688: string;
+  links1688: string[];
   trackingNumber: string;
   qty: number;
   variants: { name: string; qty: number }[];
@@ -59,6 +60,7 @@ type ProductOption = {
   costPrice?: number;
   imageUrl?: string;
   link1688?: string;
+  links1688?: string[];
   variants?: { name: string; qty: number }[];
 };
 
@@ -82,6 +84,7 @@ function emptyItem(): ShipmentItem {
     name: "",
     imageUrl: "",
     link1688: "",
+    links1688: [],
     trackingNumber: "",
     qty: 1,
     variants: [],
@@ -209,7 +212,20 @@ export default function FreightManager({ freightType }: { freightType: FreightTy
     setExpectedArrival(s.expectedArrival);
     setStatus(s.status);
     setNotes(s.notes);
-    setItems(s.items.length ? s.items.map((i) => ({ ...i })) : [emptyItem()]);
+    setItems(
+      s.items.length
+        ? s.items.map((i) => ({
+            ...i,
+            variants: i.variants ?? [],
+            // Older lines only have the single link — show it in the list.
+            links1688: (i.links1688 ?? []).length
+              ? [...i.links1688]
+              : i.link1688
+                ? [i.link1688]
+                : [],
+          }))
+        : [emptyItem()]
+    );
     setEditing(s._id);
     setError(null);
   }
@@ -251,6 +267,30 @@ export default function FreightManager({ freightType }: { freightType: FreightTy
     );
   }
 
+  // ── Per-line supplier (1688) links — a product can come from several shops ──
+  function updateLineLinks(i: number, links: string[]) {
+    setItems((rows) =>
+      rows.map((r, idx) =>
+        idx === i ? { ...r, links1688: links, link1688: links[0] ?? "" } : r
+      )
+    );
+  }
+  function addLineLink(i: number) {
+    updateLineLinks(i, [...(items[i].links1688 ?? []), ""]);
+  }
+  function setLineLink(i: number, li: number, value: string) {
+    updateLineLinks(
+      i,
+      (items[i].links1688 ?? []).map((l, j) => (j === li ? value : l))
+    );
+  }
+  function removeLineLink(i: number, li: number) {
+    updateLineLinks(
+      i,
+      (items[i].links1688 ?? []).filter((_, j) => j !== li)
+    );
+  }
+
   function linkProduct(i: number, p: ProductOption) {
     // Bring the product's colour names so you only fill in this order's counts.
     const variants = (p.variants ?? []).map((v) => ({ name: v.name, qty: 0 }));
@@ -262,8 +302,13 @@ export default function FreightManager({ freightType }: { freightType: FreightTy
       costPrice: p.costPrice ?? 0,
       sellingPrice: p.price,
       imageUrl: p.imageUrl || "",
-      // Carry the product's saved supplier link into this shipment line.
-      link1688: p.link1688 || "",
+      // Carry the product's saved supplier links into this shipment line.
+      link1688: (p.links1688 ?? [])[0] || p.link1688 || "",
+      links1688: (p.links1688 ?? []).length
+        ? [...p.links1688!]
+        : p.link1688
+          ? [p.link1688]
+          : [],
       variants,
     });
     setPickerOpenAt(null);
@@ -833,14 +878,62 @@ export default function FreightManager({ freightType }: { freightType: FreightTy
                             onChange={(e) => setItem(i, { trackingNumber: e.target.value })}
                             className={inputClass}
                           />
-                          <input
-                            aria-label={`Product ${i + 1} 1688 link`}
-                            placeholder="1688 product link"
-                            disabled={locked}
-                            value={item.link1688}
-                            onChange={(e) => setItem(i, { link1688: e.target.value })}
-                            className={inputClass}
-                          />
+                          {/* Supplier (1688) links — one product can be bought
+                              from several shops (e.g. per colour). */}
+                          <div className="rounded-xl border border-dashed border-line p-2.5">
+                            <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted">
+                              1688 links
+                              {(item.links1688 ?? []).length > 1
+                                ? ` · ${item.links1688.length}`
+                                : ""}
+                            </span>
+                            {(item.links1688 ?? []).length > 0 && (
+                              <div className="mt-2 space-y-1.5">
+                                {item.links1688.map((l, li) => (
+                                  <div key={li} className="flex gap-1.5">
+                                    <input
+                                      aria-label={`Product ${i + 1} 1688 link ${li + 1}`}
+                                      placeholder="https://detail.1688.com/…"
+                                      disabled={locked}
+                                      value={l}
+                                      onChange={(e) => setLineLink(i, li, e.target.value)}
+                                      className={`${variantInputClass} min-w-0 flex-1`}
+                                    />
+                                    {l.trim() && (
+                                      <a
+                                        href={l}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        aria-label={`Open 1688 link ${li + 1}`}
+                                        className="shrink-0 cursor-pointer rounded-lg p-1.5 text-muted transition-colors duration-200 hover:text-gold"
+                                      >
+                                        ↗
+                                      </a>
+                                    )}
+                                    {!locked && (
+                                      <button
+                                        type="button"
+                                        onClick={() => removeLineLink(i, li)}
+                                        aria-label={`Remove 1688 link ${li + 1}`}
+                                        className="shrink-0 cursor-pointer rounded-lg p-1.5 text-muted transition-colors duration-200 hover:text-red-500"
+                                      >
+                                        <TrashIcon className="h-4 w-4" />
+                                      </button>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            {!locked && (
+                              <button
+                                type="button"
+                                onClick={() => addLineLink(i)}
+                                className="mt-2 cursor-pointer text-[11px] font-semibold uppercase tracking-[0.1em] text-gold hover:underline"
+                              >
+                                + Add 1688 link
+                              </button>
+                            )}
+                          </div>
                           <input
                             aria-label={`Product ${i + 1} brand`}
                             placeholder="Brand (for the product page)"

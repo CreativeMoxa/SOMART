@@ -7,7 +7,10 @@ const shipmentItemFields = {
   productId: { type: Schema.Types.ObjectId, ref: "Product", default: null },
   name: { type: String, required: true },
   imageUrl: { type: String, default: "" },
-  link1688: { type: String, default: "" },
+  // Supplier links — a product can be sourced from several 1688 sellers
+  // (e.g. different colours bought from different shops).
+  link1688: { type: String, default: "" }, // legacy single = links1688[0]
+  links1688: { type: [String], default: [] },
   // Every product travels with its own tracking number.
   trackingNumber: { type: String, default: "" },
   qty: { type: Number, required: true, min: 1 },

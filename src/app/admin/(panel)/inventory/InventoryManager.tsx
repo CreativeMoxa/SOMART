@@ -13,6 +13,7 @@ type Product = {
   category: string;
   imageUrl?: string;
   link1688?: string;
+  links1688?: string[];
   variants?: { name: string; qty: number }[];
   price: number;
   costPrice?: number;
@@ -376,16 +377,28 @@ export default function InventoryManager() {
                         <div>
                           <p className="font-semibold">{p.name}</p>
                           <p className="text-xs capitalize text-muted">{p.category}</p>
-                          {p.link1688 && (
-                            <a
-                              href={p.link1688}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="mt-0.5 inline-flex cursor-pointer items-center gap-1 text-[11px] font-semibold text-gold hover:underline"
-                            >
-                              1688 link ↗
-                            </a>
-                          )}
+                          {(() => {
+                            const links = (p.links1688 ?? []).length
+                              ? p.links1688!
+                              : p.link1688
+                                ? [p.link1688]
+                                : [];
+                            return links.length > 0 ? (
+                              <span className="mt-0.5 flex flex-wrap gap-2">
+                                {links.map((l, li) => (
+                                  <a
+                                    key={li}
+                                    href={l}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex cursor-pointer items-center gap-1 text-[11px] font-semibold text-gold hover:underline"
+                                  >
+                                    1688{links.length > 1 ? ` #${li + 1}` : ""} ↗
+                                  </a>
+                                ))}
+                              </span>
+                            ) : null;
+                          })()}
                           {(p.variants ?? []).length > 0 && (
                             <span className="mt-1 flex flex-wrap gap-1">
                               {p.variants!.map((v, i) => (

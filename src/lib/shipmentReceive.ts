@@ -63,7 +63,8 @@ export async function receiveItem(shipment: ShipmentDocument, item: ShipmentItem
       price: item.sellingPrice || item.costPrice || 0,
       costPrice: item.costPrice || 0,
       description: item.description || "",
-      link1688: item.link1688 || "",
+      link1688: (item.links1688 ?? [])[0] || item.link1688 || "",
+      links1688: [...(item.links1688 ?? [])],
       imageUrl: item.imageUrl || "",
       images: item.imageUrl ? [item.imageUrl] : [],
       variants: (item.variants ?? []).map((v) => ({ name: v.name, qty: Number(v.qty) || 0 })),
@@ -76,7 +77,23 @@ export async function receiveItem(shipment: ShipmentDocument, item: ShipmentItem
     // Fill gaps on the existing product from the shipment line.
     if ((product.costPrice ?? 0) === 0 && item.costPrice) product.costPrice = item.costPrice;
     if ((product.price ?? 0) === 0 && item.sellingPrice) product.price = item.sellingPrice;
-    if (!product.link1688 && item.link1688) product.link1688 = item.link1688;
+    // Union the line's supplier links onto the product (same product can be
+    // bought from several 1688 sellers).
+    const incomingLinks = (item.links1688 ?? []).length
+      ? [...item.links1688]
+      : item.link1688
+        ? [item.link1688]
+        : [];
+    if (incomingLinks.length > 0) {
+      const existing = (product.links1688 ?? []).length
+        ? [...product.links1688]
+        : product.link1688
+          ? [product.link1688]
+          : [];
+      const merged = [...new Set([...existing, ...incomingLinks])];
+      product.set("links1688", merged);
+      product.link1688 = merged[0] ?? "";
+    }
     if (!product.imageUrl && item.imageUrl) {
       product.imageUrl = item.imageUrl;
       if (!product.images?.length) product.images = [item.imageUrl];

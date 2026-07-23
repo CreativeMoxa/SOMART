@@ -23,9 +23,11 @@ const productSchema = new Schema(
     costPrice: { type: Number, default: 0, min: 0 },
     discountPercent: { type: Number, default: 0, min: 0, max: 90 },
     description: { type: String, default: "" },
-    // Supplier link (e.g. 1688) carried over from the freight shipment line.
+    // Supplier links (e.g. 1688) carried over from freight shipment lines.
     // Internal/admin only — never shown on the public storefront.
+    // `link1688` is the legacy single link, kept in sync as links1688[0].
     link1688: { type: String, default: "" },
+    links1688: { type: [String], default: [] },
     imageUrl: { type: String, default: "" },
     images: { type: [String], default: [] },
     specs: {
@@ -98,6 +100,19 @@ export function cleanVariants(raw: unknown): ProductVariant[] {
 
 export function sumVariants(variants: ProductVariant[] | undefined | null): number {
   return (variants ?? []).reduce((s, v) => s + (Number(v.qty) || 0), 0);
+}
+
+// Normalise supplier links: trim, drop blanks, de-duplicate. Falls back to the
+// legacy single `link1688` so older records keep working.
+export function cleanLinks(raw: unknown, legacy?: unknown): string[] {
+  const arr = Array.isArray(raw)
+    ? raw.map((x) => String(x ?? "").trim()).filter(Boolean)
+    : [];
+  if (arr.length === 0) {
+    const one = String(legacy ?? "").trim();
+    if (one) return [one];
+  }
+  return [...new Set(arr)];
 }
 
 export function salePrice(p: { price: number; discountPercent?: number }) {

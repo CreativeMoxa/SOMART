@@ -36,7 +36,7 @@ const emptyForm = {
   discountPercent: "",
   stockQty: "",
   description: "",
-  link1688: "",
+  links1688: [] as string[],
   imageUrl: "",
   images: [] as string[],
   colors: "",
@@ -74,7 +74,11 @@ function toForm(p: ProductJSON): FormState {
     discountPercent: String(p.discountPercent ?? 0),
     stockQty: String(p.stockQty ?? 0),
     description: p.description ?? "",
-    link1688: p.link1688 ?? "",
+    links1688: (p.links1688 ?? []).length
+      ? [...p.links1688]
+      : p.link1688
+        ? [p.link1688]
+        : [],
     imageUrl: p.imageUrl ?? "",
     images: p.images ?? [],
     colors: (p.colors ?? []).join(", "),
@@ -178,6 +182,20 @@ export default function ProductsManager({ initialFilter = "" }: { initialFilter?
     setForm((f) => ({ ...f, variants: f.variants.filter((_, j) => j !== i) }));
   }
 
+  // ── Supplier (1688) links — a product can come from several shops ─────────
+  function addLink() {
+    setForm((f) => ({ ...f, links1688: [...f.links1688, ""] }));
+  }
+  function setLink(i: number, value: string) {
+    setForm((f) => ({
+      ...f,
+      links1688: f.links1688.map((l, j) => (j === i ? value : l)),
+    }));
+  }
+  function removeLink(i: number) {
+    setForm((f) => ({ ...f, links1688: f.links1688.filter((_, j) => j !== i) }));
+  }
+
   function openNew() {
     setForm(emptyForm);
     setEditing("");
@@ -250,7 +268,7 @@ export default function ProductsManager({ initialFilter = "" }: { initialFilter?
       inStock: stockQty > 0,
       variants,
       description: form.description,
-      link1688: form.link1688,
+      links1688: form.links1688.map((l) => l.trim()).filter(Boolean),
       imageUrl: form.imageUrl,
       images: form.images,
       colors: form.colors.split(",").map((c) => c.trim()).filter(Boolean),
@@ -470,17 +488,29 @@ export default function ProductsManager({ initialFilter = "" }: { initialFilter?
                           )}
                         </p>
                         <p className="text-xs text-muted">{product.brand}</p>
-                        {product.link1688 && (
-                          <a
-                            href={product.link1688}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                            className="mt-0.5 inline-flex cursor-pointer items-center gap-1 text-[11px] font-semibold text-gold hover:underline"
-                          >
-                            1688 link ↗
-                          </a>
-                        )}
+                        {(() => {
+                          const links = (product.links1688 ?? []).length
+                            ? product.links1688!
+                            : product.link1688
+                              ? [product.link1688]
+                              : [];
+                          return links.length > 0 ? (
+                            <span className="mt-0.5 flex flex-wrap gap-2">
+                              {links.map((l, li) => (
+                                <a
+                                  key={li}
+                                  href={l}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="inline-flex cursor-pointer items-center gap-1 text-[11px] font-semibold text-gold hover:underline"
+                                >
+                                  1688{links.length > 1 ? ` #${li + 1}` : ""} ↗
+                                </a>
+                              ))}
+                            </span>
+                          ) : null;
+                        })()}
                         {(product.variants ?? []).length > 0 && (
                           <span className="mt-1 flex flex-wrap gap-1">
                             {product.variants!.map((v, i) => (
@@ -878,20 +908,56 @@ export default function ProductsManager({ initialFilter = "" }: { initialFilter?
               />
             </div>
 
-            <div className="mt-4">
-              <label htmlFor="p-link1688" className="text-sm font-semibold">
-                Supplier link{" "}
-                <span className="font-normal text-muted">(1688 — internal, not shown to customers)</span>
-              </label>
-              <input
-                id="p-link1688"
-                type="url"
-                inputMode="url"
-                placeholder="https://detail.1688.com/…"
-                value={form.link1688}
-                onChange={(e) => set("link1688", e.target.value)}
-                className={inputClass}
-              />
+            <div className="mt-4 rounded-2xl border border-line bg-surface p-4">
+              <span className="text-sm font-semibold">
+                Supplier links{" "}
+                <span className="font-normal text-muted">
+                  (1688 — internal, not shown to customers. Add one per shop.)
+                </span>
+              </span>
+              {form.links1688.length > 0 && (
+                <div className="mt-3 space-y-2">
+                  {form.links1688.map((l, i) => (
+                    <div key={i} className="flex gap-2">
+                      <input
+                        aria-label={`Supplier link ${i + 1}`}
+                        type="url"
+                        inputMode="url"
+                        placeholder="https://detail.1688.com/…"
+                        value={l}
+                        onChange={(e) => setLink(i, e.target.value)}
+                        className={`${variantInputClass} min-w-0 flex-1`}
+                      />
+                      {l.trim() && (
+                        <a
+                          href={l}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          aria-label={`Open supplier link ${i + 1}`}
+                          className="shrink-0 cursor-pointer rounded-lg p-2 text-muted transition-colors duration-200 hover:text-gold"
+                        >
+                          ↗
+                        </a>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => removeLink(i)}
+                        aria-label={`Remove supplier link ${i + 1}`}
+                        className="shrink-0 cursor-pointer rounded-lg p-2 text-muted transition-colors duration-200 hover:bg-background hover:text-red-500"
+                      >
+                        <TrashIcon className="h-4.5 w-4.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={addLink}
+                className="mt-3 cursor-pointer text-xs font-semibold uppercase tracking-[0.12em] text-gold hover:underline"
+              >
+                + Add 1688 link
+              </button>
             </div>
 
             <div className="mt-4">

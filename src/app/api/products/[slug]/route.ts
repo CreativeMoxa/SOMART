@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
-import { Product, cleanVariants, sumVariants } from "@/models/Product";
+import { Product, cleanVariants, sumVariants, cleanLinks } from "@/models/Product";
 import { isAdmin } from "@/lib/auth";
 
 export async function GET(
@@ -43,6 +43,12 @@ export async function PATCH(
         body.stockQty = sumVariants(variants);
         body.inStock = body.stockQty > 0;
       }
+    }
+    // Keep the legacy single supplier link in sync with the links list.
+    if (Array.isArray(body.links1688) || body.link1688 !== undefined) {
+      const links = cleanLinks(body.links1688, body.link1688);
+      body.links1688 = links;
+      body.link1688 = links[0] ?? "";
     }
 
     const product = await Product.findOneAndUpdate(
