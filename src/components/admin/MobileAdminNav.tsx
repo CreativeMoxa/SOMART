@@ -6,7 +6,8 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { LogoutIcon, MenuIcon, XIcon } from "@/components/icons";
 import NotificationsBell from "@/components/admin/NotificationsBell";
-import { adminLinks, isActiveLink } from "@/components/admin/adminLinks";
+import { isActiveLink } from "@/components/admin/adminLinks";
+import { linksForRole, type Role } from "@/lib/roles";
 
 // Mobile/tablet navigation for the admin panel: a hamburger button (shown
 // below the `lg` breakpoint, where the desktop sidebar is hidden) that opens a
@@ -14,6 +15,19 @@ import { adminLinks, isActiveLink } from "@/components/admin/adminLinks";
 export default function MobileAdminNav() {
   const pathname = usePathname();
   const router = useRouter();
+  // Resolve the signed-in role so the drawer only lists permitted modules.
+  const [role, setRole] = useState<Role | null>(null);
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/auth/me")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => alive && d?.role && setRole(d.role as Role))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+  const adminLinks = role ? linksForRole(role) : [];
   const [open, setOpen] = useState(false);
   // Portal target only exists in the browser; render the overlay after mount.
   const [mounted, setMounted] = useState(false);

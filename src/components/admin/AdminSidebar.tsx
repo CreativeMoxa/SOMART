@@ -5,11 +5,14 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { LogoutIcon } from "@/components/icons";
 import NotificationsBell from "@/components/admin/NotificationsBell";
-import { adminLinks, isActiveLink } from "@/components/admin/adminLinks";
+import { isActiveLink } from "@/components/admin/adminLinks";
+import { linksForRole, type Role } from "@/lib/roles";
 
-export default function AdminSidebar() {
+export default function AdminSidebar({ role }: { role: Role }) {
   const pathname = usePathname();
   const router = useRouter();
+  // Only the modules this role may open are ever rendered.
+  const adminLinks = linksForRole(role);
 
   async function handleLogout() {
     await fetch("/api/admin/logout", { method: "POST" });
