@@ -3,8 +3,10 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import ThemeToggle from "@/components/ThemeToggle";
 import MobileAdminNav from "@/components/admin/MobileAdminNav";
+import { linksForRole, type Role } from "@/lib/roles";
 
 const links = [
   { href: "/products", label: "Shop All" },
@@ -19,13 +21,33 @@ export default function Navbar() {
   const pathname = usePathname();
   const isAdmin = pathname.startsWith("/admin");
 
+  // In the admin area, point the logo at the signed-in role's first module so
+  // a Cashier/Marketer never lands on the Dashboard they can't access.
+  const [adminHome, setAdminHome] = useState("/admin");
+  useEffect(() => {
+    if (!isAdmin) return;
+    let alive = true;
+    // Keyed on pathname so it re-resolves after the login navigation (when the
+    // session first exists), not only on the very first mount.
+    fetch("/api/auth/me")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!alive || !d?.role) return;
+        setAdminHome(linksForRole(d.role as Role)[0]?.href ?? "/admin");
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [isAdmin, pathname]);
+
   return (
     <header className="sticky top-0 z-50 border-b border-line bg-background/85 backdrop-blur-md print:hidden">
       <nav className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
         <div className="flex items-center gap-1.5">
           {isAdmin && <MobileAdminNav />}
           <Link
-            href={isAdmin ? "/admin" : "/"}
+            href={isAdmin ? adminHome : "/"}
             className="flex cursor-pointer items-center gap-2.5"
           >
           <Image

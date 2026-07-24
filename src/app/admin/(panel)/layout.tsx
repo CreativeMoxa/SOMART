@@ -40,7 +40,7 @@ export default async function AdminPanelLayout({
               href={home}
               className="mt-6 inline-block cursor-pointer rounded-full bg-gold-bright px-6 py-3 text-sm font-bold uppercase tracking-[0.1em]"
             >
-              Go to my dashboard
+              Go to my area
             </Link>
           </div>
         ) : (

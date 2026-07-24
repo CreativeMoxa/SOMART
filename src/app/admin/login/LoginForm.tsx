@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
+import { linksForRole, type Role } from "@/lib/roles";
 
 const inputClass =
   "mt-1 w-full rounded-xl border border-line bg-background px-4 py-2.5 transition-colors duration-200 focus:border-gold focus:outline-2 focus:outline-offset-1 focus:outline-gold/40";
@@ -69,6 +70,7 @@ export default function LoginForm() {
         // works with its username.
         const isEmail = email.includes("@");
         if (!isEmail) {
+          // Owner break-glass login — always a Founder & CEO.
           await post("/api/admin/login", { username: email, password, remember });
           router.push("/admin");
           router.refresh();
@@ -91,7 +93,10 @@ export default function LoginForm() {
           );
           return;
         }
-        router.push("/admin");
+        // Land on the first module this role can open (a Cashier goes straight
+        // to Invoices, a Marketer to Marketing) rather than the Dashboard.
+        const home = linksForRole(body.role as Role)[0]?.href ?? "/admin";
+        router.push(home);
         router.refresh();
         return;
       }
