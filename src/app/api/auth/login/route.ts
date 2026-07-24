@@ -5,6 +5,8 @@ import { verifyPassword } from "@/lib/password";
 import { rateLimit, resetLimit } from "@/lib/rateLimit";
 import { createSession, newSessionId, requestContext } from "@/lib/auth";
 import { logActivity } from "@/models/ActivityLog";
+import { issueOtp, verifyOtp, consumeVerifiedOtp } from "@/models/Otp";
+import { sendOtpEmail } from "@/lib/email";
 import type { Role } from "@/lib/roles";
 
 export async function POST(req: NextRequest) {
@@ -44,6 +46,48 @@ export async function POST(req: NextRequest) {
         { error: "This account is suspended or inactive. Please contact your administrator." },
         { status: 403 }
       );
+    }
+
+    // ── Single-device takeover with email confirmation ────────────────────
+    // If this account only allows one device AND is already signed in
+    // somewhere, a correct password is not enough to take over — the real
+    // owner must confirm with a code sent to their email (like a password
+    // reset). A clean logout clears currentSessionId, so this only triggers
+    // when a session is genuinely still active on another device.
+    const singleDevice = employee.allowMultipleDevices === false;
+    const alreadyLoggedIn = Boolean(employee.currentSessionId);
+    if (singleDevice && alreadyLoggedIn) {
+      const code = String(body.code ?? "").trim();
+
+      if (!code) {
+        const otpLimit = rateLimit(`device:${email}:${ip}`, 5, 15 * 60 * 1000);
+        if (!otpLimit.ok) {
+          return NextResponse.json(
+            { error: `Too many attempts. Try again in ${otpLimit.retryAfterSeconds}s.` },
+            { status: 429 }
+          );
+        }
+        const { code: otp, expiresInMinutes } = await issueOtp(email, "device");
+        const result = await sendOtpEmail(email, employee.name, otp, "device", expiresInMinutes);
+        return NextResponse.json({
+          requiresDeviceOtp: true,
+          emailed: result.sent,
+          // Only present when email isn't configured yet (setup fallback).
+          devCode: result.devCode,
+          message:
+            "This account is already signed in on another device. Enter the code we've sent to your email to sign in here — the other device will be signed out.",
+        });
+      }
+
+      // Confirm the code, then continue and take over the session.
+      const check = await verifyOtp(email, "device", code);
+      if (!check.ok) {
+        return NextResponse.json(
+          { error: check.error, requiresDeviceOtp: true },
+          { status: 400 }
+        );
+      }
+      await consumeVerifiedOtp(email, "device");
     }
 
     const sid = newSessionId();

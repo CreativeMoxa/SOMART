@@ -1,7 +1,7 @@
 import mongoose, { Schema, type InferSchemaType, type Model } from "mongoose";
 import { createHash, randomInt } from "crypto";
 
-export const OTP_PURPOSES = ["register", "reset"] as const;
+export const OTP_PURPOSES = ["register", "reset", "device"] as const;
 export type OtpPurpose = (typeof OTP_PURPOSES)[number];
 
 const OTP_TTL_MINUTES = 10;

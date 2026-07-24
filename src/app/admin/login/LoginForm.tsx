@@ -29,6 +29,10 @@ export default function LoginForm() {
   const [confirm, setConfirm] = useState("");
   const [code, setCode] = useState("");
   const [remember, setRemember] = useState(true);
+  // Single-device takeover: a correct password on an already-signed-in
+  // account isn't enough — the owner confirms with an emailed code.
+  const [deviceOtp, setDeviceOtp] = useState(false);
+  const [deviceCode, setDeviceCode] = useState("");
 
   function switchTab(next: Tab) {
     setTab(next);
@@ -38,6 +42,8 @@ export default function LoginForm() {
     setCode("");
     setPassword("");
     setConfirm("");
+    setDeviceOtp(false);
+    setDeviceCode("");
   }
 
   async function post(url: string, payload: Record<string, unknown>) {
@@ -62,10 +68,28 @@ export default function LoginForm() {
         // Employees sign in with email; the owner's break-glass account still
         // works with its username.
         const isEmail = email.includes("@");
-        if (isEmail) {
-          await post("/api/auth/login", { email, password, remember });
-        } else {
+        if (!isEmail) {
           await post("/api/admin/login", { username: email, password, remember });
+          router.push("/admin");
+          router.refresh();
+          return;
+        }
+        const body = await post("/api/auth/login", {
+          email,
+          password,
+          remember,
+          ...(deviceOtp ? { code: deviceCode } : {}),
+        });
+        // Single-device account already signed in elsewhere → confirm by code.
+        if (body.requiresDeviceOtp) {
+          setDeviceOtp(true);
+          setNotice(
+            body.devCode
+              ? `Email isn't connected yet — your code is ${body.devCode}`
+              : (body.message as string) ??
+                  "This account is already signed in on another device. Enter the code we emailed you."
+          );
+          return;
         }
         router.push("/admin");
         router.refresh();
@@ -117,7 +141,9 @@ export default function LoginForm() {
   const submitLabel = busy
     ? "Please wait…"
     : tab === "login"
-      ? "Sign In"
+      ? deviceOtp
+        ? "Confirm & Sign In"
+        : "Sign In"
       : stage === "email"
         ? "Send Code"
         : stage === "code"
@@ -157,7 +183,14 @@ export default function LoginForm() {
               required
               autoComplete="username"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                // Changing the email cancels a pending device confirmation.
+                if (deviceOtp) {
+                  setDeviceOtp(false);
+                  setDeviceCode("");
+                }
+              }}
               placeholder="you@example.com"
               className={inputClass}
             />
@@ -182,6 +215,28 @@ export default function LoginForm() {
               onChange={(e) => setPassword(e.target.value)}
               className={inputClass}
             />
+          </div>
+        )}
+
+        {tab === "login" && deviceOtp && (
+          <div>
+            <label htmlFor="device-code" className="text-sm font-semibold">
+              New device code
+            </label>
+            <input
+              id="device-code"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              required
+              maxLength={6}
+              value={deviceCode}
+              onChange={(e) => setDeviceCode(e.target.value.replace(/\D/g, ""))}
+              placeholder="000000"
+              className={`${inputClass} text-center text-2xl font-bold tracking-[0.5em]`}
+            />
+            <p className="mt-1 text-xs text-muted">
+              Signing in here will sign the other device out.
+            </p>
           </div>
         )}
 

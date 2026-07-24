@@ -107,17 +107,30 @@ export async function sendOtpEmail(
   to: string,
   name: string,
   code: string,
-  purpose: "register" | "reset",
+  purpose: "register" | "reset" | "device",
   minutes: number,
   from?: string
 ): Promise<SendResult> {
-  const registering = purpose === "register";
-  const heading = registering ? "Confirm your email address" : "Reset your password";
-  const intro = registering
-    ? `Hello ${name || "there"}, welcome to the ${BRAND.name} team. Use the code below to verify your email and set your password.`
-    : `Hello ${name || "there"}, we received a request to reset your ${BRAND.name} password. Use the code below to continue.`;
-  const html = documentShell({ heading, intro, body: codeBlock(code, minutes) });
-  const sent = await send(to, `${BRAND.name} — ${registering ? "Verify your email" : "Password reset"} code`, html, from);
+  const copy = {
+    register: {
+      heading: "Confirm your email address",
+      intro: `Hello ${name || "there"}, welcome to the ${BRAND.name} team. Use the code below to verify your email and set your password.`,
+      subject: "Verify your email",
+    },
+    reset: {
+      heading: "Reset your password",
+      intro: `Hello ${name || "there"}, we received a request to reset your ${BRAND.name} password. Use the code below to continue.`,
+      subject: "Password reset",
+    },
+    device: {
+      heading: "Sign in on a new device",
+      intro: `Hello ${name || "there"}, your ${BRAND.name} account is already signed in on another device. If this is you, use the code below to sign in here — the other device will be signed out.`,
+      subject: "New device sign-in",
+    },
+  }[purpose];
+
+  const html = documentShell({ heading: copy.heading, intro: copy.intro, body: codeBlock(code, minutes) });
+  const sent = await send(to, `${BRAND.name} — ${copy.subject} code`, html, from);
   if (!sent) console.warn(`[email] OTP for ${to} (${purpose}): ${code}`);
   return { sent, devCode: sent ? undefined : code };
 }
