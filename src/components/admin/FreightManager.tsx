@@ -844,12 +844,23 @@ export default function FreightManager({ freightType }: { freightType: FreightTy
                                 setItem(i, { name: e.target.value, productId: null });
                                 setPickerOpenAt(i);
                               }}
-                              onFocus={() => setPickerOpenAt(i)}
+                              onFocus={(e) => {
+                                setPickerOpenAt(i);
+                                // Lift the field toward the top of the screen so the
+                                // dropdown below it stays clear of the phone keyboard.
+                                const el = e.currentTarget;
+                                setTimeout(
+                                  () => el.scrollIntoView({ block: "start", behavior: "smooth" }),
+                                  250
+                                );
+                              }}
                               onBlur={() => setTimeout(() => setPickerOpenAt((v) => (v === i ? null : v)), 150)}
                               className={inputClass}
                             />
                             {!locked && pickerOpenAt === i && matches.length > 0 && (
-                              <div className="absolute left-0 right-0 z-20 max-h-56 overflow-y-auto overscroll-contain rounded-xl border border-line bg-background shadow-xl bottom-full mb-1 sm:bottom-auto sm:top-full sm:mb-0 sm:mt-1">
+                              // Opens directly under the field, scrollable so a long
+                              // list never feels stuck.
+                              <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-56 overflow-y-auto overscroll-contain rounded-xl border border-line bg-background shadow-xl">
                                 {matches.map((p) => (
                                   <button
                                     key={p._id}

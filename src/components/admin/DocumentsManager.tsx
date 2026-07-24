@@ -919,15 +919,24 @@ export default function DocumentsManager({
                           setItem(i, { name: e.target.value, productId: null });
                           setProductOpenAt(i);
                         }}
-                        onFocus={() => setProductOpenAt(i)}
+                        onFocus={(e) => {
+                          setProductOpenAt(i);
+                          // Lift the field toward the top of the screen so the
+                          // dropdown below it stays clear of the phone keyboard.
+                          const el = e.currentTarget;
+                          setTimeout(
+                            () => el.scrollIntoView({ block: "start", behavior: "smooth" }),
+                            250
+                          );
+                        }}
                         onBlur={() => setTimeout(() => setProductOpenAt((v) => (v === i ? null : v)), 150)}
                         className={inputClass}
                       />
                       {productOpenAt === i && (
-                        // On phones the product input sits low in the form, so a
-                        // downward dropdown hides behind the keyboard and can't be
-                        // scrolled — open it UPWARD on mobile, downward on sm+.
-                        <div className="absolute left-0 right-0 z-20 max-h-56 overflow-y-auto overscroll-contain rounded-xl border border-line bg-background shadow-xl bottom-full mb-1 sm:bottom-auto sm:top-full sm:mb-0 sm:mt-1 sm:max-h-64">
+                        // Opens directly under the field (same as the customer
+                        // picker). Scrollable + overscroll-contain so a long list
+                        // never feels stuck.
+                        <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-56 overflow-y-auto overscroll-contain rounded-xl border border-line bg-background shadow-xl sm:max-h-64">
                           {matches.map((p) => (
                             <button
                               key={p._id}
