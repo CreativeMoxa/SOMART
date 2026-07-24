@@ -111,6 +111,8 @@ function DashCard({ label, value, accent }: { label: string; value: string; acce
 
 export default function FreightManager({ freightType }: { freightType: FreightType }) {
   const meta = FREIGHT_META[freightType];
+  const otherType = freightType === "air" ? "sea" : "air";
+  const otherMeta = FREIGHT_META[otherType];
   const [shipments, setShipments] = useState<Shipment[]>([]);
   const [products, setProducts] = useState<ProductOption[]>([]);
   const [cargos, setCargos] = useState<string[]>([]);
@@ -404,6 +406,30 @@ export default function FreightManager({ freightType }: { freightType: FreightTy
     }
   }
 
+  // Move a shipment to the other freight (Air ⇄ Sea), keeping all its data and
+  // taking the next number there. It then leaves this list.
+  async function transfer(s: Shipment) {
+    const ok = await confirmDialog(
+      `Transfer ${s.number} to ${otherMeta.label}? All its products and details move across and it gets the next ${otherMeta.label} number. It will no longer appear under ${meta.label}.`,
+      { confirmLabel: `Transfer to ${otherMeta.label}`, danger: false }
+    );
+    if (!ok) return;
+    try {
+      const res = await fetch(`/api/shipments/${s._id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "transfer" }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error ?? "Transfer failed");
+      // It now belongs to the other freight, so drop it from this view.
+      setShipments((list) => list.filter((x) => x._id !== s._id));
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Transfer failed");
+    }
+  }
+
   // ── PDF download (same layout idea as the printable page) ─────────────────
   async function downloadPdf(s: Shipment) {
     setError(null);
@@ -597,6 +623,14 @@ export default function FreightManager({ freightType }: { freightType: FreightTy
                         >
                           Print
                         </a>
+                        <button
+                          type="button"
+                          onClick={() => transfer(s)}
+                          title={`Transfer to ${otherMeta.label}`}
+                          className="cursor-pointer rounded-full border border-line px-3 py-1.5 text-xs font-semibold text-muted transition-colors duration-200 hover:border-gold hover:text-gold"
+                        >
+                          → {otherMeta.label}
+                        </button>
                         <button
                           type="button"
                           onClick={() => openEdit(s)}

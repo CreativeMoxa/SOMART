@@ -1,10 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { Shipment } from "@/models/Shipment";
-import { SHIPMENT_STATUSES, type ShipmentStatus } from "@/lib/freight";
-import { shapeShipmentPayload } from "@/lib/shipment";
+import {
+  FREIGHT_META,
+  FREIGHT_TYPES,
+  SHIPMENT_STATUSES,
+  type FreightType,
+  type ShipmentStatus,
+} from "@/lib/freight";
+import { shapeShipmentPayload, nextFreeShipmentNumber } from "@/lib/shipment";
 import { receiveItem, unreceiveItem, syncShipmentStatus } from "@/lib/shipmentReceive";
 import { isAdmin } from "@/lib/auth";
+import { recordAction } from "@/lib/audit";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -34,6 +41,26 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     const body = await req.json();
     const shipment = await Shipment.findById(id);
     if (!shipment) return NextResponse.json({ error: "Shipment not found" }, { status: 404 });
+
+    // ── Transfer to the other freight (Air ⇄ Sea) ───────────────────────────
+    // Moves ALL the data across and gives it the next number in the target
+    // freight (e.g. AIR-0002 → SEA-0001). Existing shipments keep their numbers
+    // — the vacated number is simply left as a gap, nothing is renumbered.
+    if (body.action === "transfer") {
+      const current = shipment.freightType as FreightType;
+      const target = FREIGHT_TYPES.find((t) => t !== current) as FreightType;
+      const from = shipment.number;
+      const newNumber = await nextFreeShipmentNumber(target);
+      shipment.freightType = target;
+      shipment.number = newNumber;
+      await shipment.save();
+      await recordAction(
+        `transferred ${from} to ${FREIGHT_META[target].label} as ${newNumber}`,
+        target === "air" ? "air-freight" : "sea-freight",
+        newNumber
+      );
+      return NextResponse.json(shipment.toObject());
+    }
 
     // ── Per-item verification: receive / unreceive one product line ─────────
     if (body.action === "receive-item" || body.action === "unreceive-item") {

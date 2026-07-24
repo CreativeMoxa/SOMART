@@ -31,6 +31,20 @@ export async function nextShipmentNumber(freightType: FreightType) {
   return `${FREIGHT_META[freightType].prefix}-${String(count + 1).padStart(4, "0")}`;
 }
 
+// Like nextShipmentNumber, but guaranteed free — used when transferring a
+// shipment between freights, where gaps from earlier deletes/transfers could
+// otherwise collide with the unique number index.
+export async function nextFreeShipmentNumber(freightType: FreightType) {
+  const prefix = FREIGHT_META[freightType].prefix;
+  let n = (await Shipment.countDocuments({ freightType })) + 1;
+  // Walk forward past any already-used number (handles gaps).
+  // eslint-disable-next-line no-await-in-loop
+  while (await Shipment.exists({ number: `${prefix}-${String(n).padStart(4, "0")}` })) {
+    n += 1;
+  }
+  return `${prefix}-${String(n).padStart(4, "0")}`;
+}
+
 export function shapeShipmentPayload(body: Record<string, unknown>) {
   const rawItems = Array.isArray(body.items) ? (body.items as ShipmentItemInput[]) : [];
   const items = rawItems
