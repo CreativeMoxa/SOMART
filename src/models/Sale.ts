@@ -3,14 +3,10 @@ import { MARKETING_SOURCES } from "@/lib/marketing";
 import { CUSTOMER_TYPES, DEFAULT_CUSTOMER_TYPE } from "@/lib/customerType";
 import { documentLineFields } from "@/models/lineItem";
 import { auditFields } from "@/lib/auditFields";
+import { PAYMENT_METHODS } from "@/lib/payment";
 
-export const PAYMENT_METHODS = [
-  "cash",
-  "card",
-  "mobile-money",
-  "bank-transfer",
-  "other",
-] as const;
+// Re-exported for the many modules that import it from here.
+export { PAYMENT_METHODS };
 
 // completed = real sale, inventory deducted; pending = awaiting payment, inventory untouched.
 export const SALE_STATUSES = ["completed", "pending"] as const;

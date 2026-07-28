@@ -6,6 +6,12 @@ import { PlusIcon, TrashIcon, XIcon } from "@/components/icons";
 import { confirmDialog } from "@/components/admin/ConfirmDialog";
 import { MARKETING_SOURCES, SOURCE_LABELS, type MarketingSource } from "@/lib/marketing";
 import {
+  PAYMENT_METHODS,
+  PAYMENT_METHOD_LABELS,
+  DEFAULT_PAYMENT_METHOD,
+  paymentMethodLabel,
+} from "@/lib/payment";
+import {
   DATE_RANGES,
   RANGE_LABELS,
   inRange,
@@ -84,7 +90,7 @@ export default function SalesManager({ initialRange = "" }: { initialRange?: str
   const [cart, setCart] = useState<CartRow[]>([{ productId: "", qty: 1 }]);
   const [customerId, setCustomerId] = useState("");
   const [discount, setDiscount] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState("cash");
+  const [paymentMethod, setPaymentMethod] = useState<string>(DEFAULT_PAYMENT_METHOD);
   const [source, setSource] = useState<MarketingSource>("walk-in");
   const [customerType, setCustomerType] = useState<CustomerType>(DEFAULT_CUSTOMER_TYPE);
   const [note, setNote] = useState("");
@@ -425,7 +431,7 @@ export default function SalesManager({ initialRange = "" }: { initialRange?: str
                     {sale.items.map((i) => `${i.name} ×${i.qty}`).join(", ")}
                   </td>
                   <td className="px-4 py-3 capitalize text-muted">
-                    {sale.paymentMethod.replace("-", " ")}
+                    {paymentMethodLabel(sale.paymentMethod)}
                   </td>
                   <td className="px-4 py-3 font-bold text-gold">{money(sale.total)}</td>
                   <td className="px-4 py-3 text-emerald-500">{money(sale.profit)}</td>
@@ -588,11 +594,11 @@ export default function SalesManager({ initialRange = "" }: { initialRange?: str
                   onChange={(e) => setPaymentMethod(e.target.value)}
                   className={inputClass}
                 >
-                  <option value="cash">Cash</option>
-                  <option value="card">Card</option>
-                  <option value="mobile-money">Mobile Money</option>
-                  <option value="bank-transfer">Bank Transfer</option>
-                  <option value="other">Other</option>
+                  {PAYMENT_METHODS.map((m) => (
+                    <option key={m} value={m}>
+                      {PAYMENT_METHOD_LABELS[m]}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div>

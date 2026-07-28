@@ -8,6 +8,12 @@ import QuickAddProduct, { type PickerProduct } from "@/components/admin/QuickAdd
 import QuickAddCustomer, { type PickerCustomer } from "@/components/admin/QuickAddCustomer";
 import { MARKETING_SOURCES, SOURCE_LABELS, type MarketingSource } from "@/lib/marketing";
 import {
+  PAYMENT_METHODS,
+  PAYMENT_METHOD_LABELS,
+  DEFAULT_PAYMENT_METHOD,
+  normalizePaymentMethod,
+} from "@/lib/payment";
+import {
   CUSTOMER_TYPES,
   CUSTOMER_TYPE_LABELS,
   DEFAULT_CUSTOMER_TYPE,
@@ -78,12 +84,10 @@ const config = {
 };
 
 // Payment options for invoices — the chosen method carries through to the Sale.
-const INVOICE_PAYMENT_METHODS: { value: string; label: string }[] = [
-  { value: "mobile-money", label: "Mobile Money" },
-  { value: "bank-transfer", label: "Bank" },
-  { value: "cash", label: "Cash" },
-  { value: "other", label: "Other" },
-];
+const INVOICE_PAYMENT_METHODS = PAYMENT_METHODS.map((value) => ({
+  value,
+  label: PAYMENT_METHOD_LABELS[value],
+}));
 
 const inputClass =
   "mt-1 w-full rounded-xl border border-line bg-background px-3.5 py-2.5 text-sm transition-colors duration-200 focus:border-gold focus:outline-2 focus:outline-offset-1 focus:outline-gold/40";
@@ -163,7 +167,7 @@ export default function DocumentsManager({
   const [savedStatus, setSavedStatus] = useState("");
   const [source, setSource] = useState<MarketingSource>("walk-in");
   const [customerType, setCustomerType] = useState<CustomerType>(DEFAULT_CUSTOMER_TYPE);
-  const [paymentMethod, setPaymentMethod] = useState("cash");
+  const [paymentMethod, setPaymentMethod] = useState<string>(DEFAULT_PAYMENT_METHOD);
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const printAfterRef = useRef(false);
@@ -270,11 +274,9 @@ export default function DocumentsManager({
         ? (doc.customerType as CustomerType)
         : DEFAULT_CUSTOMER_TYPE
     );
-    setPaymentMethod(
-      INVOICE_PAYMENT_METHODS.some((m) => m.value === doc.paymentMethod)
-        ? (doc.paymentMethod as string)
-        : "cash"
-    );
+    // Map any stored value (incl. legacy) onto a current method so the right
+    // option is pre-selected — old "mobile money" becomes ZAAD.
+    setPaymentMethod(normalizePaymentMethod(doc.paymentMethod));
     setNotes(doc.notes);
     setEditing(doc._id);
     setError(null);

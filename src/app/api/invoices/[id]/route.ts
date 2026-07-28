@@ -5,6 +5,7 @@ import { shapeDocumentPayload, enrichItemsWithProfit } from "@/lib/documents";
 import { applyInvoicePaid, revertInvoicePaid, removeInvoiceSale } from "@/lib/invoiceSale";
 import { isAdmin } from "@/lib/auth";
 import { actorName, recordAction } from "@/lib/audit";
+import { normalizePaymentMethod } from "@/lib/payment";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -57,7 +58,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       if (body.dueDate !== undefined) update.dueDate = body.dueDate;
       if (body.customerType !== undefined) update.customerType = body.customerType;
       if (body.source !== undefined) update.source = body.source;
-      if (body.paymentMethod !== undefined) update.paymentMethod = body.paymentMethod;
+      if (body.paymentMethod !== undefined)
+        update.paymentMethod = normalizePaymentMethod(body.paymentMethod);
     }
 
     const invoice = await Invoice.findById(id);
@@ -65,6 +67,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     const wasPaid = invoice.status === "paid";
 
     invoice.set(update);
+    // Self-heal any legacy stored value so save() passes the current enum.
+    invoice.paymentMethod = normalizePaymentMethod(invoice.paymentMethod);
     invoice.updatedBy = await actorName();
     await invoice.save();
 

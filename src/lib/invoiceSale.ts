@@ -5,6 +5,7 @@ import { Sale, type SaleDoc } from "@/models/Sale";
 import { nextNumber } from "@/lib/numbering";
 import { computeProfit, round2 } from "@/lib/profit";
 import { applyStock } from "@/lib/inventory";
+import { normalizePaymentMethod } from "@/lib/payment";
 
 type InvoiceDocument = HydratedDocument<InvoiceDoc>;
 type SaleDocument = HydratedDocument<SaleDoc>;
@@ -87,7 +88,7 @@ export async function applyInvoicePaid(invoice: InvoiceDocument) {
     total: invoice.total,
     totalCost: invoice.totalCost ?? 0,
     profit: invoice.profit ?? 0,
-    paymentMethod: invoice.paymentMethod ?? "other",
+    paymentMethod: normalizePaymentMethod(invoice.paymentMethod),
     status: "completed",
     source: invoice.source ?? "walk-in",
     customerType: invoice.customerType ?? "retail",

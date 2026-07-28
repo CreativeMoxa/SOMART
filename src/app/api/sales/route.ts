@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { Product, salePrice } from "@/models/Product";
-import { Sale, PAYMENT_METHODS } from "@/models/Sale";
+import { Sale } from "@/models/Sale";
+import { normalizePaymentMethod } from "@/lib/payment";
 import { MARKETING_SOURCES, type MarketingSource } from "@/lib/marketing";
 import { CUSTOMER_TYPES, type CustomerType } from "@/lib/customerType";
 import { Customer } from "@/models/Customer";
@@ -40,9 +41,8 @@ export async function POST(req: NextRequest) {
     if (requestedItems.length === 0) {
       return NextResponse.json({ error: "At least one item is required" }, { status: 400 });
     }
-    if (body.paymentMethod && !PAYMENT_METHODS.includes(body.paymentMethod)) {
-      return NextResponse.json({ error: "Unknown payment method" }, { status: 400 });
-    }
+    // Accept any value and map it onto a current method (handles legacy names).
+    body.paymentMethod = normalizePaymentMethod(body.paymentMethod);
 
     const items = [];
     for (const { productId, qty } of requestedItems) {
