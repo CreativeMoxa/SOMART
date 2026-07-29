@@ -71,6 +71,8 @@ export default async function AdminDashboardPage() {
 
       <div className="mt-7 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Today's Sales" value={money(m.todaySales)} accent href="/admin/sales?range=today" />
+        <StatCard label="Today's Revenue" value={money(m.todaySales)} accent href="/admin/sales?range=today" />
+        <StatCard label="Today's Profit" value={money(m.todayProfit)} accent href="/admin/reports?tab=profit&range=today" />
         <StatCard label="Monthly Revenue" value={money(m.monthRevenue)} href="/admin/sales?range=month" />
         <StatCard label="Annual Revenue" value={money(m.yearRevenue)} href="/admin/sales?range=year" />
         <StatCard label="Gross Profit (month)" value={money(m.monthProfit)} href="/admin/reports?tab=profit&range=month" />
@@ -84,6 +86,7 @@ export default async function AdminDashboardPage() {
         <StatCard label="Inventory Value" value={money(m.inventoryValue)} href="/admin/products" />
         <StatCard label="Unpaid Invoices" value={String(m.unpaidInvoices)} href="/admin/invoices?status=unpaid" />
         <StatCard label="Total Orders" value={String(m.totalOrders)} href="/admin/sales" />
+        <StatCard label="Today's Orders" value={String(m.todayOrders)} accent href="/admin/sales?range=today" />
         <StatCard label="Total Customers" value={String(m.totalCustomers)} href="/admin/customers" />
         <StatCard label="Products" value={String(m.totalProducts)} href="/admin/products" />
         <StatCard label="Low Stock Items" value={String(m.lowStock.length)} href="/admin/products?filter=low-stock" />
@@ -94,6 +97,32 @@ export default async function AdminDashboardPage() {
           <h2 className="text-lg font-semibold">Sales — Last 7 Days</h2>
           <div className="mt-4">
             <BarChart data={m.last7Days} />
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-line bg-surface p-5">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold">Web Viewers</h2>
+            <span className="text-[11px] font-semibold uppercase tracking-[0.15em] text-muted">
+              Storefront page views
+            </span>
+          </div>
+          <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
+            {[
+              { label: "Last week", value: m.webViews.week },
+              { label: "Last month", value: m.webViews.month },
+              { label: "Last year", value: m.webViews.year },
+              { label: "All time", value: m.webViews.all },
+            ].map((v) => (
+              <div key={v.label} className="rounded-xl border border-line bg-background p-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">
+                  {v.label}
+                </p>
+                <p className="mt-1.5 text-2xl font-bold text-gold">
+                  {v.value.toLocaleString("en-US")}
+                </p>
+              </div>
+            ))}
           </div>
         </div>
 

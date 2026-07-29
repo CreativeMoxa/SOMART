@@ -3,6 +3,7 @@ import { Poppins, Montserrat } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import ViewTracker from "@/components/ViewTracker";
 
 const poppins = Poppins({
   variable: "--font-heading",
@@ -42,6 +43,7 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: themeInit }} />
       </head>
       <body className="flex min-h-screen flex-col bg-background text-foreground">
+        <ViewTracker />
         <Navbar />
         <main className="flex-1">{children}</main>
         <Footer />

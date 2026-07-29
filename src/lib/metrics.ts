@@ -4,6 +4,7 @@ import { Sale } from "@/models/Sale";
 import { Customer } from "@/models/Customer";
 import { Expense } from "@/models/Expense";
 import { Invoice } from "@/models/Invoice";
+import { PageView } from "@/models/PageView";
 import { MARKETING_SOURCES, SOURCE_LABELS, type MarketingSource } from "@/lib/marketing";
 
 function dayKey(d: Date) {
@@ -18,8 +19,13 @@ export async function getDashboardMetrics() {
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const startOfYear = new Date(now.getFullYear(), 0, 1);
   const sevenDaysAgo = new Date(startOfDay.getTime() - 6 * 24 * 60 * 60 * 1000);
+  // Rolling windows for web-view counts ("views of the last week / month / year").
+  const day = 24 * 60 * 60 * 1000;
+  const last7 = new Date(now.getTime() - 7 * day);
+  const last30 = new Date(now.getTime() - 30 * day);
+  const last365 = new Date(now.getTime() - 365 * day);
 
-  const [sales, monthExpensesAgg, products, totalCustomers, unpaidInvoices] =
+  const [sales, monthExpensesAgg, products, totalCustomers, unpaidInvoices, webViews] =
     await Promise.all([
       Sale.find({
         createdAt: { $gte: startOfYear },
@@ -38,9 +44,17 @@ export async function getDashboardMetrics() {
         .lean(),
       Customer.countDocuments(),
       Invoice.countDocuments({ status: { $in: ["unpaid", "overdue"] } }),
+      Promise.all([
+        PageView.countDocuments({ createdAt: { $gte: last7 } }),
+        PageView.countDocuments({ createdAt: { $gte: last30 } }),
+        PageView.countDocuments({ createdAt: { $gte: last365 } }),
+        PageView.estimatedDocumentCount(),
+      ]).then(([week, month, year, all]) => ({ week, month, year, all })),
     ]);
 
   let todaySales = 0;
+  let todayProfit = 0;
+  let todayOrders = 0;
   let monthRevenue = 0;
   let monthProfit = 0;
   let yearRevenue = 0;
@@ -59,7 +73,11 @@ export async function getDashboardMetrics() {
       entry.revenue += sale.total;
       monthBySource.set(src, entry);
     }
-    if (created >= startOfDay) todaySales += sale.total;
+    if (created >= startOfDay) {
+      todaySales += sale.total;
+      todayProfit += sale.profit ?? 0;
+      todayOrders += 1;
+    }
     if (created >= sevenDaysAgo) {
       const key = dayKey(created);
       dailyTotals.set(key, (dailyTotals.get(key) ?? 0) + sale.total);
@@ -118,6 +136,9 @@ export async function getDashboardMetrics() {
 
   return {
     todaySales,
+    todayProfit,
+    todayOrders,
+    webViews,
     monthRevenue,
     monthProfit,
     monthExpenses,
