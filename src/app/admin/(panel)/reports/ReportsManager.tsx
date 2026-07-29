@@ -119,22 +119,27 @@ export default function ReportsManager({ initialTab = "" }: { initialTab?: strin
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [isCeo, setIsCeo] = useState(false);
+  const [backing, setBacking] = useState(false);
+  const [backupMsg, setBackupMsg] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
       try {
-        const [s, i, e, c, biz] = await Promise.all([
+        const [s, i, e, c, biz, me] = await Promise.all([
           fetch("/api/sales?limit=5000").then((r) => (r.ok ? r.json() : [])),
           fetch("/api/invoices").then((r) => (r.ok ? r.json() : [])),
           fetch("/api/expenses").then((r) => (r.ok ? r.json() : [])),
           fetch("/api/customers").then((r) => (r.ok ? r.json() : [])),
           fetch("/api/settings").then((r) => (r.ok ? r.json() : null)),
+          fetch("/api/auth/me").then((r) => (r.ok ? r.json() : null)),
         ]);
         setSales(s);
         setInvoices(i);
         setExpenses(e);
         setCustomers(c);
         if (biz) setBusiness(biz);
+        if (me?.role === "founder-ceo") setIsCeo(true);
       } catch {
         setError("Failed to load report data");
       } finally {
@@ -302,6 +307,35 @@ export default function ReportsManager({ initialTab = "" }: { initialTab?: strin
   const reportLabel = REPORTS.find((r) => r.kind === kind)?.label ?? "";
   const subtitle = `${from || "…"} → ${to || "…"}`;
 
+  // Full database backup: one .xlsx with a sheet per module, over [from, to].
+  async function handleBackup() {
+    if (!from || !to) {
+      setBackupMsg("Pick a start and end date first.");
+      return;
+    }
+    if (from > to) {
+      setBackupMsg("Start date must be on or before the end date.");
+      return;
+    }
+    setBacking(true);
+    setBackupMsg(null);
+    try {
+      const res = await fetch(`/api/backup?from=${from}&to=${to}`);
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j.error || "Backup failed");
+      }
+      const blob = await res.blob();
+      const { downloadBlob } = await import("@/lib/export");
+      downloadBlob(blob, `SOMART-backup_${from}_to_${to}.xlsx`);
+      setBackupMsg(`Backup for ${from} → ${to} downloaded.`);
+    } catch (err) {
+      setBackupMsg(err instanceof Error ? err.message : "Backup failed");
+    } finally {
+      setBacking(false);
+    }
+  }
+
   async function handleExcel() {
     setBusy(true);
     try {
@@ -353,6 +387,54 @@ export default function ReportsManager({ initialTab = "" }: { initialTab?: strin
           <ExportButtons onExcel={handleExcel} onPdf={handlePdf} busy={busy || loading} />
         )}
       </div>
+
+      {isCeo && (
+        <div className="mt-6 rounded-2xl border border-line bg-surface/40 p-5">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-gold">
+                Database Backup
+              </p>
+              <h2 className="mt-1 text-lg font-semibold">Export every module to one Excel file</h2>
+              <p className="mt-1 text-sm text-muted">
+                Pick a date range — each module (products, sales, invoices, freight, employees and
+                more) is saved as its own sheet. Great for keeping a copy every month.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-end gap-3">
+              <div>
+                <label htmlFor="b-from" className="text-sm font-semibold">From</label>
+                <input
+                  id="b-from"
+                  type="date"
+                  value={from}
+                  onChange={(e) => setFrom(e.target.value)}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label htmlFor="b-to" className="text-sm font-semibold">To</label>
+                <input
+                  id="b-to"
+                  type="date"
+                  value={to}
+                  onChange={(e) => setTo(e.target.value)}
+                  className={inputClass}
+                />
+              </div>
+              <button
+                type="button"
+                onClick={handleBackup}
+                disabled={backing}
+                className="cursor-pointer rounded-full bg-foreground px-6 py-2.5 text-xs font-semibold uppercase tracking-wider text-background transition-opacity duration-200 hover:opacity-90 disabled:opacity-60"
+              >
+                {backing ? "Preparing…" : "⬇ Backup"}
+              </button>
+            </div>
+          </div>
+          {backupMsg && <p className="mt-3 text-sm text-muted">{backupMsg}</p>}
+        </div>
+      )}
 
       <div className="mt-6 flex flex-wrap gap-2">
         {REPORTS.map((r) => (
