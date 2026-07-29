@@ -309,11 +309,7 @@ export default function ReportsManager({ initialTab = "" }: { initialTab?: strin
 
   // Full database backup: one .xlsx with a sheet per module, over [from, to].
   async function handleBackup() {
-    if (!from || !to) {
-      setBackupMsg("Pick a start and end date first.");
-      return;
-    }
-    if (from > to) {
+    if (from && to && from > to) {
       setBackupMsg("Start date must be on or before the end date.");
       return;
     }
@@ -327,8 +323,9 @@ export default function ReportsManager({ initialTab = "" }: { initialTab?: strin
       }
       const blob = await res.blob();
       const { downloadBlob } = await import("@/lib/export");
-      downloadBlob(blob, `SOMART-backup_${from}_to_${to}.xlsx`);
-      setBackupMsg(`Backup for ${from} → ${to} downloaded.`);
+      const tag = `${from || "all"}_to_${to || "now"}`;
+      downloadBlob(blob, `SOMART-backup_${tag}.xlsx`);
+      setBackupMsg(`Backup for ${from || "the beginning"} → ${to || "today"} downloaded.`);
     } catch (err) {
       setBackupMsg(err instanceof Error ? err.message : "Backup failed");
     } finally {
@@ -397,8 +394,9 @@ export default function ReportsManager({ initialTab = "" }: { initialTab?: strin
               </p>
               <h2 className="mt-1 text-lg font-semibold">Export every module to one Excel file</h2>
               <p className="mt-1 text-sm text-muted">
-                Pick a date range — each module (products, sales, invoices, freight, employees and
-                more) is saved as its own sheet. Great for keeping a copy every month.
+                Each module becomes its own clean sheet. Sales, invoices, quotations, accounting and
+                freight follow the date range; your products, customers and team are always included
+                in full. Leave the dates empty (or tap “All time”) to back up everything.
               </p>
             </div>
             <div className="flex flex-wrap items-end gap-3">
@@ -422,6 +420,16 @@ export default function ReportsManager({ initialTab = "" }: { initialTab?: strin
                   className={inputClass}
                 />
               </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setFrom("");
+                  setTo("");
+                }}
+                className="cursor-pointer rounded-full border border-line px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-muted transition-colors duration-200 hover:border-gold hover:text-gold"
+              >
+                All time
+              </button>
               <button
                 type="button"
                 onClick={handleBackup}
