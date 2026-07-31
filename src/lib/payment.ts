@@ -1,11 +1,20 @@
 // Payment methods — client-safe (no mongoose imports). Single source of truth
 // for the model enum, the sale/invoice forms and any display label.
-export const PAYMENT_METHODS = ["zaad", "edahab", "bank", "cash"] as const;
+export const PAYMENT_METHODS = [
+  "zaad",
+  "edahab",
+  "premier-wallet",
+  "ebirr",
+  "bank",
+  "cash",
+] as const;
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 
 export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   zaad: "ZAAD",
   edahab: "EDAHAB",
+  "premier-wallet": "PREMIER WALLET",
+  ebirr: "EBIRR",
   bank: "BANK",
   cash: "CASH",
 };
@@ -24,6 +33,15 @@ export function normalizePaymentMethod(value: unknown): PaymentMethod {
     case "e-dahab":
     case "e dahab":
       return "edahab";
+    case "premier-wallet":
+    case "premier wallet":
+    case "premierwallet":
+    case "premier":
+      return "premier-wallet";
+    case "ebirr":
+    case "e-birr":
+    case "e birr":
+      return "ebirr";
     case "bank":
     case "bank-transfer":
     case "banktransfer":

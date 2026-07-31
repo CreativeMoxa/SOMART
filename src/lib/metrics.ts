@@ -19,6 +19,10 @@ export async function getDashboardMetrics() {
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const startOfYear = new Date(now.getFullYear(), 0, 1);
   const sevenDaysAgo = new Date(startOfDay.getTime() - 6 * 24 * 60 * 60 * 1000);
+  // Monday-based calendar week, matching the Sales list's "This Week" filter so
+  // the dashboard's Weekly Orders count equals what the drill-down link shows.
+  const startOfWeek = new Date(startOfDay);
+  startOfWeek.setDate(startOfWeek.getDate() - ((startOfDay.getDay() + 6) % 7));
   // Rolling windows for web-view counts ("views of the last week / month / year").
   const day = 24 * 60 * 60 * 1000;
   const last7 = new Date(now.getTime() - 7 * day);
@@ -55,6 +59,8 @@ export async function getDashboardMetrics() {
   let todaySales = 0;
   let todayProfit = 0;
   let todayOrders = 0;
+  let weekOrders = 0;
+  let monthOrders = 0;
   let monthRevenue = 0;
   let monthProfit = 0;
   let yearRevenue = 0;
@@ -67,12 +73,14 @@ export async function getDashboardMetrics() {
     if (created >= startOfMonth) {
       monthRevenue += sale.total;
       monthProfit += sale.profit ?? 0;
+      monthOrders += 1;
       const src = sale.source ?? "walk-in";
       const entry = monthBySource.get(src) ?? { count: 0, revenue: 0 };
       entry.count += 1;
       entry.revenue += sale.total;
       monthBySource.set(src, entry);
     }
+    if (created >= startOfWeek) weekOrders += 1;
     if (created >= startOfDay) {
       todaySales += sale.total;
       todayProfit += sale.profit ?? 0;
@@ -138,6 +146,8 @@ export async function getDashboardMetrics() {
     todaySales,
     todayProfit,
     todayOrders,
+    weekOrders,
+    monthOrders,
     webViews,
     monthRevenue,
     monthProfit,

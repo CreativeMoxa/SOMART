@@ -136,12 +136,16 @@ export default function InventoryManager() {
   const lowStock = products.filter((p) => statusOf(p) === "low-stock").length;
   const outOfStock = products.filter((p) => statusOf(p) === "out-of-stock").length;
   const recentlyAdded = products.filter((p) => p.createdAt && new Date(p.createdAt) >= weekAgo).length;
-  const soldToday = movements
-    .filter((m) => m.type === "invoice-sale" && new Date(m.createdAt) >= startDay)
-    .reduce((s, m) => s + Math.abs(m.qtyChange), 0);
-  const soldMonth = movements
-    .filter((m) => m.type === "invoice-sale" && new Date(m.createdAt) >= startMonth)
-    .reduce((s, m) => s + Math.abs(m.qtyChange), 0);
+  const sold = (since?: Date) =>
+    movements
+      .filter((m) => m.type === "invoice-sale" && (!since || new Date(m.createdAt) >= since))
+      .reduce((s, m) => s + Math.abs(m.qtyChange), 0);
+  const soldToday = sold(startDay);
+  const soldWeek = sold(weekAgo);
+  const soldMonth = sold(startMonth);
+  // All-time uses each product's own sold counter, so it stays correct even
+  // once the movement history grows past the fetch limit.
+  const soldAllTime = products.reduce((s, p) => s + (p.soldCount ?? 0), 0);
 
   const visible = products.filter((p) => {
     if (statusFilter && statusOf(p) !== statusFilter) return false;
@@ -295,7 +299,9 @@ export default function InventoryManager() {
         <DashCard label="Out of Stock" value={String(outOfStock)} />
         <DashCard label="Recently Added" value={String(recentlyAdded)} />
         <DashCard label="Sold Today" value={String(soldToday)} />
+        <DashCard label="Sold This Week" value={String(soldWeek)} />
         <DashCard label="Sold This Month" value={String(soldMonth)} />
+        <DashCard label="All-Time Sold" value={String(soldAllTime)} />
       </div>
 
       {/* Search + status filter */}
