@@ -21,6 +21,7 @@ export const MODULES = [
   "marketing",
   "accounting",
   "reports",
+  "tasks",
   "employees",
   "settings",
 ] as const;
@@ -50,12 +51,21 @@ export const ROLE_MODULES: Record<Role, readonly ModuleKey[] | "*"> = {
   "founder-sales": MODULES.filter(
     (m): m is ModuleKey => m !== "employees" && m !== "settings"
   ),
-  cashier: ["invoices"],
-  marketer: ["marketing"],
+  // Everyone can open Task Manager — managers run it, employees see and update
+  // the tasks assigned to them (enforced in the API/UI, not by hiding the tab).
+  cashier: ["invoices", "tasks"],
+  marketer: ["marketing", "tasks"],
 };
 
 export function isRole(value: unknown): value is Role {
   return typeof value === "string" && (ROLES as readonly string[]).includes(value);
+}
+
+// Managers run the Task Manager (create/assign/delete); other roles only see
+// and update their own assigned tasks.
+export const MANAGER_ROLES: readonly Role[] = ["founder-ceo", "founder-sales"];
+export function isManagerRole(role: Role): boolean {
+  return MANAGER_ROLES.includes(role);
 }
 
 export function allowedModules(role: Role): readonly ModuleKey[] {
@@ -92,6 +102,7 @@ export const ADMIN_LINKS: readonly AdminLink[] = [
   // The existing Expenses module — surfaced as "Accounting" in the menu.
   { module: "accounting", href: "/admin/expenses", label: "Accounting", accent: "#fb7185" },
   { module: "reports", href: "/admin/reports", label: "Reports", accent: "#818cf8" },
+  { module: "tasks", href: "/admin/tasks", label: "Task Manager", accent: "#f59e0b" },
   { module: "employees", href: "/admin/employees", label: "Employees", accent: "#22d3ee" },
   { module: "settings", href: "/admin/settings", label: "Settings", accent: "#94a3b8" },
 ];
