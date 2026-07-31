@@ -12,6 +12,16 @@ export const RANGE_LABELS: Record<Exclude<DateRange, "">, string> = {
   year: "This Year",
 };
 
+// Weeks run Saturday → Friday: the start is the most recent Saturday (today if
+// it is Saturday). Shared by the Sales/Expenses "This Week" filter, the
+// dashboard's Weekly Orders and inventory's Sold This Week so they all agree.
+export function startOfWeek(ref: Date = new Date()): Date {
+  const d = new Date(ref.getFullYear(), ref.getMonth(), ref.getDate());
+  // getDay(): Sun=0 … Sat=6. Days since the last Saturday = (day + 1) % 7.
+  d.setDate(d.getDate() - ((d.getDay() + 1) % 7));
+  return d;
+}
+
 export function normalizeRange(value: string | null | undefined): DateRange {
   return value && (DATE_RANGES as readonly string[]).includes(value)
     ? (value as DateRange)
@@ -23,13 +33,8 @@ export function rangeStart(range: DateRange): Date | null {
   switch (range) {
     case "today":
       return new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    case "week": {
-      // Week starts Monday.
-      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const offset = (d.getDay() + 6) % 7;
-      d.setDate(d.getDate() - offset);
-      return d;
-    }
+    case "week":
+      return startOfWeek(now);
     case "month":
       return new Date(now.getFullYear(), now.getMonth(), 1);
     case "year":

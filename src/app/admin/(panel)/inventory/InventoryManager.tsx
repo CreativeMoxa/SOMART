@@ -82,6 +82,7 @@ function DashCard({ label, value, accent }: { label: string; value: string; acce
 export default function InventoryManager() {
   const [products, setProducts] = useState<Product[]>([]);
   const [movements, setMovements] = useState<Movement[]>([]);
+  const [soldStats, setSoldStats] = useState({ today: 0, week: 0, month: 0, allTime: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -102,13 +103,15 @@ export default function InventoryManager() {
 
   const load = useCallback(async () => {
     try {
-      const [pRes, mRes] = await Promise.all([
+      const [pRes, mRes, sRes] = await Promise.all([
         fetch("/api/products"),
         fetch("/api/inventory/movements?limit=2000"),
+        fetch("/api/inventory/sold"),
       ]);
       if (!pRes.ok) throw new Error("Failed to load inventory");
       setProducts(await pRes.json());
       if (mRes.ok) setMovements(await mRes.json());
+      if (sRes.ok) setSoldStats(await sRes.json());
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load inventory");
     } finally {
@@ -123,7 +126,6 @@ export default function InventoryManager() {
   // ── Dashboard ────────────────────────────────────────────────────────────
   const now = new Date();
   const startDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const startMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const weekAgo = new Date(startDay.getTime() - 7 * 86400000);
 
   const totalStock = products.reduce((s, p) => s + (p.stockQty ?? 0), 0);
@@ -136,16 +138,10 @@ export default function InventoryManager() {
   const lowStock = products.filter((p) => statusOf(p) === "low-stock").length;
   const outOfStock = products.filter((p) => statusOf(p) === "out-of-stock").length;
   const recentlyAdded = products.filter((p) => p.createdAt && new Date(p.createdAt) >= weekAgo).length;
-  const sold = (since?: Date) =>
-    movements
-      .filter((m) => m.type === "invoice-sale" && (!since || new Date(m.createdAt) >= since))
-      .reduce((s, m) => s + Math.abs(m.qtyChange), 0);
-  const soldToday = sold(startDay);
-  const soldWeek = sold(weekAgo);
-  const soldMonth = sold(startMonth);
-  // All-time uses each product's own sold counter, so it stays correct even
-  // once the movement history grows past the fetch limit.
-  const soldAllTime = products.reduce((s, p) => s + (p.soldCount ?? 0), 0);
+  // Sold totals come from /api/inventory/sold — all four share one source
+  // (invoice-sale movements), so all-time ≥ month ≥ week ≥ today always holds.
+  const { today: soldToday, week: soldWeek, month: soldMonth, allTime: soldAllTime } =
+    soldStats;
 
   const visible = products.filter((p) => {
     if (statusFilter && statusOf(p) !== statusFilter) return false;

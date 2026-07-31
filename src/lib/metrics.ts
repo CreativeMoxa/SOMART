@@ -6,6 +6,7 @@ import { Expense } from "@/models/Expense";
 import { Invoice } from "@/models/Invoice";
 import { PageView } from "@/models/PageView";
 import { MARKETING_SOURCES, SOURCE_LABELS, type MarketingSource } from "@/lib/marketing";
+import { startOfWeek } from "@/lib/dateRange";
 
 function dayKey(d: Date) {
   return d.toISOString().slice(0, 10);
@@ -19,10 +20,9 @@ export async function getDashboardMetrics() {
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const startOfYear = new Date(now.getFullYear(), 0, 1);
   const sevenDaysAgo = new Date(startOfDay.getTime() - 6 * 24 * 60 * 60 * 1000);
-  // Monday-based calendar week, matching the Sales list's "This Week" filter so
-  // the dashboard's Weekly Orders count equals what the drill-down link shows.
-  const startOfWeek = new Date(startOfDay);
-  startOfWeek.setDate(startOfWeek.getDate() - ((startOfDay.getDay() + 6) % 7));
+  // Saturday→Friday week, matching the Sales list's "This Week" filter so the
+  // dashboard's Weekly Orders count equals what the drill-down link shows.
+  const weekStart = startOfWeek(now);
   // Rolling windows for web-view counts ("views of the last week / month / year").
   const day = 24 * 60 * 60 * 1000;
   const last7 = new Date(now.getTime() - 7 * day);
@@ -80,7 +80,7 @@ export async function getDashboardMetrics() {
       entry.revenue += sale.total;
       monthBySource.set(src, entry);
     }
-    if (created >= startOfWeek) weekOrders += 1;
+    if (created >= weekStart) weekOrders += 1;
     if (created >= startOfDay) {
       todaySales += sale.total;
       todayProfit += sale.profit ?? 0;
