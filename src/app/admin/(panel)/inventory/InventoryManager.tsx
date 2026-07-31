@@ -82,7 +82,7 @@ function DashCard({ label, value, accent }: { label: string; value: string; acce
 export default function InventoryManager() {
   const [products, setProducts] = useState<Product[]>([]);
   const [movements, setMovements] = useState<Movement[]>([]);
-  const [soldStats, setSoldStats] = useState({ today: 0, week: 0, month: 0, allTime: 0 });
+  const [soldStats, setSoldStats] = useState({ today: 0, week: 0, month: 0, year: 0, allTime: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -140,8 +140,13 @@ export default function InventoryManager() {
   const recentlyAdded = products.filter((p) => p.createdAt && new Date(p.createdAt) >= weekAgo).length;
   // Sold totals come from /api/inventory/sold — all four share one source
   // (invoice-sale movements), so all-time ≥ month ≥ week ≥ today always holds.
-  const { today: soldToday, week: soldWeek, month: soldMonth, allTime: soldAllTime } =
-    soldStats;
+  const {
+    today: soldToday,
+    week: soldWeek,
+    month: soldMonth,
+    year: soldYear,
+    allTime: soldAllTime,
+  } = soldStats;
 
   const visible = products.filter((p) => {
     if (statusFilter && statusOf(p) !== statusFilter) return false;
@@ -297,6 +302,7 @@ export default function InventoryManager() {
         <DashCard label="Sold Today" value={String(soldToday)} />
         <DashCard label="Sold This Week" value={String(soldWeek)} />
         <DashCard label="Sold This Month" value={String(soldMonth)} />
+        <DashCard label="Sold This Year" value={String(soldYear)} />
         <DashCard label="All-Time Sold" value={String(soldAllTime)} />
       </div>
 
