@@ -23,6 +23,8 @@ export async function getDashboardMetrics() {
   // Saturday→Friday week, matching the Sales list's "This Week" filter so the
   // dashboard's Weekly Orders count equals what the drill-down link shows.
   const weekStart = startOfWeek(now);
+  // The full Saturday→Friday week immediately before this one.
+  const lastWeekStart = new Date(weekStart.getTime() - 7 * 24 * 60 * 60 * 1000);
   // Rolling windows for web-view counts ("views of the last week / month / year").
   const day = 24 * 60 * 60 * 1000;
   const last7 = new Date(now.getTime() - 7 * day);
@@ -60,6 +62,7 @@ export async function getDashboardMetrics() {
   let todayProfit = 0;
   let todayOrders = 0;
   let weekOrders = 0;
+  let lastWeekOrders = 0;
   let monthOrders = 0;
   let monthRevenue = 0;
   let monthProfit = 0;
@@ -81,6 +84,7 @@ export async function getDashboardMetrics() {
       monthBySource.set(src, entry);
     }
     if (created >= weekStart) weekOrders += 1;
+    else if (created >= lastWeekStart) lastWeekOrders += 1;
     if (created >= startOfDay) {
       todaySales += sale.total;
       todayProfit += sale.profit ?? 0;
@@ -147,6 +151,7 @@ export async function getDashboardMetrics() {
     todayProfit,
     todayOrders,
     weekOrders,
+    lastWeekOrders,
     monthOrders,
     webViews,
     monthRevenue,
