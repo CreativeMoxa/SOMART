@@ -14,13 +14,19 @@ import {
   TASK_CATEGORIES,
   RECURRENCES,
   RECURRENCE_LABELS,
+  CHECKLIST_STATUSES,
+  CHECKLIST_STATUS_LABELS,
+  CHECKLIST_STATUS_BADGE,
+  checklistStatus,
+  taskCompletion,
   isOverdue,
   labelize,
   type TaskStatus,
   type Priority,
+  type ChecklistStatus,
 } from "@/lib/taskManager";
 
-type Subtask = { _id?: string; title: string; done: boolean };
+type Subtask = { _id?: string; title: string; status: ChecklistStatus; done?: boolean };
 type Comment = { author: string; text: string; at: string };
 type Activity = { actor: string; action: string; at: string };
 type Attachment = { name: string; url: string; kind?: string };
@@ -64,6 +70,8 @@ type Stats = {
   upcoming: number;
   overdue: number;
   completed: number;
+  checklistDone: number;
+  checklistTotal: number;
   byStatus: Record<string, number>;
   byPriority: Record<string, number>;
   byEmployee: Record<string, number>;
@@ -191,6 +199,7 @@ export default function TaskManager() {
     const byPriority: Record<string, number> = {};
     const byEmployee: Record<string, number> = {};
     let dueToday = 0, upcoming = 0, overdue = 0, completed = 0;
+    let checklistDone = 0, checklistTotal = 0;
     for (const t of tasks) {
       const es = effStatus(t);
       byStatus[es] = (byStatus[es] ?? 0) + 1;
@@ -200,8 +209,11 @@ export default function TaskManager() {
       if (es === "overdue") overdue += 1;
       if (t.dueDate === today && t.status !== "completed") dueToday += 1;
       if (t.dueDate > today && t.dueDate <= soon && t.status !== "completed") upcoming += 1;
+      const c = taskCompletion(t);
+      checklistDone += c.done;
+      checklistTotal += c.total;
     }
-    return { total: tasks.length, dueToday, upcoming, overdue, completed, byStatus, byPriority, byEmployee };
+    return { total: tasks.length, dueToday, upcoming, overdue, completed, checklistDone, checklistTotal, byStatus, byPriority, byEmployee };
   }, [tasks]);
 
   // ── Actions ───────────────────────────────────────────────────────────────
@@ -367,7 +379,7 @@ export default function TaskManager() {
 
 // ── Dashboard ────────────────────────────────────────────────────────────────
 function Dashboard({ stats }: { stats: Stats }) {
-  const completionRate = stats.total ? Math.round((stats.completed / stats.total) * 100) : 0;
+  const completionRate = stats.checklistTotal ? Math.round((stats.checklistDone / stats.checklistTotal) * 100) : 0;
   const maxStatus = Math.max(1, ...Object.values(stats.byStatus));
   const employees = Object.entries(stats.byEmployee).sort((a, b) => b[1] - a[1]).slice(0, 8);
   return (
@@ -403,7 +415,10 @@ function Dashboard({ stats }: { stats: Stats }) {
           <div className="rounded-2xl border border-line bg-surface p-5">
             <h2 className="text-lg font-semibold">Completion Rate</h2>
             <p className="mt-2 text-4xl font-bold text-gold">{completionRate}%</p>
-            <p className="mt-1 text-xs text-muted">{stats.completed} of {stats.total} tasks completed</p>
+            <p className="mt-1 text-xs text-muted">{stats.checklistDone} of {stats.checklistTotal} checklist items completed</p>
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-background">
+              <div className="h-full rounded-full bg-gold-bright/80" style={{ width: `${completionRate}%` }} />
+            </div>
           </div>
           <div className="rounded-2xl border border-line bg-surface p-5">
             <h2 className="text-lg font-semibold">Tasks by Priority</h2>
@@ -481,46 +496,73 @@ function Filters({ filters, setFilters, assignees, tasks }: {
   );
 }
 
-// ── List view ───────────────────────────────────────────────────────────────
+// ── List view — grouped per person (each employee's weekly tasks) ────────────
 function ListView({ tasks, onOpen }: { tasks: Task[]; onOpen: (t: Task) => void }) {
   if (tasks.length === 0) return <p className="text-sm text-muted">No tasks match your filters.</p>;
+
+  // Group tasks by assignee (a task shows under each of its assignees).
+  const groups = new Map<string, Task[]>();
+  for (const t of tasks) {
+    const names = t.assignees.length ? t.assignees : ["Unassigned"];
+    for (const n of names) {
+      if (!groups.has(n)) groups.set(n, []);
+      groups.get(n)!.push(t);
+    }
+  }
+  const ordered = [...groups.entries()].sort((a, b) =>
+    a[0] === "Unassigned" ? 1 : b[0] === "Unassigned" ? -1 : a[0].localeCompare(b[0])
+  );
+
   return (
-    <div className="overflow-x-auto rounded-2xl border border-line">
-      <table className="w-full min-w-[820px] text-left text-sm">
-        <thead className="border-b border-line bg-surface text-xs uppercase tracking-wider text-muted">
-          <tr>
-            <th className="px-4 py-3 font-semibold">ID</th>
-            <th className="px-4 py-3 font-semibold">Task</th>
-            <th className="px-4 py-3 font-semibold">Assigned</th>
-            <th className="px-4 py-3 font-semibold">Dept</th>
-            <th className="px-4 py-3 font-semibold">Priority</th>
-            <th className="px-4 py-3 font-semibold">Status</th>
-            <th className="px-4 py-3 font-semibold">Due</th>
-            <th className="px-4 py-3 font-semibold">Progress</th>
-          </tr>
-        </thead>
-        <tbody>
-          {tasks.map((t) => (
-            <tr key={t._id} onClick={() => onOpen(t)} className="cursor-pointer border-b border-line last:border-0 hover:bg-surface/60">
-              <td className="px-4 py-3 font-mono text-xs text-muted">{t.number}</td>
-              <td className="px-4 py-3 font-semibold">{t.title}</td>
-              <td className="px-4 py-3 text-muted">{t.assignees.join(", ") || "—"}</td>
-              <td className="px-4 py-3 text-muted">{labelize(t.department)}</td>
-              <td className="px-4 py-3"><PriorityBadge priority={t.priority} /></td>
-              <td className="px-4 py-3"><Badge status={effStatus(t)} /></td>
-              <td className="px-4 py-3 text-muted">{fmtDate(t.dueDate)}</td>
-              <td className="px-4 py-3">
-                <div className="flex items-center gap-2">
-                  <div className="h-1.5 w-16 overflow-hidden rounded-full bg-background">
-                    <div className="h-full rounded-full bg-gold-bright/80" style={{ width: `${t.progress}%` }} />
-                  </div>
-                  <span className="text-xs text-muted">{t.progress}%</span>
+    <div className="space-y-5">
+      {ordered.map(([person, list]) => {
+        const done = list.reduce((s, t) => s + taskCompletion(t).done, 0);
+        const total = list.reduce((s, t) => s + taskCompletion(t).total, 0);
+        const pct = total ? Math.round((done / total) * 100) : 0;
+        return (
+          <div key={person} className="rounded-2xl border border-line bg-surface p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gold/20 text-sm font-bold text-gold">
+                  {person.slice(0, 1).toUpperCase()}
                 </div>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+                <div>
+                  <p className="font-semibold">{person}</p>
+                  <p className="text-xs text-muted">{list.length} task{list.length === 1 ? "" : "s"} · {done}/{total} checklist items done</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="h-2 w-28 overflow-hidden rounded-full bg-background">
+                  <div className="h-full rounded-full bg-gold-bright/80" style={{ width: `${pct}%` }} />
+                </div>
+                <span className="text-sm font-bold text-gold">{pct}%</span>
+              </div>
+            </div>
+
+            <div className="mt-4 space-y-2">
+              {list.map((t) => {
+                const c = taskCompletion(t);
+                return (
+                  <button key={t._id} onClick={() => onOpen(t)}
+                    className="flex w-full flex-wrap items-center gap-3 rounded-xl border border-line bg-background p-3 text-left hover:border-gold">
+                    <span className="font-mono text-[10px] text-muted">{t.number}</span>
+                    <span className="flex-1 font-semibold">{t.title}</span>
+                    <PriorityBadge priority={t.priority} />
+                    <Badge status={effStatus(t)} />
+                    <span className="text-xs text-muted">Due {fmtDate(t.dueDate)}</span>
+                    <span className="flex items-center gap-2">
+                      <span className="h-1.5 w-16 overflow-hidden rounded-full bg-surface">
+                        <span className="block h-full rounded-full bg-gold-bright/80" style={{ width: `${c.percent}%` }} />
+                      </span>
+                      <span className="text-xs text-muted">{c.total ? `${c.done}/${c.total}` : `${c.percent}%`}</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -565,7 +607,7 @@ function BoardView({ tasks, isManager, onOpen, onMove }: {
                   <p className="mt-1 text-xs text-muted">{t.assignees.join(", ") || "Unassigned"}</p>
                   <div className="mt-2 flex items-center justify-between text-[11px] text-muted">
                     <span>Due {fmtDate(t.dueDate)}</span>
-                    <span>{t.progress}%</span>
+                    <span>{(() => { const c = taskCompletion(t); return c.total ? `${c.done}/${c.total}` : `${c.percent}%`; })()}</span>
                   </div>
                 </div>
               ))}
@@ -869,23 +911,31 @@ function TaskModal({ initial, assignees, onClose, onSave }: {
 
 function SubtaskEditor({ value, onChange }: { value: Subtask[]; onChange: (v: Subtask[]) => void }) {
   const [text, setText] = useState("");
+  const add = () => { if (text.trim()) { onChange([...value, { title: text.trim(), status: "not-started" }]); setText(""); } };
   return (
     <div>
-      <label className="text-sm font-semibold">Subtasks / Checklist</label>
+      <label className="text-sm font-semibold">Checklist (each item has its own status)</label>
       <div className="mt-2 space-y-1.5">
-        {value.map((s, i) => (
-          <div key={i} className="flex items-center gap-2">
-            <input type="checkbox" checked={s.done} onChange={() => onChange(value.map((x, j) => j === i ? { ...x, done: !x.done } : x))} />
-            <span className={`flex-1 text-sm ${s.done ? "text-muted line-through" : ""}`}>{s.title}</span>
-            <button type="button" onClick={() => onChange(value.filter((_, j) => j !== i))} className="text-xs text-red-400">remove</button>
-          </div>
-        ))}
+        {value.map((s, i) => {
+          const st = checklistStatus(s);
+          return (
+            <div key={i} className="flex items-center gap-2">
+              <span className={`flex-1 text-sm ${st === "completed" ? "text-muted line-through" : ""}`}>{s.title}</span>
+              <select value={st}
+                onChange={(e) => onChange(value.map((x, j) => j === i ? { ...x, status: e.target.value as ChecklistStatus, done: e.target.value === "completed" } : x))}
+                className="rounded-lg border border-line bg-surface px-2 py-1 text-xs">
+                {CHECKLIST_STATUSES.map((c) => <option key={c} value={c}>{CHECKLIST_STATUS_LABELS[c]}</option>)}
+              </select>
+              <button type="button" onClick={() => onChange(value.filter((_, j) => j !== i))} className="text-xs text-red-400">remove</button>
+            </div>
+          );
+        })}
       </div>
       <div className="mt-2 flex gap-2">
         <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Add a checklist item…"
-          onKeyDown={(e) => { if (e.key === "Enter" && text.trim()) { onChange([...value, { title: text.trim(), done: false }]); setText(""); } }}
+          onKeyDown={(e) => { if (e.key === "Enter") add(); }}
           className="flex-1 rounded-xl border border-line bg-surface px-3 py-2 text-sm" />
-        <button type="button" onClick={() => { if (text.trim()) { onChange([...value, { title: text.trim(), done: false }]); setText(""); } }} className={`${chip} border border-line text-muted hover:border-gold`}>Add</button>
+        <button type="button" onClick={add} className={`${chip} border border-line text-muted hover:border-gold`}>Add</button>
       </div>
     </div>
   );
@@ -906,6 +956,7 @@ function TaskDetail({ task, isManager, onClose, onEdit, onPatch, onDuplicate, on
   const [progress, setProgress] = useState(task.progress);
   const [attName, setAttName] = useState("");
   const [attUrl, setAttUrl] = useState("");
+  const comp = taskCompletion(task);
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/50" onClick={onClose}>
@@ -949,18 +1000,27 @@ function TaskDetail({ task, isManager, onClose, onEdit, onPatch, onDuplicate, on
           </div>
         </div>
 
-        {/* Subtasks */}
+        {/* Checklist — each item has its own status; completion drives the % */}
         {task.subtasks.length > 0 && (
           <div className="mt-5">
-            <h3 className="text-sm font-semibold">Checklist</h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold">Checklist</h3>
+              <span className="text-xs font-semibold text-gold">{comp.done}/{comp.total} done · {comp.percent}%</span>
+            </div>
             <div className="mt-2 space-y-1.5">
-              {task.subtasks.map((s, i) => (
-                <label key={i} className="flex items-center gap-2 text-sm">
-                  <input type="checkbox" checked={s.done}
-                    onChange={() => onPatch(task._id, { subtasks: task.subtasks.map((x, j) => j === i ? { ...x, done: !x.done } : x) })} />
-                  <span className={s.done ? "text-muted line-through" : ""}>{s.title}</span>
-                </label>
-              ))}
+              {task.subtasks.map((s, i) => {
+                const st = checklistStatus(s);
+                return (
+                  <div key={i} className="flex items-center gap-2 text-sm">
+                    <span className={`flex-1 ${st === "completed" ? "text-muted line-through" : ""}`}>{s.title}</span>
+                    <select value={st}
+                      onChange={(e) => onPatch(task._id, { subtasks: task.subtasks.map((x, j) => j === i ? { ...x, status: e.target.value, done: e.target.value === "completed" } : x) })}
+                      className={`rounded-lg border-0 px-2 py-1 text-xs font-semibold ${CHECKLIST_STATUS_BADGE[st]}`}>
+                      {CHECKLIST_STATUSES.map((c) => <option key={c} value={c}>{CHECKLIST_STATUS_LABELS[c]}</option>)}
+                    </select>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}

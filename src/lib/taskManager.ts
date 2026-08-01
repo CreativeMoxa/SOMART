@@ -55,6 +55,54 @@ export const OPEN_STATUSES: TaskStatus[] = [
   "overdue",
 ];
 
+// Each checklist item carries its own status (like an invoice's paid/unpaid),
+// not a plain checkbox. Completion is measured from these.
+export const CHECKLIST_STATUSES = [
+  "not-started",
+  "in-progress",
+  "on-hold",
+  "completed",
+  "cancelled",
+] as const;
+export type ChecklistStatus = (typeof CHECKLIST_STATUSES)[number];
+export const CHECKLIST_STATUS_LABELS: Record<ChecklistStatus, string> = {
+  "not-started": "Not Started",
+  "in-progress": "In Progress",
+  "on-hold": "On Hold",
+  completed: "Completed",
+  cancelled: "Cancelled",
+};
+export const CHECKLIST_STATUS_BADGE: Record<ChecklistStatus, string> = {
+  "not-started": "bg-slate-500/15 text-slate-400",
+  "in-progress": "bg-sky-500/15 text-sky-400",
+  "on-hold": "bg-amber-500/15 text-amber-500",
+  completed: "bg-emerald-500/15 text-emerald-500",
+  cancelled: "bg-rose-500/15 text-rose-400",
+};
+
+// Effective status of a checklist item (tolerates legacy items that only had a
+// `done` boolean before statuses existed).
+export function checklistStatus(item: { status?: string; done?: boolean }): ChecklistStatus {
+  if (item.status && (CHECKLIST_STATUSES as readonly string[]).includes(item.status)) {
+    return item.status as ChecklistStatus;
+  }
+  return item.done ? "completed" : "not-started";
+}
+
+// Completion of one task = completed checklist items / total checklist items.
+// A task with no checklist falls back to its own progress field.
+export function taskCompletion(task: {
+  subtasks?: { status?: string; done?: boolean }[];
+  progress?: number;
+}): { done: number; total: number; percent: number } {
+  const items = task.subtasks ?? [];
+  if (items.length === 0) {
+    return { done: 0, total: 0, percent: task.progress ?? 0 };
+  }
+  const done = items.filter((i) => checklistStatus(i) === "completed").length;
+  return { done, total: items.length, percent: Math.round((done / items.length) * 100) };
+}
+
 export const PRIORITIES = ["low", "medium", "high", "critical"] as const;
 export type Priority = (typeof PRIORITIES)[number];
 export const PRIORITY_LABELS: Record<Priority, string> = {

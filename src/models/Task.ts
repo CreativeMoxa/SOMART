@@ -1,12 +1,15 @@
 import mongoose, { Schema, type InferSchemaType, type Model } from "mongoose";
 import { auditFields } from "@/lib/auditFields";
-import { TASK_STATUSES, PRIORITIES, RECURRENCES } from "@/lib/taskManager";
+import { TASK_STATUSES, PRIORITIES, RECURRENCES, CHECKLIST_STATUSES } from "@/lib/taskManager";
 
 // A single unit of work. Subtasks/checklist items, comments and the activity
 // history live embedded on the task so it stays one self-contained record.
+// Each checklist item has its own status (default Not Started); `done` is kept
+// in sync for any legacy readers.
 const subtaskSchema = new Schema(
   {
     title: { type: String, default: "" },
+    status: { type: String, enum: CHECKLIST_STATUSES, default: "not-started" },
     done: { type: Boolean, default: false },
   },
   { _id: true }
