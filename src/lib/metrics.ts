@@ -58,12 +58,13 @@ export async function getDashboardMetrics() {
         PageView.countDocuments({ createdAt: { $gte: last365 } }),
         PageView.estimatedDocumentCount(),
       ]).then(([week, month, year, all]) => ({ week, month, year, all })),
-      Sale.aggregate<{ _id: null; rev: number }>([
+      Sale.aggregate<{ _id: null; rev: number; profit: number }>([
         { $match: { status: { $ne: "pending" }, createdAt: { $gte: startOfLastMonth, $lt: startOfMonth } } },
-        { $group: { _id: null, rev: { $sum: "$total" } } },
+        { $group: { _id: null, rev: { $sum: "$total" }, profit: { $sum: "$profit" } } },
       ]),
     ]);
   const lastMonthRevenue = lastMonthAgg[0]?.rev ?? 0;
+  const lastMonthProfit = lastMonthAgg[0]?.profit ?? 0;
 
   let todaySales = 0;
   let todayProfit = 0;
@@ -74,12 +75,14 @@ export async function getDashboardMetrics() {
   let monthRevenue = 0;
   let monthProfit = 0;
   let yearRevenue = 0;
+  let yearProfit = 0;
   const dailyTotals = new Map<string, number>();
   const monthBySource = new Map<string, { count: number; revenue: number }>();
 
   for (const sale of sales) {
     const created = new Date(sale.createdAt);
     yearRevenue += sale.total;
+    yearProfit += sale.profit ?? 0;
     if (created >= startOfMonth) {
       monthRevenue += sale.total;
       monthProfit += sale.profit ?? 0;
@@ -164,6 +167,8 @@ export async function getDashboardMetrics() {
     monthRevenue,
     lastMonthRevenue,
     monthProfit,
+    lastMonthProfit,
+    yearProfit,
     monthExpenses,
     netProfit: monthProfit - monthExpenses,
     yearRevenue,

@@ -77,6 +77,8 @@ export default async function AdminDashboardPage() {
         <StatCard label="Last Month Revenue" value={money(m.lastMonthRevenue)} />
         <StatCard label="Annual Revenue" value={money(m.yearRevenue)} href="/admin/sales?range=year" />
         <StatCard label="Gross Profit (month)" value={money(m.monthProfit)} href="/admin/reports?tab=profit&range=month" />
+        <StatCard label="Last Month Profit" value={money(m.lastMonthProfit)} />
+        <StatCard label="Annual Profit" value={money(m.yearProfit)} accent href="/admin/reports?tab=profit&range=year" />
         <StatCard label="Expenses (month)" value={money(m.monthExpenses)} href="/admin/expenses?range=month" />
         <StatCard
           label="Net Profit (month)"
