@@ -82,7 +82,7 @@ function DashCard({ label, value, accent }: { label: string; value: string; acce
 export default function InventoryManager() {
   const [products, setProducts] = useState<Product[]>([]);
   const [movements, setMovements] = useState<Movement[]>([]);
-  const [soldStats, setSoldStats] = useState({ today: 0, week: 0, month: 0, year: 0, allTime: 0 });
+  const [soldStats, setSoldStats] = useState({ today: 0, week: 0, lastWeek: 0, month: 0, year: 0, allTime: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -143,6 +143,7 @@ export default function InventoryManager() {
   const {
     today: soldToday,
     week: soldWeek,
+    lastWeek: soldLastWeek,
     month: soldMonth,
     year: soldYear,
     allTime: soldAllTime,
@@ -301,6 +302,7 @@ export default function InventoryManager() {
         <DashCard label="Recently Added" value={String(recentlyAdded)} />
         <DashCard label="Sold Today" value={String(soldToday)} />
         <DashCard label="Sold This Week" value={String(soldWeek)} />
+        <DashCard label="Sold Last Week" value={String(soldLastWeek)} />
         <DashCard label="Sold This Month" value={String(soldMonth)} />
         <DashCard label="Sold This Year" value={String(soldYear)} />
         <DashCard label="All-Time Sold" value={String(soldAllTime)} />

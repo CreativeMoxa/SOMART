@@ -19,6 +19,7 @@ export async function GET() {
     const now = new Date();
     const startDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const startWeek = startOfWeek(now); // Saturday → Friday
+    const lastWeekStart = new Date(startWeek.getTime() - 7 * 24 * 60 * 60 * 1000);
     const startMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const startYear = new Date(now.getFullYear(), 0, 1);
     const qty = { $abs: "$qtyChange" };
@@ -26,6 +27,7 @@ export async function GET() {
     const [row] = await InventoryMovement.aggregate<{
       today: number;
       week: number;
+      lastWeek: number;
       month: number;
       year: number;
       allTime: number;
@@ -38,6 +40,15 @@ export async function GET() {
           year: { $sum: { $cond: [{ $gte: ["$createdAt", startYear] }, qty, 0] } },
           month: { $sum: { $cond: [{ $gte: ["$createdAt", startMonth] }, qty, 0] } },
           week: { $sum: { $cond: [{ $gte: ["$createdAt", startWeek] }, qty, 0] } },
+          lastWeek: {
+            $sum: {
+              $cond: [
+                { $and: [{ $gte: ["$createdAt", lastWeekStart] }, { $lt: ["$createdAt", startWeek] }] },
+                qty,
+                0,
+              ],
+            },
+          },
           today: { $sum: { $cond: [{ $gte: ["$createdAt", startDay] }, qty, 0] } },
         },
       },
@@ -46,6 +57,7 @@ export async function GET() {
     return NextResponse.json({
       today: row?.today ?? 0,
       week: row?.week ?? 0,
+      lastWeek: row?.lastWeek ?? 0,
       month: row?.month ?? 0,
       year: row?.year ?? 0,
       allTime: row?.allTime ?? 0,

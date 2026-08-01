@@ -18,6 +18,8 @@ export async function getDashboardMetrics() {
   const now = new Date();
   const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  // First day of the previous calendar month (JS rolls Jan → Dec of last year).
+  const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   const startOfYear = new Date(now.getFullYear(), 0, 1);
   const sevenDaysAgo = new Date(startOfDay.getTime() - 6 * 24 * 60 * 60 * 1000);
   // Saturday→Friday week, matching the Sales list's "This Week" filter so the
@@ -31,7 +33,7 @@ export async function getDashboardMetrics() {
   const last30 = new Date(now.getTime() - 30 * day);
   const last365 = new Date(now.getTime() - 365 * day);
 
-  const [sales, monthExpensesAgg, products, totalCustomers, unpaidInvoices, webViews] =
+  const [sales, monthExpensesAgg, products, totalCustomers, unpaidInvoices, webViews, lastMonthAgg] =
     await Promise.all([
       Sale.find({
         createdAt: { $gte: startOfYear },
@@ -56,7 +58,12 @@ export async function getDashboardMetrics() {
         PageView.countDocuments({ createdAt: { $gte: last365 } }),
         PageView.estimatedDocumentCount(),
       ]).then(([week, month, year, all]) => ({ week, month, year, all })),
+      Sale.aggregate<{ _id: null; rev: number }>([
+        { $match: { status: { $ne: "pending" }, createdAt: { $gte: startOfLastMonth, $lt: startOfMonth } } },
+        { $group: { _id: null, rev: { $sum: "$total" } } },
+      ]),
     ]);
+  const lastMonthRevenue = lastMonthAgg[0]?.rev ?? 0;
 
   let todaySales = 0;
   let todayProfit = 0;
@@ -155,6 +162,7 @@ export async function getDashboardMetrics() {
     monthOrders,
     webViews,
     monthRevenue,
+    lastMonthRevenue,
     monthProfit,
     monthExpenses,
     netProfit: monthProfit - monthExpenses,

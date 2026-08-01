@@ -164,6 +164,65 @@ export async function removeInvoiceSale(invoice: InvoiceDocument) {
   invoice.saleId = null;
 }
 
+// Signature of the line items that matters for stock: product + quantity.
+function itemsSignature(items: { productId?: unknown; qty: number }[]) {
+  return items
+    .map((i) => `${i.productId ? String(i.productId) : ""}:${i.qty}`)
+    .sort()
+    .join("|");
+}
+
+// Keep the linked Sale in step when an already-paid invoice is edited — the
+// customer, type, source, payment method and totals, and (only if the line
+// items actually changed) the deducted stock. Without this, edits saved on a
+// paid invoice never reached the Sales module or the reports built on it.
+export async function syncSaleFromInvoice(invoice: InvoiceDocument) {
+  if (!invoice.saleId) return;
+  const sale = await Sale.findById(invoice.saleId);
+  if (!sale) return;
+
+  const stockChanged =
+    itemsSignature(sale.items) !== itemsSignature(invoice.items);
+  const wasCompleted = sale.status === "completed";
+
+  // Reverse the old stock deduction before the line items are replaced.
+  if (wasCompleted && stockChanged) {
+    await restoreStock(sale, invoice.number, "invoice-cancelled");
+  }
+
+  sale.set(
+    "items",
+    invoice.items.map((item) => ({
+      productId: item.productId ?? null,
+      name: item.name,
+      price: item.price,
+      qty: item.qty,
+      costPrice: item.costPrice ?? 0,
+      profitAmount: item.profitAmount ?? 0,
+      markupPercent: item.markupPercent ?? 0,
+      marginPercent: item.marginPercent ?? 0,
+      category: item.category ?? "",
+      brand: item.brand ?? "",
+    }))
+  );
+  sale.customerId = invoice.customerId;
+  sale.customerName = invoice.customerName || "Walk-in";
+  sale.subtotal = invoice.subtotal;
+  sale.discount = invoice.discount ?? 0;
+  sale.total = invoice.total;
+  sale.totalCost = invoice.totalCost ?? 0;
+  sale.profit = invoice.profit ?? 0;
+  sale.paymentMethod = normalizePaymentMethod(invoice.paymentMethod);
+  sale.source = invoice.source ?? "walk-in";
+  sale.customerType = invoice.customerType ?? "retail";
+  await sale.save();
+
+  // Re-apply stock for the new line items.
+  if (wasCompleted && stockChanged) {
+    await deductStock(sale, invoice.number);
+  }
+}
+
 // Keep the invoice consistent when its linked sale is deleted from Sales
 // (stock restoration is handled by the sales DELETE route).
 export async function detachSaleFromInvoice(invoiceId: unknown) {

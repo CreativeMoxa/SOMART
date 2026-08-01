@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { Invoice, INVOICE_STATUSES } from "@/models/Invoice";
 import { shapeDocumentPayload, enrichItemsWithProfit } from "@/lib/documents";
-import { applyInvoicePaid, revertInvoicePaid, removeInvoiceSale } from "@/lib/invoiceSale";
+import { applyInvoicePaid, revertInvoicePaid, removeInvoiceSale, syncSaleFromInvoice } from "@/lib/invoiceSale";
 import { isAdmin } from "@/lib/auth";
 import { actorName, recordAction } from "@/lib/audit";
 import { normalizePaymentMethod } from "@/lib/payment";
@@ -74,7 +74,9 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
     // Paid ⇄ unpaid transitions move inventory and the linked sale record.
     if (!wasPaid && invoice.status === "paid") await applyInvoicePaid(invoice);
-    if (wasPaid && invoice.status !== "paid") await revertInvoicePaid(invoice);
+    else if (wasPaid && invoice.status !== "paid") await revertInvoicePaid(invoice);
+    // Edited while it stays paid: push the changes into the linked sale.
+    else if (wasPaid && invoice.status === "paid") await syncSaleFromInvoice(invoice);
 
     // Distinguish a status change (e.g. sent / paid) from a normal edit.
     const verb =
