@@ -1,6 +1,6 @@
 import mongoose, { Schema, type InferSchemaType, type Model } from "mongoose";
 import { auditFields } from "@/lib/auditFields";
-import { TASK_STATUSES, PRIORITIES, RECURRENCES, CHECKLIST_STATUSES } from "@/lib/taskManager";
+import { TASK_STATUSES, PRIORITIES, RECURRENCES, CHECKLIST_STATUSES, itemUnits, deriveItemStatus } from "@/lib/taskManager";
 
 // A single unit of work. Subtasks/checklist items, comments and the activity
 // history live embedded on the task so it stays one self-contained record.
@@ -9,6 +9,10 @@ import { TASK_STATUSES, PRIORITIES, RECURRENCES, CHECKLIST_STATUSES } from "@/li
 const subtaskSchema = new Schema(
   {
     title: { type: String, default: "" },
+    priority: { type: String, enum: PRIORITIES, default: "medium" },
+    dueDate: { type: String, default: "" }, // YYYY-MM-DD — its own deadline
+    target: { type: Number, default: 1, min: 1 }, // units needed (e.g. 3 videos)
+    doneCount: { type: Number, default: 0, min: 0 }, // units finished
     status: { type: String, enum: CHECKLIST_STATUSES, default: "not-started" },
     done: { type: Boolean, default: false },
   },
@@ -86,6 +90,18 @@ const taskSchema = new Schema(
 
 taskSchema.index({ createdAt: -1 });
 taskSchema.index({ status: 1, dueDate: 1 });
+
+// Keep each checklist item's status automatic from its progress, and its
+// done/target within bounds — so employees just record how many they did.
+taskSchema.pre("save", function () {
+  for (const item of this.subtasks) {
+    const { done, target } = itemUnits(item);
+    item.target = target;
+    item.doneCount = done;
+    item.status = deriveItemStatus(done, target);
+    item.done = item.status === "completed";
+  }
+});
 
 export type TaskDoc = InferSchemaType<typeof taskSchema> & {
   _id: mongoose.Types.ObjectId;

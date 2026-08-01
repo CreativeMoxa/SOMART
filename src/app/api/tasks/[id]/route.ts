@@ -5,7 +5,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { isManagerRole } from "@/lib/roles";
 import { nextNumber } from "@/lib/numbering";
 import { recordAction } from "@/lib/audit";
-import { TASK_STATUS_LABELS, type TaskStatus, type Recurrence } from "@/lib/taskManager";
+import { TASK_STATUS_LABELS, itemPastDue, type TaskStatus, type Recurrence } from "@/lib/taskManager";
 
 export const dynamic = "force-dynamic";
 type Params = { params: Promise<{ id: string }> };
@@ -70,6 +70,24 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     }
 
     const body = await req.json();
+
+    // Deadline lock: an employee cannot touch a checklist item once its own due
+    // date has passed — only a manager/CEO may. Past-due items coming from an
+    // employee are reverted to their stored values.
+    if (!manager && Array.isArray(body.subtasks)) {
+      const existing = task.subtasks;
+      body.subtasks = body.subtasks.map((incoming: unknown, i: number) => {
+        const old = existing[i];
+        if (old && itemPastDue(old.dueDate)) {
+          return {
+            title: old.title, priority: old.priority, dueDate: old.dueDate,
+            target: old.target, doneCount: old.doneCount, status: old.status, done: old.done,
+          };
+        }
+        return incoming;
+      });
+    }
+
     const allowed = manager ? MANAGER_FIELDS : EMPLOYEE_FIELDS;
     const prevStatus = task.status;
     const prevAssignees = (task.assignees ?? []).join(", ");

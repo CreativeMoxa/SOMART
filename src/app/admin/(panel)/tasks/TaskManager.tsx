@@ -14,11 +14,12 @@ import {
   TASK_CATEGORIES,
   RECURRENCES,
   RECURRENCE_LABELS,
-  CHECKLIST_STATUSES,
   CHECKLIST_STATUS_LABELS,
   CHECKLIST_STATUS_BADGE,
-  checklistStatus,
   taskCompletion,
+  itemUnits,
+  deriveItemStatus,
+  itemPastDue,
   isOverdue,
   labelize,
   type TaskStatus,
@@ -27,7 +28,7 @@ import {
 } from "@/lib/taskManager";
 import { ROLE_LABELS, type Role } from "@/lib/roles";
 
-type Subtask = { _id?: string; title: string; status: ChecklistStatus; done?: boolean };
+type Subtask = { _id?: string; title: string; priority?: Priority; dueDate?: string; target?: number; doneCount?: number; status: ChecklistStatus; done?: boolean };
 type Comment = { author: string; text: string; at: string };
 type Activity = { actor: string; action: string; at: string };
 type Attachment = { name: string; url: string; kind?: string };
@@ -76,6 +77,7 @@ type Stats = {
   byStatus: Record<string, number>;
   byPriority: Record<string, number>;
   byEmployee: Record<string, number>;
+  byEmployeeItems: Record<string, { done: number; total: number }>;
 };
 
 const VIEWS: { key: View; label: string }[] = [
@@ -199,6 +201,7 @@ export default function TaskManager() {
     const byStatus: Record<string, number> = {};
     const byPriority: Record<string, number> = {};
     const byEmployee: Record<string, number> = {};
+    const byEmployeeItems: Record<string, { done: number; total: number }> = {};
     let dueToday = 0, upcoming = 0, overdue = 0, completed = 0;
     let checklistDone = 0, checklistTotal = 0;
     for (const t of tasks) {
@@ -213,8 +216,15 @@ export default function TaskManager() {
       const c = taskCompletion(t);
       checklistDone += c.done;
       checklistTotal += c.total;
+      // Per-employee scorecard from that person's checklist items.
+      for (const a of (t.assignees.length ? t.assignees : ["Unassigned"])) {
+        const e = byEmployeeItems[a] ?? { done: 0, total: 0 };
+        e.done += c.done;
+        e.total += c.total;
+        byEmployeeItems[a] = e;
+      }
     }
-    return { total: tasks.length, dueToday, upcoming, overdue, completed, checklistDone, checklistTotal, byStatus, byPriority, byEmployee };
+    return { total: tasks.length, dueToday, upcoming, overdue, completed, checklistDone, checklistTotal, byStatus, byPriority, byEmployee, byEmployeeItems };
   }, [tasks]);
 
   // ── Actions ───────────────────────────────────────────────────────────────
@@ -283,17 +293,17 @@ export default function TaskManager() {
   async function employeeReport() {
     const { exportEmployeeTaskReport } = await import("@/lib/taskPdf");
     const roleByName = new Map(assignees.map((a) => [a.name, a.role]));
-    type RT = { number: string; title: string; priority: string; status: string; dueDate?: string; checklistDone: number; checklistTotal: number; percent: number };
-    const groups = new Map<string, RT[]>();
+    type Block = { taskName: string; items: { name: string; priority: string; dueDate?: string; done: number; target: number; status: string }[] };
+    const groups = new Map<string, Block[]>();
     for (const t of tasks) {
       const names = t.assignees.length ? t.assignees : ["Unassigned"];
+      const items = (t.subtasks ?? []).map((s) => {
+        const u = itemUnits(s);
+        return { name: s.title, priority: s.priority ?? "medium", dueDate: s.dueDate, done: u.done, target: u.target, status: deriveItemStatus(u.done, u.target) };
+      });
       for (const n of names) {
         if (!groups.has(n)) groups.set(n, []);
-        const c = taskCompletion(t);
-        groups.get(n)!.push({
-          number: t.number, title: t.title, priority: t.priority, status: effStatus(t),
-          dueDate: t.dueDate, checklistDone: c.done, checklistTotal: c.total, percent: c.percent,
-        });
+        groups.get(n)!.push({ taskName: t.title, items });
       }
     }
     const data = [...groups.entries()]
@@ -415,7 +425,9 @@ export default function TaskManager() {
 function Dashboard({ stats }: { stats: Stats }) {
   const completionRate = stats.checklistTotal ? Math.round((stats.checklistDone / stats.checklistTotal) * 100) : 0;
   const maxStatus = Math.max(1, ...Object.values(stats.byStatus));
-  const employees = Object.entries(stats.byEmployee).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  const scorecard = Object.entries(stats.byEmployeeItems)
+    .map(([name, v]) => ({ name, done: v.done, total: v.total, pct: v.total ? Math.round((v.done / v.total) * 100) : 0 }))
+    .sort((a, b) => b.pct - a.pct);
   return (
     <div>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
@@ -466,15 +478,24 @@ function Dashboard({ stats }: { stats: Stats }) {
             </div>
           </div>
           <div className="rounded-2xl border border-line bg-surface p-5">
-            <h2 className="text-lg font-semibold">Tasks by Employee</h2>
-            {employees.length === 0 ? (
+            <h2 className="text-lg font-semibold">Employee Scorecard</h2>
+            <p className="mt-1 text-xs text-muted">Completed vs total checklist items (all time)</p>
+            {scorecard.length === 0 ? (
               <p className="mt-3 text-sm text-muted">No assignments yet.</p>
             ) : (
-              <ul className="mt-3 space-y-2 text-sm">
-                {employees.map(([name, n]) => (
-                  <li key={name} className="flex items-center justify-between">
-                    <span className="font-semibold">{name}</span>
-                    <span className="text-muted">{n} task{n === 1 ? "" : "s"}</span>
+              <ul className="mt-3 space-y-3 text-sm">
+                {scorecard.map((s) => (
+                  <li key={s.name}>
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold">{s.name}</span>
+                      <span className="text-muted">
+                        <span className="font-bold text-foreground">{s.done}</span>/{s.total}
+                        <span className="ml-2 font-bold text-gold">{s.pct}%</span>
+                      </span>
+                    </div>
+                    <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-background">
+                      <div className="h-full rounded-full bg-gold-bright/80" style={{ width: `${s.pct}%` }} />
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -827,12 +848,10 @@ function TaskModal({ initial, assignees, onClose, onSave }: {
   const [saving, setSaving] = useState(false);
   const set = (k: keyof Task, v: unknown) => setF((p) => ({ ...p, [k]: v }));
 
-  function toggleAssignee(a: Assignee) {
-    const ids = new Set(f.assigneeIds ?? []);
-    const names = new Set(f.assignees ?? []);
-    if (ids.has(a.id)) { ids.delete(a.id); names.delete(a.name); }
-    else { ids.add(a.id); names.add(a.name); }
-    setF((p) => ({ ...p, assigneeIds: [...ids], assignees: [...names] }));
+  // One employee per task.
+  function selectAssignee(a: Assignee) {
+    const on = (f.assigneeIds ?? [])[0] === a.id;
+    setF((p) => ({ ...p, assigneeIds: on ? [] : [a.id], assignees: on ? [] : [a.name] }));
   }
 
   async function submit() {
@@ -907,13 +926,13 @@ function TaskModal({ initial, assignees, onClose, onSave }: {
             </div>
           )}
           <div className="sm:col-span-2">
-            <label className="text-sm font-semibold">Assign to</label>
+            <label className="text-sm font-semibold">Assign to <span className="font-normal text-muted">(one employee)</span></label>
             <div className="mt-2 flex flex-wrap gap-2">
               {assignees.length === 0 && <span className="text-sm text-muted">No employees found.</span>}
               {assignees.map((a) => {
-                const on = (f.assigneeIds ?? []).includes(a.id);
+                const on = (f.assigneeIds ?? [])[0] === a.id;
                 return (
-                  <button key={a.id} type="button" onClick={() => toggleAssignee(a)}
+                  <button key={a.id} type="button" onClick={() => selectAssignee(a)}
                     className={`rounded-full px-3 py-1.5 text-xs font-semibold ${on ? "bg-gold/20 text-gold" : "border border-line text-muted hover:border-gold"}`}>
                     {a.name}
                   </button>
@@ -946,29 +965,41 @@ function TaskModal({ initial, assignees, onClose, onSave }: {
 
 function SubtaskEditor({ value, onChange }: { value: Subtask[]; onChange: (v: Subtask[]) => void }) {
   const [text, setText] = useState("");
-  const add = () => { if (text.trim()) { onChange([...value, { title: text.trim(), status: "not-started" }]); setText(""); } };
+  const add = () => {
+    if (text.trim()) { onChange([...value, { title: text.trim(), priority: "medium", dueDate: "", target: 1, doneCount: 0, status: "not-started" }]); setText(""); }
+  };
+  const upd = (i: number, patch: Partial<Subtask>) =>
+    onChange(value.map((x, j) => (j === i ? { ...x, ...patch } : x)));
   return (
     <div>
-      <label className="text-sm font-semibold">Checklist (each item has its own status)</label>
-      <div className="mt-2 space-y-1.5">
-        {value.map((s, i) => {
-          const st = checklistStatus(s);
-          return (
-            <div key={i} className="flex items-center gap-2">
-              <span className={`flex-1 text-sm ${st === "completed" ? "text-muted line-through" : ""}`}>{s.title}</span>
-              <select value={st}
-                onChange={(e) => onChange(value.map((x, j) => j === i ? { ...x, status: e.target.value as ChecklistStatus, done: e.target.value === "completed" } : x))}
-                className="rounded-lg border border-line bg-surface px-2 py-1 text-xs">
-                {CHECKLIST_STATUSES.map((c) => <option key={c} value={c}>{CHECKLIST_STATUS_LABELS[c]}</option>)}
-              </select>
-              <button type="button" onClick={() => onChange(value.filter((_, j) => j !== i))} className="text-xs text-red-400">remove</button>
+      <label className="text-sm font-semibold">Task list (name, priority, due date &amp; how many needed)</label>
+      <p className="text-xs text-muted">Status is automatic — the employee records how many they did (e.g. 3 videos → 2/3 → In Progress).</p>
+      <div className="mt-2 space-y-2">
+        {value.map((s, i) => (
+          <div key={i} className="rounded-xl border border-line p-2">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-muted">{i + 1}.</span>
+              <input value={s.title} onChange={(e) => upd(i, { title: e.target.value })} placeholder="Item name (e.g. Facebook ads)"
+                className="flex-1 rounded-lg border border-line bg-surface px-2 py-1 text-sm" />
+              <button type="button" onClick={() => onChange(value.filter((_, j) => j !== i))} className="text-sm text-red-400">×</button>
             </div>
-          );
-        })}
+            <div className="mt-2 flex flex-wrap items-center gap-2 pl-5">
+              <select value={s.priority ?? "medium"} onChange={(e) => upd(i, { priority: e.target.value as Priority })} className="rounded-lg border border-line bg-surface px-2 py-1 text-xs">
+                {PRIORITIES.map((p) => <option key={p} value={p}>{PRIORITY_LABELS[p]}</option>)}
+              </select>
+              <input type="date" value={s.dueDate ?? ""} onChange={(e) => upd(i, { dueDate: e.target.value })} className="rounded-lg border border-line bg-surface px-2 py-1 text-xs" />
+              <label className="flex items-center gap-1 text-xs text-muted">
+                How many:
+                <input type="number" min={1} value={s.target ?? 1} onChange={(e) => upd(i, { target: Math.max(1, Number(e.target.value) || 1) })}
+                  className="w-16 rounded-lg border border-line bg-surface px-2 py-1 text-xs" />
+              </label>
+            </div>
+          </div>
+        ))}
       </div>
       <div className="mt-2 flex gap-2">
-        <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Add a checklist item…"
-          onKeyDown={(e) => { if (e.key === "Enter") add(); }}
+        <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Add a list item (e.g. Post 3 videos)…"
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add(); } }}
           className="flex-1 rounded-xl border border-line bg-surface px-3 py-2 text-sm" />
         <button type="button" onClick={add} className={`${chip} border border-line text-muted hover:border-gold`}>Add</button>
       </div>
@@ -1035,28 +1066,51 @@ function TaskDetail({ task, isManager, onClose, onEdit, onPatch, onDuplicate, on
           </div>
         </div>
 
-        {/* Checklist — each item has its own status; completion drives the % */}
+        {/* Task list — each item has its own name, priority, due date & status.
+            Once an item's due date passes it locks for employees (managers only). */}
         {task.subtasks.length > 0 && (
           <div className="mt-5">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold">Checklist</h3>
+              <h3 className="text-sm font-semibold">Task list</h3>
               <span className="text-xs font-semibold text-gold">{comp.done}/{comp.total} done · {comp.percent}%</span>
             </div>
-            <div className="mt-2 space-y-1.5">
+            <div className="mt-2 space-y-2">
               {task.subtasks.map((s, i) => {
-                const st = checklistStatus(s);
+                const u = itemUnits(s);
+                const st = deriveItemStatus(u.done, u.target);
+                const pastDue = itemPastDue(s.dueDate);
+                const locked = pastDue && !isManager;
+                const setCount = (n: number) =>
+                  onPatch(task._id, { subtasks: task.subtasks.map((x, j) => j === i ? { ...x, doneCount: Math.max(0, Math.min(u.target, n)) } : x) });
                 return (
-                  <div key={i} className="flex items-center gap-2 text-sm">
-                    <span className={`flex-1 ${st === "completed" ? "text-muted line-through" : ""}`}>{s.title}</span>
-                    <select value={st}
-                      onChange={(e) => onPatch(task._id, { subtasks: task.subtasks.map((x, j) => j === i ? { ...x, status: e.target.value, done: e.target.value === "completed" } : x) })}
-                      className={`rounded-lg border-0 px-2 py-1 text-xs font-semibold ${CHECKLIST_STATUS_BADGE[st]}`}>
-                      {CHECKLIST_STATUSES.map((c) => <option key={c} value={c}>{CHECKLIST_STATUS_LABELS[c]}</option>)}
-                    </select>
+                  <div key={i} className="rounded-xl border border-line p-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-muted">{i + 1}.</span>
+                      <span className={`flex-1 text-sm ${st === "completed" ? "text-muted line-through" : ""}`}>{s.title}</span>
+                      <PriorityBadge priority={s.priority ?? "medium"} />
+                    </div>
+                    <div className="mt-2 flex items-center justify-between gap-2 pl-5">
+                      <span className={`text-xs ${pastDue && st !== "completed" ? "font-semibold text-red-400" : "text-muted"}`}>
+                        Due {fmtDate(s.dueDate)}{locked ? " · 🔒 locked" : ""}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-bold ${CHECKLIST_STATUS_BADGE[st]}`}>{CHECKLIST_STATUS_LABELS[st]}</span>
+                        <div className="flex items-center gap-1.5" title={locked ? "Past the due date — only a manager can change this" : undefined}>
+                          <button type="button" disabled={locked || u.done <= 0} onClick={() => setCount(u.done - 1)}
+                            className="flex h-6 w-6 items-center justify-center rounded-full border border-line text-sm disabled:opacity-40">−</button>
+                          <span className="min-w-[34px] text-center text-sm font-bold">{u.done}/{u.target}</span>
+                          <button type="button" disabled={locked || u.done >= u.target} onClick={() => setCount(u.done + 1)}
+                            className="flex h-6 w-6 items-center justify-center rounded-full border border-line text-sm disabled:opacity-40">+</button>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 );
               })}
             </div>
+            {!isManager && task.subtasks.some((s) => itemPastDue(s.dueDate)) && (
+              <p className="mt-2 text-xs text-muted">🔒 Past-due items are locked — only a manager can change them.</p>
+            )}
           </div>
         )}
 

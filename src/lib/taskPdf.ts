@@ -4,7 +4,7 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { drawDecor, drawHeader, drawFooter, INK, MUTED } from "@/lib/pdfChrome";
 import { savePdf, type PdfBusiness } from "@/lib/export";
-import { TASK_STATUS_LABELS, PRIORITY_LABELS, type TaskStatus, type Priority } from "@/lib/taskManager";
+import { TASK_STATUS_LABELS, PRIORITY_LABELS, CHECKLIST_STATUS_LABELS, type TaskStatus, type Priority, type ChecklistStatus } from "@/lib/taskManager";
 
 export type TaskForPdf = {
   number: string;
@@ -127,26 +127,25 @@ export async function exportTasksPdf(
   savePdf(pdf, "task-report.pdf");
 }
 
-export type EmployeeReportTask = {
-  number: string;
-  title: string;
+export type EmployeeReportItem = {
+  name: string;
   priority: string;
-  status: string;
   dueDate?: string;
-  checklistDone: number;
-  checklistTotal: number;
-  percent: number;
+  done: number;
+  target: number;
+  status: string;
 };
+export type EmployeeReportTaskBlock = { taskName: string; items: EmployeeReportItem[] };
 export type EmployeeReportGroup = {
   name: string;
   roleLabel: string;
-  tasks: EmployeeReportTask[];
+  tasks: EmployeeReportTaskBlock[];
 };
 
-// Per-employee task report — landscape A4. For each person: their name, role,
-// task counts (total / completed / in progress / overdue), and a table of every
-// task with its priority, status, due date and checklist progress. Made to
-// print and hand out so everyone can see what each person did and didn't do.
+// Per-employee task report — landscape A4. Each person gets their name and
+// position (well separated) and a summary, then for every task the task name is
+// a header and the CHECKLIST ITEMS are the rows — name, priority, due date,
+// done/target and status — so you can see exactly what they did and didn't do.
 export async function exportEmployeeTaskReport(
   groups: EmployeeReportGroup[],
   business: PdfBusiness
@@ -177,60 +176,85 @@ export async function exportEmployeeTaskReport(
     { align: "right" }
   );
 
+  const newPage = () => {
+    pdf.addPage();
+    drawDecor(pdf, pageWidth, pageHeight);
+    return margin + 20;
+  };
+
   let y = 200;
   for (const g of groups) {
-    // Keep an employee's heading with at least a couple of rows on the page.
-    if (y > pageHeight - 130) {
-      pdf.addPage();
-      drawDecor(pdf, pageWidth, pageHeight);
-      y = margin + 20;
+    if (y > pageHeight - 140) y = newPage();
+
+    const allItems = g.tasks.flatMap((t) => t.items);
+    const doneUnits = allItems.reduce((s, it) => s + it.done, 0);
+    const totalUnits = allItems.reduce((s, it) => s + it.target, 0);
+    const pct = totalUnits ? Math.round((doneUnits / totalUnits) * 100) : 0;
+
+    // Name on the left, position on the right — clearly separated.
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(14);
+    pdf.setTextColor(...INK);
+    pdf.text(g.name, margin, y);
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(10.5);
+    pdf.setTextColor(...MUTED);
+    pdf.text(g.roleLabel, pageWidth - margin, y, { align: "right" });
+    // Underline separating the person's header from their tasks.
+    pdf.setDrawColor(210, 210, 210);
+    pdf.setLineWidth(0.5);
+    pdf.line(margin, y + 6, pageWidth - margin, y + 6);
+    pdf.setFontSize(9);
+    pdf.text(
+      `${g.tasks.length} task${g.tasks.length === 1 ? "" : "s"}   •   Checklist done: ${doneUnits}/${totalUnits}   •   ${pct}%`,
+      margin,
+      y + 19
+    );
+    y += 30;
+
+    if (g.tasks.length === 0) {
+      pdf.setFont("helvetica", "italic");
+      pdf.setFontSize(9);
+      pdf.text("No tasks assigned.", margin + 6, y);
+      y += 24;
     }
 
-    const total = g.tasks.length;
-    const completed = g.tasks.filter((t) => t.status === "completed").length;
-    const inProgress = g.tasks.filter((t) => t.status === "in-progress").length;
-    const overdue = g.tasks.filter((t) => t.status === "overdue").length;
-    const cDone = g.tasks.reduce((s, t) => s + t.checklistDone, 0);
-    const cTotal = g.tasks.reduce((s, t) => s + t.checklistTotal, 0);
+    for (const block of g.tasks) {
+      if (y > pageHeight - 110) y = newPage();
+      // Task name as a header band (not a row).
+      pdf.setFillColor(238, 238, 240);
+      pdf.rect(margin, y, pageWidth - margin * 2, 18, "F");
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(9.5);
+      pdf.setTextColor(...INK);
+      pdf.text(block.taskName || "Untitled task", margin + 6, y + 12.5);
+      y += 18;
 
-    pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(13);
-    pdf.setTextColor(...INK);
-    pdf.text(`${g.name}`, margin, y);
-    pdf.setFont("helvetica", "normal");
-    pdf.setFontSize(9.5);
-    pdf.setTextColor(...MUTED);
-    pdf.text(g.roleLabel, margin + pdf.getTextWidth(`${g.name}  `) + 6, y);
-    pdf.text(
-      `Tasks: ${total}   •   Completed: ${completed}   •   In progress: ${inProgress}   •   Overdue: ${overdue}   •   Checklist done: ${cDone}/${cTotal}`,
-      margin,
-      y + 15
-    );
-
-    autoTable(pdf, {
-      startY: y + 24,
-      margin: { left: margin, right: margin, bottom: 60 },
-      head: [["ID", "Task", "Priority", "Status", "Due", "Checklist", "Progress"]],
-      body: g.tasks.length
-        ? g.tasks.map((t) => [
-            t.number,
-            t.title,
-            PRIORITY_LABELS[t.priority as Priority] ?? t.priority,
-            TASK_STATUS_LABELS[t.status as TaskStatus] ?? t.status,
-            t.dueDate || "—",
-            t.checklistTotal ? `${t.checklistDone}/${t.checklistTotal}` : "—",
-            `${t.percent}%`,
-          ])
-        : [["—", "No tasks assigned", "", "", "", "", ""]],
-      theme: "grid",
-      styles: { font: "helvetica", fontSize: 8.5, cellPadding: 5, textColor: 40, lineColor: [206, 206, 206], lineWidth: 0.5 },
-      headStyles: { fillColor: INK, textColor: 255, fontStyle: "normal" },
-      alternateRowStyles: { fillColor: [248, 248, 248] },
-      columnStyles: { 1: { cellWidth: 260 } },
-    });
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    y = ((pdf as any).lastAutoTable?.finalY ?? y) + 28;
+      autoTable(pdf, {
+        startY: y,
+        margin: { left: margin, right: margin, bottom: 60 },
+        head: [["#", "Checklist item", "Priority", "Due", "Done / Needed", "Status"]],
+        body: block.items.length
+          ? block.items.map((it, idx) => [
+              String(idx + 1),
+              it.name,
+              PRIORITY_LABELS[it.priority as Priority] ?? it.priority,
+              it.dueDate || "—",
+              `${it.done}/${it.target}`,
+              CHECKLIST_STATUS_LABELS[it.status as ChecklistStatus] ??
+                TASK_STATUS_LABELS[it.status as TaskStatus] ??
+                it.status,
+            ])
+          : [["—", "No checklist items", "", "", "", ""]],
+        theme: "grid",
+        styles: { font: "helvetica", fontSize: 8.5, cellPadding: 4, textColor: 40, lineColor: [210, 210, 210], lineWidth: 0.5 },
+        headStyles: { fillColor: [90, 90, 90], textColor: 255, fontStyle: "normal", fontSize: 8 },
+        columnStyles: { 0: { cellWidth: 24 }, 1: { cellWidth: 300 } },
+      });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      y = ((pdf as any).lastAutoTable?.finalY ?? y) + 14;
+    }
+    y += 14;
   }
 
   const pageCount = pdf.getNumberOfPages();

@@ -89,18 +89,53 @@ export function checklistStatus(item: { status?: string; done?: boolean }): Chec
   return item.done ? "completed" : "not-started";
 }
 
-// Completion of one task = completed checklist items / total checklist items.
+// A checklist item is past its own deadline (used to lock it for employees —
+// after the due date only a manager/CEO may change its status).
+export function itemPastDue(dueDate?: string): boolean {
+  if (!dueDate) return false;
+  const d = new Date();
+  const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  return dueDate < today;
+}
+
+// Each checklist item is quantity-based: `target` units are needed (e.g. "post
+// 3 videos") and `doneCount` is how many are finished. Legacy items that only
+// had a status/done flag are treated as a single unit.
+type ChecklistItem = { target?: number; doneCount?: number; status?: string; done?: boolean };
+export function itemUnits(item: ChecklistItem): { done: number; target: number } {
+  const target = Math.max(1, Math.round(item.target ?? 1));
+  let done: number;
+  if (item.doneCount != null) done = Math.max(0, Math.min(target, Math.round(item.doneCount)));
+  else done = checklistStatus(item) === "completed" ? target : 0; // legacy
+  return { done, target };
+}
+
+// Status is automatic from progress: none done → Not Started, some → In
+// Progress, all → Completed.
+export function deriveItemStatus(done: number, target: number): ChecklistStatus {
+  if (done <= 0) return "not-started";
+  if (done >= target) return "completed";
+  return "in-progress";
+}
+
+// Completion of one task = done units / total units across its checklist.
 // A task with no checklist falls back to its own progress field.
 export function taskCompletion(task: {
-  subtasks?: { status?: string; done?: boolean }[];
+  subtasks?: ChecklistItem[];
   progress?: number;
 }): { done: number; total: number; percent: number } {
   const items = task.subtasks ?? [];
   if (items.length === 0) {
     return { done: 0, total: 0, percent: task.progress ?? 0 };
   }
-  const done = items.filter((i) => checklistStatus(i) === "completed").length;
-  return { done, total: items.length, percent: Math.round((done / items.length) * 100) };
+  let done = 0;
+  let total = 0;
+  for (const it of items) {
+    const u = itemUnits(it);
+    done += u.done;
+    total += u.target;
+  }
+  return { done, total, percent: total ? Math.round((done / total) * 100) : 0 };
 }
 
 export const PRIORITIES = ["low", "medium", "high", "critical"] as const;
