@@ -127,6 +127,121 @@ export async function exportTasksPdf(
   savePdf(pdf, "task-report.pdf");
 }
 
+export type EmployeeReportTask = {
+  number: string;
+  title: string;
+  priority: string;
+  status: string;
+  dueDate?: string;
+  checklistDone: number;
+  checklistTotal: number;
+  percent: number;
+};
+export type EmployeeReportGroup = {
+  name: string;
+  roleLabel: string;
+  tasks: EmployeeReportTask[];
+};
+
+// Per-employee task report — landscape A4. For each person: their name, role,
+// task counts (total / completed / in progress / overdue), and a table of every
+// task with its priority, status, due date and checklist progress. Made to
+// print and hand out so everyone can see what each person did and didn't do.
+export async function exportEmployeeTaskReport(
+  groups: EmployeeReportGroup[],
+  business: PdfBusiness
+) {
+  const pdf = new jsPDF({ unit: "pt", format: "a4", orientation: "landscape" });
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+  const margin = 40;
+
+  drawDecor(pdf, pageWidth, pageHeight);
+  await drawHeader(pdf, {
+    pageWidth,
+    margin,
+    tagline: business.tagline || business.companyName,
+    location: business.address,
+  });
+
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(20);
+  pdf.setTextColor(...INK);
+  pdf.text("Employee Task Report", margin, 176);
+  pdf.setFontSize(9.5);
+  pdf.setTextColor(...MUTED);
+  pdf.text(
+    `Generated ${new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}`,
+    pageWidth - margin,
+    176,
+    { align: "right" }
+  );
+
+  let y = 200;
+  for (const g of groups) {
+    // Keep an employee's heading with at least a couple of rows on the page.
+    if (y > pageHeight - 130) {
+      pdf.addPage();
+      drawDecor(pdf, pageWidth, pageHeight);
+      y = margin + 20;
+    }
+
+    const total = g.tasks.length;
+    const completed = g.tasks.filter((t) => t.status === "completed").length;
+    const inProgress = g.tasks.filter((t) => t.status === "in-progress").length;
+    const overdue = g.tasks.filter((t) => t.status === "overdue").length;
+    const cDone = g.tasks.reduce((s, t) => s + t.checklistDone, 0);
+    const cTotal = g.tasks.reduce((s, t) => s + t.checklistTotal, 0);
+
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(13);
+    pdf.setTextColor(...INK);
+    pdf.text(`${g.name}`, margin, y);
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(9.5);
+    pdf.setTextColor(...MUTED);
+    pdf.text(g.roleLabel, margin + pdf.getTextWidth(`${g.name}  `) + 6, y);
+    pdf.text(
+      `Tasks: ${total}   •   Completed: ${completed}   •   In progress: ${inProgress}   •   Overdue: ${overdue}   •   Checklist done: ${cDone}/${cTotal}`,
+      margin,
+      y + 15
+    );
+
+    autoTable(pdf, {
+      startY: y + 24,
+      margin: { left: margin, right: margin, bottom: 60 },
+      head: [["ID", "Task", "Priority", "Status", "Due", "Checklist", "Progress"]],
+      body: g.tasks.length
+        ? g.tasks.map((t) => [
+            t.number,
+            t.title,
+            PRIORITY_LABELS[t.priority as Priority] ?? t.priority,
+            TASK_STATUS_LABELS[t.status as TaskStatus] ?? t.status,
+            t.dueDate || "—",
+            t.checklistTotal ? `${t.checklistDone}/${t.checklistTotal}` : "—",
+            `${t.percent}%`,
+          ])
+        : [["—", "No tasks assigned", "", "", "", "", ""]],
+      theme: "grid",
+      styles: { font: "helvetica", fontSize: 8.5, cellPadding: 5, textColor: 40, lineColor: [206, 206, 206], lineWidth: 0.5 },
+      headStyles: { fillColor: INK, textColor: 255, fontStyle: "normal" },
+      alternateRowStyles: { fillColor: [248, 248, 248] },
+      columnStyles: { 1: { cellWidth: 260 } },
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    y = ((pdf as any).lastAutoTable?.finalY ?? y) + 28;
+  }
+
+  const pageCount = pdf.getNumberOfPages();
+  for (let p = 1; p <= pageCount; p++) {
+    pdf.setPage(p);
+    drawFooter(pdf, { pageWidth, pageHeight, footer: business.invoiceFooter, pageNumber: p, pageCount });
+  }
+
+  savePdf(pdf, "employee-task-report.pdf");
+}
+
 // Blank weekly planning sheet — landscape A4, made for printing and filling in
 // by hand during a planning session.
 export async function exportBlankPlanningSheet(business: PdfBusiness) {

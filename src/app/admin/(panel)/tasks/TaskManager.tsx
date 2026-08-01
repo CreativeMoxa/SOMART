@@ -25,6 +25,7 @@ import {
   type Priority,
   type ChecklistStatus,
 } from "@/lib/taskManager";
+import { ROLE_LABELS, type Role } from "@/lib/roles";
 
 type Subtask = { _id?: string; title: string; status: ChecklistStatus; done?: boolean };
 type Comment = { author: string; text: string; at: string };
@@ -277,6 +278,34 @@ export default function TaskManager() {
     await exportBlankPlanningSheet(business);
   }
 
+  // Per-employee task report: name, role, task counts, and every task with its
+  // priority, status and checklist progress.
+  async function employeeReport() {
+    const { exportEmployeeTaskReport } = await import("@/lib/taskPdf");
+    const roleByName = new Map(assignees.map((a) => [a.name, a.role]));
+    type RT = { number: string; title: string; priority: string; status: string; dueDate?: string; checklistDone: number; checklistTotal: number; percent: number };
+    const groups = new Map<string, RT[]>();
+    for (const t of tasks) {
+      const names = t.assignees.length ? t.assignees : ["Unassigned"];
+      for (const n of names) {
+        if (!groups.has(n)) groups.set(n, []);
+        const c = taskCompletion(t);
+        groups.get(n)!.push({
+          number: t.number, title: t.title, priority: t.priority, status: effStatus(t),
+          dueDate: t.dueDate, checklistDone: c.done, checklistTotal: c.total, percent: c.percent,
+        });
+      }
+    }
+    const data = [...groups.entries()]
+      .sort((a, b) => (a[0] === "Unassigned" ? 1 : b[0] === "Unassigned" ? -1 : a[0].localeCompare(b[0])))
+      .map(([name, tks]) => ({
+        name,
+        roleLabel: ROLE_LABELS[roleByName.get(name) as Role] ?? "—",
+        tasks: tks,
+      }));
+    await exportEmployeeTaskReport(data, business);
+  }
+
   // ── Render ──────────────────────────────────────────────────────────────
   return (
     <div>
@@ -295,6 +324,11 @@ export default function TaskManager() {
           <button onClick={exportPdf} className={`${chip} border border-line text-muted hover:border-gold hover:text-gold`}>
             ⬇ Export PDF
           </button>
+          {isManager && (
+            <button onClick={employeeReport} title="Download a per-employee task report (PDF)" className={`${chip} border border-line text-muted hover:border-gold hover:text-gold`}>
+              📄 Employee Report
+            </button>
+          )}
           {isManager && (
             <button onClick={() => setEditing({})} className={`${chip} bg-foreground text-background hover:opacity-90`}>
               + New Task
@@ -349,7 +383,7 @@ export default function TaskManager() {
           )}
           {view === "calendar" && <CalendarView tasks={filtered} month={calMonth} setMonth={setCalMonth} onOpen={setDetail} />}
           {view === "timeline" && <TimelineView tasks={filtered} onOpen={setDetail} />}
-          {view === "reports" && <Reports tasks={tasks} onExport={exportPdf} onBlank={blankSheet} />}
+          {view === "reports" && <Reports tasks={tasks} onExport={exportPdf} onBlank={blankSheet} onEmployeeReport={employeeReport} />}
         </div>
       )}
 
@@ -714,7 +748,7 @@ function TimelineView({ tasks, onOpen }: { tasks: Task[]; onOpen: (t: Task) => v
 }
 
 // ── Reports ──────────────────────────────────────────────────────────────────
-function Reports({ tasks, onExport, onBlank }: { tasks: Task[]; onExport: () => void; onBlank: () => void }) {
+function Reports({ tasks, onExport, onBlank, onEmployeeReport }: { tasks: Task[]; onExport: () => void; onBlank: () => void; onEmployeeReport: () => void }) {
   const completed = tasks.filter((t) => t.status === "completed");
   const open = tasks.filter((t) => t.status !== "completed" && t.status !== "cancelled");
   const overdue = tasks.filter((t) => effStatus(t) === "overdue");
@@ -741,6 +775,7 @@ function Reports({ tasks, onExport, onBlank }: { tasks: Task[]; onExport: () => 
       <div className="flex flex-wrap justify-end gap-2">
         <button onClick={onBlank} className={`${chip} border border-line text-muted hover:border-gold hover:text-gold`}>⬇ Blank Sheet</button>
         <button onClick={onExport} className={`${chip} border border-line text-muted hover:border-gold hover:text-gold`}>⬇ Export PDF</button>
+        <button onClick={onEmployeeReport} className={`${chip} bg-foreground text-background hover:opacity-90`}>📄 Employee Report (PDF)</button>
       </div>
       <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <StatCard label="Completion Rate" value={`${rate}%`} accent />

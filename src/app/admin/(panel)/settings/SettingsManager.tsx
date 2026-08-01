@@ -9,6 +9,8 @@ type SaleItem = { imageUrl: string; title: string; subtitle: string };
 type Settings = {
   companyName: string;
   tagline: string;
+  elementLogoUrl?: string;
+  nameLogoUrl?: string;
   whatsappNumber: string;
   phone: string;
   salesPhone?: string;
@@ -256,6 +258,71 @@ export default function SettingsManager() {
                 placeholder="somart.vercel.app"
                 className={inputClass}
               />
+            </div>
+          </div>
+        </div>
+
+        {/* ---------------- Branding & Logos ---------------- */}
+        <div className="rounded-2xl border border-line bg-surface p-6">
+          <h2 className="text-lg font-bold">Branding &amp; Logos</h2>
+          <p className="mt-1 text-sm text-muted">
+            Upload transparent PNG logos. The <strong>element</strong> logo is your icon/symbol; the{" "}
+            <strong>name</strong> logo is your wordmark. Manage them here for the rebrand.
+          </p>
+          <div className="mt-5 grid gap-6 sm:grid-cols-2">
+            {/* Element (icon) logo */}
+            <div>
+              <span className="text-sm font-semibold">Element logo (icon / symbol)</span>
+              <p className="text-xs text-muted">Your mark on its own. Transparent PNG recommended.</p>
+              <div className="mt-2 flex items-center gap-3">
+                {settings.elementLogoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={settings.elementLogoUrl} alt="Element logo" className="h-16 w-16 rounded-xl border border-line bg-background object-contain p-1.5" />
+                ) : (
+                  <div className="flex h-16 w-16 items-center justify-center rounded-xl border border-dashed border-line text-muted">
+                    <UploadIcon className="h-5 w-5" />
+                  </div>
+                )}
+                <div className="flex flex-col gap-2">
+                  <label className="cursor-pointer rounded-full border border-line px-4 py-2 text-xs font-semibold text-muted transition-colors duration-200 hover:border-gold hover:text-gold">
+                    {uploadingKey === "element-logo" ? "Uploading…" : settings.elementLogoUrl ? "Replace logo" : "Upload logo"}
+                    <input type="file" accept="image/*" className="hidden" disabled={uploadingKey !== null}
+                      onChange={(e) => handleUpload("element-logo", e.currentTarget, (url) => set("elementLogoUrl", url))} />
+                  </label>
+                  {settings.elementLogoUrl && (
+                    <button type="button" onClick={() => set("elementLogoUrl", "")} className="cursor-pointer text-left text-xs font-semibold text-red-400 hover:underline">
+                      Remove logo
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+            {/* Name (wordmark) logo */}
+            <div>
+              <span className="text-sm font-semibold">Name logo (wordmark)</span>
+              <p className="text-xs text-muted">Your business name as a logo. Transparent PNG recommended.</p>
+              <div className="mt-2 flex items-center gap-3">
+                {settings.nameLogoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={settings.nameLogoUrl} alt="Name logo" className="h-16 w-36 rounded-xl border border-line bg-background object-contain p-1.5" />
+                ) : (
+                  <div className="flex h-16 w-36 items-center justify-center rounded-xl border border-dashed border-line text-muted">
+                    <UploadIcon className="h-5 w-5" />
+                  </div>
+                )}
+                <div className="flex flex-col gap-2">
+                  <label className="cursor-pointer rounded-full border border-line px-4 py-2 text-xs font-semibold text-muted transition-colors duration-200 hover:border-gold hover:text-gold">
+                    {uploadingKey === "name-logo" ? "Uploading…" : settings.nameLogoUrl ? "Replace logo" : "Upload logo"}
+                    <input type="file" accept="image/*" className="hidden" disabled={uploadingKey !== null}
+                      onChange={(e) => handleUpload("name-logo", e.currentTarget, (url) => set("nameLogoUrl", url))} />
+                  </label>
+                  {settings.nameLogoUrl && (
+                    <button type="button" onClick={() => set("nameLogoUrl", "")} className="cursor-pointer text-left text-xs font-semibold text-red-400 hover:underline">
+                      Remove logo
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </div>

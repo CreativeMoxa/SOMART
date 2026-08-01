@@ -6,6 +6,10 @@ const settingSchema = new Schema(
     key: { type: String, required: true, unique: true, default: "business" },
     companyName: { type: String, default: "SOMART" },
     tagline: { type: String, default: "Eyewear & Fashion Accessories" },
+    // Brand logos (transparent PNGs): the "element" mark/icon and the "name"
+    // wordmark. Managed in Settings; used across the system and documents.
+    elementLogoUrl: { type: String, default: "" },
+    nameLogoUrl: { type: String, default: "" },
     whatsappNumber: { type: String, default: "" },
     phone: { type: String, default: "" },
     salesPhone: { type: String, default: "" },
