@@ -7,6 +7,7 @@ import { confirmDialog } from "@/components/admin/ConfirmDialog";
 import QuickAddProduct, { type PickerProduct } from "@/components/admin/QuickAddProduct";
 import QuickAddCustomer, { type PickerCustomer } from "@/components/admin/QuickAddCustomer";
 import { MARKETING_SOURCES, SOURCE_LABELS, type MarketingSource } from "@/lib/marketing";
+import { phoneDigits } from "@/lib/phone";
 import {
   PAYMENT_METHODS,
   PAYMENT_METHOD_LABELS,
@@ -301,11 +302,15 @@ export default function DocumentsManager({
   }
 
   const customerQuery = customerName.trim().toLowerCase();
+  // A number in the search box matches by phone regardless of formatting or
+  // country code (same as the Customers module); text matches by name/phone.
+  const customerDigits = phoneDigits(customerName);
   const customerMatches = customerQuery
     ? customers.filter(
         (c) =>
           c.name.toLowerCase().includes(customerQuery) ||
-          c.phone.toLowerCase().includes(customerQuery)
+          c.phone.toLowerCase().includes(customerQuery) ||
+          (customerDigits.length >= 3 && phoneDigits(c.phone).includes(customerDigits))
       )
     : customers;
 

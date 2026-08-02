@@ -122,9 +122,12 @@ export default function CustomersManager() {
       });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error ?? "Save failed");
+      // Update the list in place — instant, no full reload or spinner. A new
+      // customer goes to the top; an edited one is replaced where it sits.
+      setCustomers((list) =>
+        isNew ? [body, ...list] : list.map((c) => (c._id === editing ? { ...c, ...body } : c))
+      );
       setEditing(null);
-      setLoading(true);
-      await load(query);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Save failed");
     } finally {
