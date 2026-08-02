@@ -3,18 +3,9 @@ import { connectDB } from "@/lib/db";
 import { Customer } from "@/models/Customer";
 import { isAdmin } from "@/lib/auth";
 import { stampAudit, recordAction } from "@/lib/audit";
+import { phoneDigits, escapeRegex } from "@/lib/phone";
 
 const SELECT = "name phone email address notes createdAt";
-
-// Reduce a phone number to its comparable digits: drop spaces/dashes/(), the
-// Somalia country code (252) and any leading local-trunk zero. So "634401054",
-// "252 63 4401054" and "0634401054" all become "634401054".
-function phoneDigits(raw: unknown): string {
-  let d = String(raw ?? "").replace(/\D/g, "");
-  if (d.startsWith("252")) d = d.slice(3);
-  d = d.replace(/^0+/, "");
-  return d;
-}
 
 export async function GET(req: NextRequest) {
   if (!(await isAdmin())) {
@@ -29,35 +20,28 @@ export async function GET(req: NextRequest) {
     const digits = q.replace(/\D/g, "");
     const phoneLike = q !== "" && digits.length >= 3 && /^[+\d\s()\-]+$/.test(q);
 
-    let customers;
+    // Phone search hits the normalised phoneDigits field directly, so it returns
+    // only the matches (fast + incremental, like name search) instead of
+    // scanning every customer in memory.
+    let filter: Record<string, unknown> = {};
     if (phoneLike) {
       const target = phoneDigits(q);
-      const all = await Customer.find()
-        .select(SELECT)
-        .sort({ createdAt: -1 })
-        .limit(5000)
-        .batchSize(5000)
-        .lean();
-      customers = target
-        ? all.filter((c) => phoneDigits(c.phone).includes(target))
-        : all;
-    } else {
-      const filter = q
-        ? {
-            $or: [
-              { name: { $regex: q, $options: "i" } },
-              { phone: { $regex: q, $options: "i" } },
-              { email: { $regex: q, $options: "i" } },
-            ],
-          }
-        : {};
-      customers = await Customer.find(filter)
-        .select(SELECT)
-        .sort({ createdAt: -1 })
-        .limit(2000)
-        .batchSize(2000)
-        .lean();
+      if (target) filter = { phoneDigits: { $regex: escapeRegex(target) } };
+    } else if (q) {
+      filter = {
+        $or: [
+          { name: { $regex: escapeRegex(q), $options: "i" } },
+          { phone: { $regex: escapeRegex(q), $options: "i" } },
+          { email: { $regex: escapeRegex(q), $options: "i" } },
+        ],
+      };
     }
+    const customers = await Customer.find(filter)
+      .select(SELECT)
+      .sort({ createdAt: -1 })
+      .limit(2000)
+      .batchSize(2000)
+      .lean();
     return NextResponse.json(customers);
   } catch (err) {
     console.error("GET /api/customers failed:", err);

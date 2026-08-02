@@ -3,6 +3,7 @@ import { connectDB } from "@/lib/db";
 import { Customer } from "@/models/Customer";
 import { Sale } from "@/models/Sale";
 import { isAdmin } from "@/lib/auth";
+import { phoneDigits } from "@/lib/phone";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -36,6 +37,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     const { id } = await params;
     const body = await req.json();
     delete body._id;
+    // findByIdAndUpdate skips the pre-save hook — keep phoneDigits in sync here.
+    if (body.phone !== undefined) body.phoneDigits = phoneDigits(body.phone);
     const customer = await Customer.findByIdAndUpdate(
       id,
       { $set: body },

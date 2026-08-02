@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { Customer } from "@/models/Customer";
 import { isAdmin } from "@/lib/auth";
+import { phoneDigits } from "@/lib/phone";
 
 type ImportRow = {
   name?: unknown;
@@ -55,6 +56,7 @@ export async function POST(req: NextRequest) {
       toInsert.push({
         name,
         phone,
+        phoneDigits: phoneDigits(phone), // insertMany skips the pre-save hook
         email: String(row.email ?? "").trim(),
         address: String(row.address ?? "").trim(),
         notes: String(row.notes ?? "").trim(),
