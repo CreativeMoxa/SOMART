@@ -284,6 +284,22 @@ export default function TaskManager() {
     await fetch(`/api/tasks/${id}/duplicate`, { method: "POST" });
     await load();
   }
+
+  async function remindTask(id: string) {
+    try {
+      const res = await fetch(`/api/tasks/${id}/remind`, { method: "POST" });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(j.error || "Failed to send reminder");
+      const who = (j.recipients ?? []).join(", ");
+      setError(
+        j.delivered
+          ? `✓ Reminder emailed to ${who}.`
+          : `Reminder prepared for ${who}, but email isn't configured yet (set SMTP in Vercel to actually send).`
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to send reminder");
+    }
+  }
   async function deleteTask(id: string) {
     if (!confirm("Delete this task permanently?")) return;
     await fetch(`/api/tasks/${id}`, { method: "DELETE" });
@@ -433,6 +449,7 @@ export default function TaskManager() {
           onDuplicate={duplicateTask}
           onDelete={deleteTask}
           onArchive={archiveTask}
+          onRemind={remindTask}
         />
       )}
     </div>
@@ -1032,7 +1049,7 @@ function SubtaskEditor({ value, onChange }: { value: Subtask[]; onChange: (v: Su
 }
 
 // ── Detail drawer ────────────────────────────────────────────────────────────
-function TaskDetail({ task, isManager, onClose, onEdit, onPatch, onDuplicate, onDelete, onArchive }: {
+function TaskDetail({ task, isManager, onClose, onEdit, onPatch, onDuplicate, onDelete, onArchive, onRemind }: {
   task: Task;
   isManager: boolean;
   onClose: () => void;
@@ -1041,6 +1058,7 @@ function TaskDetail({ task, isManager, onClose, onEdit, onPatch, onDuplicate, on
   onDuplicate: (id: string) => void;
   onDelete: (id: string) => void;
   onArchive: (id: string) => void;
+  onRemind: (id: string) => void;
 }) {
   const [comment, setComment] = useState("");
   const [progress, setProgress] = useState(task.progress);
@@ -1189,6 +1207,7 @@ function TaskDetail({ task, isManager, onClose, onEdit, onPatch, onDuplicate, on
         {isManager && (
           <div className="mt-6 flex flex-wrap gap-2 border-t border-line pt-4">
             <button onClick={onEdit} className={`${chip} border border-line text-muted hover:border-gold`}>Edit</button>
+            <button onClick={() => onRemind(task._id)} title="Email the assignee a reminder with their progress" className={`${chip} bg-gold/20 text-gold hover:bg-gold/30`}>🔔 Remind</button>
             <button onClick={() => onDuplicate(task._id)} className={`${chip} border border-line text-muted hover:border-gold`}>Duplicate</button>
             {!task.archived && <button onClick={() => onArchive(task._id)} className={`${chip} border border-line text-muted hover:border-gold`}>Archive</button>}
             <button onClick={() => onDelete(task._id)} className={`${chip} bg-red-500/15 text-red-400 hover:bg-red-500/25`}>Delete</button>

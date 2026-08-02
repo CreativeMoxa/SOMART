@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { isManagerRole } from "@/lib/roles";
 import { nextNumber } from "@/lib/numbering";
 import { recordAction } from "@/lib/audit";
+import { notifyTaskAssignees } from "@/lib/taskNotify";
 
 export const dynamic = "force-dynamic";
 
@@ -91,6 +92,12 @@ export async function POST(req: NextRequest) {
     });
 
     await recordAction(`created task ${task.number} — ${task.title}`, "tasks", task.number);
+    // Email the assigned employees.
+    await notifyTaskAssignees(
+      task.assigneeIds,
+      { number: task.number, title: task.title, priority: task.priority, dueDate: task.dueDate, description: task.description },
+      user.name
+    );
     return NextResponse.json(task.toObject(), { status: 201 });
   } catch (err) {
     console.error("POST /api/tasks failed:", err);

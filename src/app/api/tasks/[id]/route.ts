@@ -6,6 +6,7 @@ import { isManagerRole } from "@/lib/roles";
 import { nextNumber } from "@/lib/numbering";
 import { recordAction } from "@/lib/audit";
 import { TASK_STATUS_LABELS, itemPastDue, type TaskStatus, type Recurrence } from "@/lib/taskManager";
+import { notifyTaskAssignees } from "@/lib/taskNotify";
 
 export const dynamic = "force-dynamic";
 type Params = { params: Promise<{ id: string }> };
@@ -91,6 +92,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     const allowed = manager ? MANAGER_FIELDS : EMPLOYEE_FIELDS;
     const prevStatus = task.status;
     const prevAssignees = (task.assignees ?? []).join(", ");
+    const prevAssigneeIds = [...(task.assigneeIds ?? [])];
 
     for (const key of allowed) {
       if (body[key] !== undefined) {
@@ -130,6 +132,18 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
     task.updatedBy = user.name;
     await task.save();
+
+    // Email any newly-assigned employees.
+    if (manager) {
+      const added = (task.assigneeIds ?? []).filter((id) => !prevAssigneeIds.includes(id));
+      if (added.length) {
+        await notifyTaskAssignees(
+          added,
+          { number: task.number, title: task.title, priority: task.priority, dueDate: task.dueDate, description: task.description },
+          user.name
+        );
+      }
+    }
 
     // Spawn the next occurrence of a recurring task when it completes.
     let spawned: TaskDoc | null = null;

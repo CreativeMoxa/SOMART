@@ -430,6 +430,29 @@ export default function FreightManager({ freightType }: { freightType: FreightTy
     }
   }
 
+  // Re-order the same freight: clone as a fresh "preparing" shipment whose
+  // lines stay linked to the same products (receiving tops up existing stock).
+  async function duplicate(s: Shipment) {
+    const ok = await confirmDialog(
+      `Duplicate ${s.number}? A new ${meta.label} order is created with the same products (still linked), ready to order again. You can then add or remove products.`,
+      { confirmLabel: "Duplicate", danger: false }
+    );
+    if (!ok) return;
+    try {
+      const res = await fetch(`/api/shipments/${s._id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "duplicate" }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error ?? "Duplicate failed");
+      setShipments((list) => [body, ...list]);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Duplicate failed");
+    }
+  }
+
   // ── PDF download (same layout idea as the printable page) ─────────────────
   async function downloadPdf(s: Shipment) {
     setError(null);
@@ -623,6 +646,14 @@ export default function FreightManager({ freightType }: { freightType: FreightTy
                         >
                           Print
                         </a>
+                        <button
+                          type="button"
+                          onClick={() => duplicate(s)}
+                          title="Duplicate — re-order the same products"
+                          className="cursor-pointer rounded-full border border-line px-3 py-1.5 text-xs font-semibold text-muted transition-colors duration-200 hover:border-gold hover:text-gold"
+                        >
+                          Duplicate
+                        </button>
                         <button
                           type="button"
                           onClick={() => transfer(s)}

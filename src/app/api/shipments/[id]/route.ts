@@ -62,6 +62,45 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       return NextResponse.json(shipment.toObject());
     }
 
+    // ── Duplicate: re-order the same freight ────────────────────────────────
+    // Clones the shipment (same freight, next free number) as a fresh
+    // "preparing" order. Each line KEEPS its productId, so when this copy is
+    // received the stock is added to the SAME existing product — not a new one.
+    // Received flags are cleared; the copy can then have products added/removed.
+    if (body.action === "duplicate") {
+      const ft = shipment.freightType as FreightType;
+      const newNumber = await nextFreeShipmentNumber(ft);
+      const copy = await Shipment.create({
+        freightType: ft,
+        number: newNumber,
+        name: shipment.name,
+        cargo: shipment.cargo,
+        trackingNumber: "",
+        shippingDate: "",
+        expectedArrival: "",
+        status: "preparing",
+        notes: shipment.notes,
+        items: shipment.items.map((it) => {
+          const o = it.toObject() as Record<string, unknown>;
+          delete o._id; // fresh line id
+          o.received = false;
+          o.receivedAt = null;
+          o.trackingNumber = "";
+          return o; // keeps productId → links back to the existing product
+        }),
+        totalQty: shipment.totalQty,
+        totalCost: shipment.totalCost,
+        expectedSalesValue: shipment.expectedSalesValue,
+        receivedAt: null,
+      });
+      await recordAction(
+        `duplicated ${shipment.number} as ${newNumber}`,
+        ft === "air" ? "air-freight" : "sea-freight",
+        newNumber
+      );
+      return NextResponse.json(copy.toObject(), { status: 201 });
+    }
+
     // ── Per-item verification: receive / unreceive one product line ─────────
     if (body.action === "receive-item" || body.action === "unreceive-item") {
       const index = Math.floor(Number(body.index));

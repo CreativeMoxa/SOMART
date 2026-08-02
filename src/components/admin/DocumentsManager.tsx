@@ -177,6 +177,7 @@ export default function DocumentsManager({
   const [customers, setCustomers] = useState<PickerCustomer[]>([]);
   const [products, setProducts] = useState<PickerProduct[]>([]);
   const [customerOpen, setCustomerOpen] = useState(false);
+  const [phoneOpen, setPhoneOpen] = useState(false);
   const [productOpenAt, setProductOpenAt] = useState<number | null>(null);
   const [quickAddFor, setQuickAddFor] = useState<number | null>(null);
   const [addingCustomer, setAddingCustomer] = useState(false);
@@ -311,6 +312,18 @@ export default function DocumentsManager({
           c.name.toLowerCase().includes(customerQuery) ||
           c.phone.toLowerCase().includes(customerQuery) ||
           (customerDigits.length >= 3 && phoneDigits(c.phone).includes(customerDigits))
+      )
+    : customers;
+
+  // Dedicated picker for the phone field: search customers by number (any
+  // format / country code) with its own dropdown.
+  const phoneRaw = customerPhone.trim().toLowerCase();
+  const phoneDigitsQ = phoneDigits(customerPhone);
+  const phoneMatches = phoneRaw
+    ? customers.filter(
+        (c) =>
+          (phoneDigitsQ.length >= 2 && phoneDigits(c.phone).includes(phoneDigitsQ)) ||
+          c.phone.toLowerCase().includes(phoneRaw)
       )
     : customers;
 
@@ -867,17 +880,49 @@ export default function DocumentsManager({
                       : "Pick an existing customer or type a new one"}
                 </p>
               </div>
-              <div>
+              <div className="relative">
                 <label htmlFor="d-phone" className="text-sm font-semibold">
-                  Customer phone <span className="font-normal text-muted">(for WhatsApp)</span>
+                  Customer phone <span className="font-normal text-muted">(search by number)</span>
                 </label>
                 <input
                   id="d-phone"
                   type="tel"
+                  autoComplete="off"
+                  placeholder="Search customers by number or type a new one"
                   value={customerPhone}
-                  onChange={(e) => setCustomerPhone(e.target.value)}
+                  onChange={(e) => {
+                    setCustomerPhone(e.target.value);
+                    setCustomerId(null);
+                    setPhoneOpen(true);
+                  }}
+                  onFocus={() => setPhoneOpen(true)}
+                  onBlur={() => setTimeout(() => setPhoneOpen(false), 150)}
                   className={inputClass}
                 />
+                {phoneOpen && (
+                  <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-56 overflow-y-auto rounded-xl border border-line bg-background shadow-xl">
+                    {phoneMatches.map((c) => (
+                      <button
+                        key={c._id}
+                        type="button"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          selectCustomer(c);
+                          setPhoneOpen(false);
+                        }}
+                        className={`flex w-full cursor-pointer items-center justify-between gap-3 px-3.5 py-2.5 text-left text-sm transition-colors duration-150 hover:bg-surface ${
+                          customerId === c._id ? "text-gold" : ""
+                        }`}
+                      >
+                        <span className="text-xs text-muted">{c.phone}</span>
+                        <span className="font-medium">{c.name}</span>
+                      </button>
+                    ))}
+                    {phoneMatches.length === 0 && (
+                      <p className="px-3.5 py-2.5 text-sm text-muted">No matching customer.</p>
+                    )}
+                  </div>
+                )}
               </div>
               <div className="sm:col-span-2">
                 <label htmlFor="d-address" className="text-sm font-semibold">

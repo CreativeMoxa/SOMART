@@ -103,6 +103,104 @@ async function send(to: string, subject: string, html: string, fromOverride?: st
   }
 }
 
+function esc(s: unknown): string {
+  return String(s ?? "").replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!
+  );
+}
+
+// Sent to an employee when a task is assigned to them.
+export async function sendTaskAssignedEmail(
+  to: string,
+  name: string,
+  task: { number: string; title: string; priority?: string; dueDate?: string; assignedBy?: string; description?: string }
+): Promise<boolean> {
+  const rows: [string, string][] = [
+    ["Task", task.title],
+    ["Reference", task.number],
+  ];
+  if (task.priority) rows.push(["Priority", task.priority.replace(/-/g, " ")]);
+  if (task.dueDate) rows.push(["Due date", task.dueDate]);
+  if (task.assignedBy) rows.push(["Assigned by", task.assignedBy]);
+
+  const table = `
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:6px 0 18px;border:1px solid #e2e8f0;border-radius:14px;overflow:hidden;">
+    ${rows
+      .map(
+        ([k, v], i) => `<tr style="background:${i % 2 ? "#f8fafc" : "#ffffff"};">
+        <td style="padding:11px 16px;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#7b89a3;width:38%;">${esc(k)}</td>
+        <td style="padding:11px 16px;font-size:14px;font-weight:600;color:#0b1220;">${esc(v)}</td></tr>`
+      )
+      .join("")}
+  </table>
+  ${task.description ? `<p style="margin:0 0 18px;font-size:14px;line-height:1.6;color:#41506b;">${esc(task.description)}</p>` : ""}
+  <p style="margin:0;font-size:14px;line-height:1.6;color:#41506b;">Log in to the ${BRAND.name} system to view the task and update your progress.</p>`;
+
+  const html = documentShell({
+    heading: "You've been assigned a new task",
+    intro: `Hello ${esc(name) || "there"}, a new task has been assigned to you.`,
+    body: table,
+  });
+  return send(to, `New task assigned: ${task.title}`, html);
+}
+
+// Sent when a manager nudges an employee about a task, showing how far along
+// their work is.
+export async function sendTaskReminderEmail(
+  to: string,
+  name: string,
+  task: {
+    number: string;
+    title: string;
+    priority?: string;
+    dueDate?: string;
+    remindedBy?: string;
+    done: number;
+    total: number;
+    percent: number;
+  }
+): Promise<boolean> {
+  const rows: [string, string][] = [
+    ["Task", task.title],
+    ["Reference", task.number],
+    ["Progress", task.total ? `${task.done} of ${task.total} done` : `${task.percent}%`],
+  ];
+  if (task.priority) rows.push(["Priority", task.priority.replace(/-/g, " ")]);
+  if (task.dueDate) rows.push(["Due date", task.dueDate]);
+  if (task.remindedBy) rows.push(["From", task.remindedBy]);
+
+  const pct = Math.max(0, Math.min(100, task.percent));
+  const bar = `
+  <div style="margin:2px 0 20px;">
+    <div style="display:flex;justify-content:space-between;font-size:12px;color:#7b89a3;margin-bottom:6px;">
+      <span>Completion</span><span style="font-weight:700;color:#2563eb;">${pct}%</span>
+    </div>
+    <div style="height:12px;background:#eef2f7;border-radius:99px;overflow:hidden;">
+      <div style="height:12px;width:${pct}%;background:linear-gradient(90deg,#2563eb,#7c3aed);border-radius:99px;"></div>
+    </div>
+  </div>`;
+
+  const table = `
+  ${bar}
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:6px 0 18px;border:1px solid #e2e8f0;border-radius:14px;overflow:hidden;">
+    ${rows
+      .map(
+        ([k, v], i) => `<tr style="background:${i % 2 ? "#f8fafc" : "#ffffff"};">
+        <td style="padding:11px 16px;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#7b89a3;width:38%;">${esc(k)}</td>
+        <td style="padding:11px 16px;font-size:14px;font-weight:600;color:#0b1220;">${esc(v)}</td></tr>`
+      )
+      .join("")}
+  </table>
+  <p style="margin:0;font-size:14px;line-height:1.6;color:#41506b;">Please log in to the ${BRAND.name} system to continue and update your progress.</p>`;
+
+  const html = documentShell({
+    heading: "Reminder: keep your task moving",
+    intro: `Hello ${esc(name) || "there"}, a quick reminder about your task${task.percent >= 100 ? " — thank you, it looks complete!" : "."}`,
+    body: table,
+  });
+  return send(to, `Task reminder: ${task.title} (${pct}%)`, html);
+}
+
 export async function sendOtpEmail(
   to: string,
   name: string,
