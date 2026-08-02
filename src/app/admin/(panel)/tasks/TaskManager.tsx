@@ -246,20 +246,38 @@ export default function TaskManager() {
     await load();
   }
 
+  // Optimistic update: change the task in place immediately (so counters,
+  // status and the board move feel instant), then persist in the background and
+  // reconcile with the server's derived values — no full reload, no flicker.
   async function patchTask(id: string, patch: Record<string, unknown>) {
-    const res = await fetch(`/api/tasks/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(patch),
-    });
-    if (!res.ok) {
-      const j = await res.json().catch(() => ({}));
-      setError(j.error || "Failed to update");
-      return null;
+    const merge = (t: Task): Task => ({ ...t, ...(patch as Partial<Task>) });
+    setTasks((prev) => prev.map((t) => (t._id === id ? merge(t) : t)));
+    setDetail((d) => (d && d._id === id ? merge(d) : d));
+    try {
+      const res = await fetch(`/api/tasks/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        setError(j.error || "Failed to update");
+        await load(); // resync (revert the optimistic change)
+        return;
+      }
+      const server = (await res.json()).task as Task;
+      setTasks((prev) => prev.map((t) => (t._id === id ? server : t)));
+      setDetail((d) => (d && d._id === id ? server : d));
+    } catch {
+      setError("Failed to update");
+      await load();
     }
-    const data = await res.json();
-    await load();
-    return data.task as Task;
+  }
+
+  async function archiveTask(id: string) {
+    await patchTask(id, { archived: true });
+    setTasks((prev) => prev.filter((t) => t._id !== id));
+    setDetail(null);
   }
 
   async function duplicateTask(id: string) {
@@ -414,7 +432,7 @@ export default function TaskManager() {
           onPatch={patchTask}
           onDuplicate={duplicateTask}
           onDelete={deleteTask}
-          onArchive={(id) => patchTask(id, { archived: true })}
+          onArchive={archiveTask}
         />
       )}
     </div>
@@ -990,8 +1008,14 @@ function SubtaskEditor({ value, onChange }: { value: Subtask[]; onChange: (v: Su
               <input type="date" value={s.dueDate ?? ""} onChange={(e) => upd(i, { dueDate: e.target.value })} className="rounded-lg border border-line bg-surface px-2 py-1 text-xs" />
               <label className="flex items-center gap-1 text-xs text-muted">
                 How many:
-                <input type="number" min={1} value={s.target ?? 1} onChange={(e) => upd(i, { target: Math.max(1, Number(e.target.value) || 1) })}
-                  className="w-16 rounded-lg border border-line bg-surface px-2 py-1 text-xs" />
+                <input
+                  type="number"
+                  min={1}
+                  value={s.target ?? ""}
+                  onChange={(e) => upd(i, { target: e.target.value === "" ? undefined : Number(e.target.value) })}
+                  onBlur={(e) => upd(i, { target: Math.max(1, Math.floor(Number(e.target.value) || 1)) })}
+                  className="w-16 rounded-lg border border-line bg-surface px-2 py-1 text-xs"
+                />
               </label>
             </div>
           </div>
@@ -1013,7 +1037,7 @@ function TaskDetail({ task, isManager, onClose, onEdit, onPatch, onDuplicate, on
   isManager: boolean;
   onClose: () => void;
   onEdit: () => void;
-  onPatch: (id: string, patch: Record<string, unknown>) => Promise<Task | null>;
+  onPatch: (id: string, patch: Record<string, unknown>) => void;
   onDuplicate: (id: string) => void;
   onDelete: (id: string) => void;
   onArchive: (id: string) => void;
