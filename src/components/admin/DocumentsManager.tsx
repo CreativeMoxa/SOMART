@@ -522,7 +522,7 @@ export default function DocumentsManager({
         items: items.filter((i) => i.name.trim()),
         discount: Number(discount) || 0,
         tax: Number(tax) || 0,
-        ...(kind === "invoice" ? { amountPaid: Number(amountPaid) || 0 } : {}),
+        ...(kind === "invoice" && status === "partial" ? { amountPaid: Number(amountPaid) || 0 } : {}),
         [cfg.dateField]: docDate,
         status,
         source,
@@ -1283,7 +1283,7 @@ export default function DocumentsManager({
                 <span className="font-bold">Total</span>
                 <span className="font-bold text-gold">{money(total)}</span>
               </div>
-              {kind === "invoice" && (() => {
+              {kind === "invoice" && status === "partial" && (() => {
                 const paidNum = Math.max(0, Number(amountPaid) || 0);
                 const balance = Math.max(0, total - paidNum);
                 const partial = paidNum > 0 && paidNum < total;

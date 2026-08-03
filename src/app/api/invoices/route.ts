@@ -45,8 +45,14 @@ export async function POST(req: NextRequest) {
     }
     const chosen = INVOICE_STATUSES.includes(body.status) ? body.status : "draft";
     const enriched = await enrichItemsWithProfit(shaped.items, shaped.discount);
-    // Partial-payment: a payment below the total marks it "partial".
-    const pay = deriveInvoiceStatus(chosen, Number(body.amountPaid) || 0, shaped.total);
+    // Only "partial" carries an amount paid; other statuses stand on their own
+    // (a paid invoice is fully paid, everything else owes the full total).
+    const pay =
+      body.amountPaid !== undefined
+        ? deriveInvoiceStatus(chosen, Number(body.amountPaid), shaped.total)
+        : chosen === "paid"
+          ? { status: "paid", amountPaid: shaped.total, balance: 0 }
+          : { status: chosen, amountPaid: 0, balance: shaped.total };
 
     const invoice = await Invoice.create({
       ...shaped,
