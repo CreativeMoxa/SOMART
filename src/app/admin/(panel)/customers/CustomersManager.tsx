@@ -26,6 +26,10 @@ type Purchase = {
 const emptyForm = { name: "", phone: "", email: "", address: "", notes: "" };
 type FormState = typeof emptyForm;
 
+function money(n: number) {
+  return `$${n.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+}
+
 // Header names we recognise in uploaded Excel/CSV files (case-insensitive).
 const HEADER_ALIASES: Record<keyof FormState, string[]> = {
   name: ["name", "customer", "customer name", "full name", "fullname"],
@@ -40,6 +44,7 @@ const inputClass =
 
 export default function CustomersManager() {
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [invoiceStats, setInvoiceStats] = useState<Record<string, { count: number; outstanding: number }>>({});
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -70,6 +75,14 @@ export default function CustomersManager() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // How many invoices each customer has + money still owed (loaded once).
+  useEffect(() => {
+    fetch("/api/customers/invoice-stats")
+      .then((r) => (r.ok ? r.json() : {}))
+      .then((s) => setInvoiceStats(s || {}))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     const t = setTimeout(() => load(query), 300);
@@ -385,6 +398,7 @@ export default function CustomersManager() {
                 <th className="px-4 py-3 font-semibold">Phone</th>
                 <th className="px-4 py-3 font-semibold">City</th>
                 <th className="px-4 py-3 font-semibold">Email</th>
+                <th className="px-4 py-3 font-semibold">Invoices</th>
                 <th className="px-4 py-3 font-semibold">Added</th>
                 <th className="px-4 py-3 text-right font-semibold">Actions</th>
               </tr>
@@ -411,6 +425,31 @@ export default function CustomersManager() {
                   <td className="px-4 py-3 text-muted">{customer.phone}</td>
                   <td className="px-4 py-3 text-muted">{customer.address || "—"}</td>
                   <td className="px-4 py-3 text-muted">{customer.email || "—"}</td>
+                  <td className="px-4 py-3">
+                    {(() => {
+                      const st = invoiceStats[customer._id];
+                      if (!st || st.count === 0) return <span className="text-muted">—</span>;
+                      return (
+                        <div className="flex items-center gap-1.5">
+                          <a
+                            href={`/admin/invoices?customer=${customer._id}`}
+                            title={`View ${st.count} invoice${st.count === 1 ? "" : "s"} for ${customer.name}`}
+                            className="inline-flex items-center gap-1 rounded-full bg-gold/20 px-2.5 py-0.5 text-xs font-bold text-gold transition-colors duration-150 hover:bg-gold/30"
+                          >
+                            🧾 {st.count}
+                          </a>
+                          {st.outstanding > 0 && (
+                            <span
+                              title={`${money(st.outstanding)} still owed`}
+                              className="inline-flex items-center rounded-full bg-amber-500/20 px-2 py-0.5 text-xs font-bold text-amber-500"
+                            >
+                              {money(st.outstanding)}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })()}
+                  </td>
                   <td className="px-4 py-3 text-muted">
                     {new Date(customer.createdAt).toLocaleDateString("en-US", {
                       month: "short",
@@ -442,7 +481,7 @@ export default function CustomersManager() {
               ))}
               {customers.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center text-muted">
+                  <td colSpan={9} className="px-4 py-12 text-center text-muted">
                     No customers found.
                   </td>
                 </tr>

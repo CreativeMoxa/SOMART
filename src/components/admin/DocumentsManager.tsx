@@ -133,9 +133,11 @@ function whatsappLink(doc: Doc, kind: DocKind, business: BusinessSettings | null
 export default function DocumentsManager({
   kind,
   initialStatus = "",
+  initialCustomer = "",
 }: {
   kind: DocKind;
   initialStatus?: string;
+  initialCustomer?: string;
 }) {
   const cfg = config[kind];
   const router = useRouter();
@@ -144,6 +146,8 @@ export default function DocumentsManager({
   const [statusFilter, setStatusFilter] = useState(
     cfg.statuses.includes(initialStatus) ? initialStatus : ""
   );
+  // Deep-linked from a customer row → show only that customer's documents.
+  const [customerFilter, setCustomerFilter] = useState(initialCustomer);
   const [loading, setLoading] = useState(true);
 
   // Keep the status filter in the URL so it survives refresh and drill-downs.
@@ -229,7 +233,11 @@ export default function DocumentsManager({
     }
   }, []);
 
-  const visible = statusFilter ? docs.filter((d) => d.status === statusFilter) : docs;
+  const byCustomer = customerFilter ? docs.filter((d) => d.customerId === customerFilter) : docs;
+  const visible = statusFilter ? byCustomer.filter((d) => d.status === statusFilter) : byCustomer;
+  const customerFilterName = customerFilter
+    ? docs.find((d) => d.customerId === customerFilter)?.customerName ?? "this customer"
+    : "";
 
   function openNew() {
     setCustomerId(null);
@@ -640,6 +648,21 @@ export default function DocumentsManager({
           </button>
         ))}
       </div>
+
+      {customerFilter && (
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-gold/40 bg-gold/10 px-4 py-2.5 text-sm">
+          <span className="font-semibold text-gold">
+            Showing {byCustomer.length} {cfg.title.toLowerCase()} for {customerFilterName}
+          </span>
+          <button
+            type="button"
+            onClick={() => setCustomerFilter("")}
+            className="cursor-pointer text-xs font-semibold uppercase tracking-wider text-muted hover:text-gold"
+          >
+            ✕ Show all
+          </button>
+        </div>
+      )}
 
       {error && !editing && (
         <p role="alert" className="mt-4 rounded-xl bg-red-500/10 px-4 py-3 text-sm font-medium text-red-500">

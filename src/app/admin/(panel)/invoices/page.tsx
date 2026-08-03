@@ -7,8 +7,8 @@ export const dynamic = "force-dynamic";
 export default async function AdminInvoicesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{ status?: string; customer?: string }>;
 }) {
-  const { status } = await searchParams;
-  return <DocumentsManager kind="invoice" initialStatus={status ?? ""} />;
+  const { status, customer } = await searchParams;
+  return <DocumentsManager kind="invoice" initialStatus={status ?? ""} initialCustomer={customer ?? ""} />;
 }
