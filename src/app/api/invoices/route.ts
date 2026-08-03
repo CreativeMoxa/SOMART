@@ -4,6 +4,7 @@ import { Invoice, INVOICE_STATUSES } from "@/models/Invoice";
 import { nextNumber } from "@/lib/numbering";
 import { shapeDocumentPayload, enrichItemsWithProfit } from "@/lib/documents";
 import { applyInvoicePaid } from "@/lib/invoiceSale";
+import { deriveInvoiceStatus } from "@/lib/invoiceStatus";
 import { isAdmin } from "@/lib/auth";
 import { stampAudit, recordAction } from "@/lib/audit";
 
@@ -42,8 +43,10 @@ export async function POST(req: NextRequest) {
     if (shaped.items.length === 0) {
       return NextResponse.json({ error: "At least one item is required" }, { status: 400 });
     }
-    const status = INVOICE_STATUSES.includes(body.status) ? body.status : "draft";
+    const chosen = INVOICE_STATUSES.includes(body.status) ? body.status : "draft";
     const enriched = await enrichItemsWithProfit(shaped.items, shaped.discount);
+    // Partial-payment: a payment below the total marks it "partial".
+    const pay = deriveInvoiceStatus(chosen, Number(body.amountPaid) || 0, shaped.total);
 
     const invoice = await Invoice.create({
       ...shaped,
@@ -51,7 +54,8 @@ export async function POST(req: NextRequest) {
       totalCost: enriched.totalCost,
       profit: enriched.profit,
       number: await nextNumber(Invoice, "INV"),
-      status,
+      status: pay.status,
+      amountPaid: pay.amountPaid,
       dueDate: body.dueDate ?? "",
       ...(await stampAudit({}, "create")),
     });

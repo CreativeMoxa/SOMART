@@ -217,11 +217,13 @@ export default function CustomersManager() {
   }
 
   function exportRows() {
-    return customers.map((c) => ({
+    // When rows are ticked, export only those; otherwise export everything.
+    const source = selected.size > 0 ? customers.filter((c) => selected.has(c._id)) : customers;
+    return source.map((c) => ({
       Name: c.name,
       Phone: c.phone,
+      City: c.address ?? "",
       Email: c.email ?? "",
-      Address: c.address ?? "",
       Notes: c.notes ?? "",
       Added: new Date(c.createdAt).toLocaleDateString("en-US"),
     }));
@@ -241,14 +243,14 @@ export default function CustomersManager() {
       await exportPdf({
         filename: "customers",
         title: "Customer Report",
-        subtitle: query ? `Search: ${query}` : "All customers",
+        subtitle: selected.size > 0 ? `${selected.size} selected` : query ? `Search: ${query}` : "All customers",
         business,
-        kpis: [["Customers", String(customers.length)]],
+        kpis: [["Customers", String(selected.size > 0 ? selected.size : customers.length)]],
         columns: [
           { header: "Name", key: "Name" },
           { header: "Phone", key: "Phone" },
+          { header: "City", key: "City" },
           { header: "Email", key: "Email" },
-          { header: "Address", key: "Address" },
           { header: "Added", key: "Added" },
         ],
         rows: exportRows(),
@@ -338,7 +340,7 @@ export default function CustomersManager() {
 
       <input
         type="search"
-        placeholder="Search by name, phone or email…"
+        placeholder="Search by name, phone, city or email…"
         aria-label="Search customers"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
@@ -381,6 +383,7 @@ export default function CustomersManager() {
                 <th className="w-10 px-2 py-3 font-semibold">#</th>
                 <th className="px-4 py-3 font-semibold">Name</th>
                 <th className="px-4 py-3 font-semibold">Phone</th>
+                <th className="px-4 py-3 font-semibold">City</th>
                 <th className="px-4 py-3 font-semibold">Email</th>
                 <th className="px-4 py-3 font-semibold">Added</th>
                 <th className="px-4 py-3 text-right font-semibold">Actions</th>
@@ -406,6 +409,7 @@ export default function CustomersManager() {
                   <td className="px-2 py-3 text-xs text-muted">{rowIndex + 1}</td>
                   <td className="px-4 py-3 font-semibold">{customer.name}</td>
                   <td className="px-4 py-3 text-muted">{customer.phone}</td>
+                  <td className="px-4 py-3 text-muted">{customer.address || "—"}</td>
                   <td className="px-4 py-3 text-muted">{customer.email || "—"}</td>
                   <td className="px-4 py-3 text-muted">
                     {new Date(customer.createdAt).toLocaleDateString("en-US", {
@@ -506,9 +510,10 @@ export default function CustomersManager() {
                 />
               </div>
               <div>
-                <label htmlFor="c-address" className="text-sm font-semibold">Address</label>
+                <label htmlFor="c-address" className="text-sm font-semibold">City</label>
                 <input
                   id="c-address"
+                  placeholder="e.g. Hargeisa"
                   value={form.address}
                   onChange={(e) => set("address", e.target.value)}
                   className={inputClass}

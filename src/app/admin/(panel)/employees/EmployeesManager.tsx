@@ -23,6 +23,7 @@ type Employee = {
   role: Role;
   status: EmployeeStatus;
   lastLoginAt?: string | null;
+  lastActiveAt?: string | null;
   registeredAt?: string | null;
   allowMultipleDevices?: boolean;
   createdAt?: string;
@@ -69,6 +70,23 @@ function fmtDateTime(value?: string | null) {
   });
 }
 
+function relTime(ms: number) {
+  const m = Math.floor(ms / 60000);
+  if (m < 1) return "just now";
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  return `${d}d ago`;
+}
+// Online = active within the last 3 minutes (the heartbeat refreshes ~1/min).
+function presence(lastActiveAt?: string | null): { online: boolean; text: string } {
+  if (!lastActiveAt) return { online: false, text: "Never active" };
+  const ms = Date.now() - new Date(lastActiveAt).getTime();
+  if (ms < 3 * 60 * 1000) return { online: true, text: "Online" };
+  return { online: false, text: `Last seen ${relTime(ms)}` };
+}
+
 type ActivityEntry = {
   _id: string;
   employeeName?: string;
@@ -111,6 +129,17 @@ export default function EmployeesManager() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Refresh quietly every 30s so online / last-seen stays current.
+  useEffect(() => {
+    const t = setInterval(() => {
+      fetch("/api/employees")
+        .then((r) => (r.ok ? r.json() : null))
+        .then((list) => list && setEmployees(list))
+        .catch(() => {});
+    }, 30_000);
+    return () => clearInterval(t);
+  }, []);
 
   // Load the rolling activity log the first time the tab is opened.
   useEffect(() => {
@@ -364,19 +393,29 @@ export default function EmployeesManager() {
                 <tr key={e._id} className="border-b border-line last:border-0">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
-                      {e.photoUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={e.photoUrl} alt="" className="h-10 w-10 rounded-full object-cover" />
-                      ) : (
-                        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-brand/15 text-sm font-bold text-gold">
-                          {e.name.slice(0, 1).toUpperCase()}
-                        </span>
-                      )}
+                      <div className="relative">
+                        {e.photoUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={e.photoUrl} alt="" className="h-10 w-10 rounded-full object-cover" />
+                        ) : (
+                          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-brand/15 text-sm font-bold text-gold">
+                            {e.name.slice(0, 1).toUpperCase()}
+                          </span>
+                        )}
+                        {presence(e.lastActiveAt).online && (
+                          <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-background bg-emerald-500" title="Online" />
+                        )}
+                      </div>
                       <div>
                         <p className="font-semibold">{e.name}</p>
-                        <p className="text-xs text-muted">
-                          {e.registeredAt ? "Registered" : "Not registered yet"}
-                        </p>
+                        {(() => {
+                          const p = presence(e.lastActiveAt);
+                          return (
+                            <p className={`text-xs ${p.online ? "font-semibold text-emerald-500" : "text-muted"}`}>
+                              {p.online ? "● Online" : p.text}
+                            </p>
+                          );
+                        })()}
                       </div>
                     </div>
                   </td>
@@ -507,6 +546,7 @@ export default function EmployeesManager() {
                 ["Status", STATUS_META[viewing.status].label],
                 ["Access", ROLE_DESCRIPTIONS[viewing.role]],
                 ["Devices", viewing.allowMultipleDevices === false ? "Single device only" : "Multiple devices"],
+                ["Presence", presence(viewing.lastActiveAt).online ? "Online now" : presence(viewing.lastActiveAt).text],
                 ["Last login", fmtDateTime(viewing.lastLoginAt)],
                 ["Registered", viewing.registeredAt ? fmtDate(viewing.registeredAt) : "Not yet"],
                 ["Date added", fmtDate(viewing.createdAt)],

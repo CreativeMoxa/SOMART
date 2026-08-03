@@ -33,7 +33,7 @@ export async function getDashboardMetrics() {
   const last30 = new Date(now.getTime() - 30 * day);
   const last365 = new Date(now.getTime() - 365 * day);
 
-  const [sales, monthExpensesAgg, products, totalCustomers, unpaidInvoices, webViews, lastMonthAgg] =
+  const [sales, monthExpensesAgg, products, totalCustomers, unpaidInvoices, partialInvoices, webViews, lastMonthAgg] =
     await Promise.all([
       Sale.find({
         createdAt: { $gte: startOfYear },
@@ -52,6 +52,7 @@ export async function getDashboardMetrics() {
         .lean(),
       Customer.countDocuments(),
       Invoice.countDocuments({ status: { $in: ["unpaid", "overdue"] } }),
+      Invoice.countDocuments({ status: "partial" }),
       Promise.all([
         PageView.countDocuments({ createdAt: { $gte: last7 } }),
         PageView.countDocuments({ createdAt: { $gte: last30 } }),
@@ -177,6 +178,7 @@ export async function getDashboardMetrics() {
     totalCustomers,
     totalProducts: products.length,
     unpaidInvoices,
+    partialInvoices,
     lowStock,
     topProducts,
     last7Days,

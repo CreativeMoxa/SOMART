@@ -24,6 +24,7 @@ const employeeSchema = new Schema(
     passwordHash: { type: String, default: "" },
     registeredAt: { type: Date, default: null },
     lastLoginAt: { type: Date, default: null },
+    lastActiveAt: { type: Date, default: null }, // heartbeat for online / last-seen
 
     // Device restriction. ON = may stay signed in on several devices.
     // OFF = only the newest session survives; older ones are terminated.

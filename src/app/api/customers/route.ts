@@ -33,6 +33,7 @@ export async function GET(req: NextRequest) {
           { name: { $regex: escapeRegex(q), $options: "i" } },
           { phone: { $regex: escapeRegex(q), $options: "i" } },
           { email: { $regex: escapeRegex(q), $options: "i" } },
+          { address: { $regex: escapeRegex(q), $options: "i" } }, // city
         ],
       };
     }
@@ -58,6 +59,25 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     if (!body.name || !body.phone) {
       return NextResponse.json({ error: "Name and phone are required" }, { status: 400 });
+    }
+    // Phone number is the unique key — a customer's name and city can repeat,
+    // but not their number. Reject a duplicate and point to the existing record.
+    const digits = phoneDigits(body.phone);
+    if (digits) {
+      const existing = await Customer.findOne({ phoneDigits: digits })
+        .select("name phone")
+        .lean();
+      if (existing) {
+        return NextResponse.json(
+          {
+            error: `A customer with this number already exists: ${existing.name} (${existing.phone}).`,
+            existingId: String(existing._id),
+            existingName: existing.name,
+            existingPhone: existing.phone,
+          },
+          { status: 409 }
+        );
+      }
     }
     await stampAudit(body, "create");
     const customer = await Customer.create(body);

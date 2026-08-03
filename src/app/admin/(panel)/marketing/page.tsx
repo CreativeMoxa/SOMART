@@ -160,6 +160,17 @@ export default async function MarketingPage() {
               </tr>
             ))}
           </tbody>
+          <tfoot>
+            <tr className="border-t-2 border-line bg-surface font-bold">
+              <td className="px-4 py-3">Total</td>
+              <td className="px-4 py-3">{rows.reduce((s, r) => s + r.monthCount, 0)}</td>
+              <td className="px-4 py-3 text-gold">{money(rows.reduce((s, r) => s + r.monthRevenue, 0))}</td>
+              <td className="px-4 py-3">{rows.reduce((s, r) => s + r.totalCount, 0)}</td>
+              <td className="px-4 py-3 text-gold">{money(rows.reduce((s, r) => s + r.totalRevenue, 0))}</td>
+              <td className="px-4 py-3 text-emerald-500">{money(rows.reduce((s, r) => s + r.totalProfit, 0))}</td>
+              <td className="px-4 py-3 text-muted">{rows.reduce((s, r) => s + r.invoiceCount, 0)}</td>
+            </tr>
+          </tfoot>
         </table>
       </div>
 

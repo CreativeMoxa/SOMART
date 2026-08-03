@@ -41,6 +41,7 @@ type Doc = {
   discount: number;
   tax: number;
   total: number;
+  amountPaid?: number;
   status: string;
   source?: string;
   customerType?: string;
@@ -58,12 +59,13 @@ const config = {
     api: "/api/invoices",
     title: "Invoices",
     singular: "Invoice",
-    statuses: ["draft", "unpaid", "paid", "overdue"],
+    statuses: ["draft", "unpaid", "partial", "paid", "overdue"],
     dateField: "dueDate" as const,
     dateLabel: "Due date",
     statusColors: {
       draft: "bg-surface text-muted",
       unpaid: "bg-amber-500/15 text-amber-500",
+      partial: "bg-orange-500/15 text-orange-500",
       paid: "bg-emerald-500/15 text-emerald-500",
       overdue: "bg-red-500/15 text-red-500",
     } as Record<string, string>,
@@ -161,6 +163,7 @@ export default function DocumentsManager({
   ]);
   const [discount, setDiscount] = useState("");
   const [tax, setTax] = useState("");
+  const [amountPaid, setAmountPaid] = useState(""); // invoices: part-payment
   const [docDate, setDocDate] = useState("");
   const [status, setStatus] = useState("draft");
   // Status as last saved — a paid invoice already moved stock, so its out-of-stock
@@ -236,6 +239,7 @@ export default function DocumentsManager({
     setItems([{ productId: null, name: "", price: 0, qty: 1 }]);
     setDiscount("");
     setTax("");
+    setAmountPaid("");
     setDocDate(today());
     setStatus("draft");
     setSavedStatus("");
@@ -263,6 +267,7 @@ export default function DocumentsManager({
     );
     setDiscount(doc.discount ? String(doc.discount) : "");
     setTax(doc.tax ? String(doc.tax) : "");
+    setAmountPaid(doc.amountPaid ? String(doc.amountPaid) : "");
     setDocDate(doc[cfg.dateField] ?? "");
     setStatus(doc.status);
     setSavedStatus(doc.status);
@@ -373,8 +378,11 @@ export default function DocumentsManager({
     }
   }
 
+  // Ticked rows export only those; nothing ticked exports the whole (filtered) view.
+  const exportSource = selected.size > 0 ? docs.filter((d) => selected.has(d._id)) : visible;
+
   function exportRows() {
-    return visible.map((d) => ({
+    return exportSource.map((d) => ({
       Number: d.number,
       Date: new Date(d.createdAt).toLocaleDateString("en-US"),
       Customer: d.customerName,
@@ -404,12 +412,12 @@ export default function DocumentsManager({
       await exportPdf({
         filename: cfg.title.toLowerCase(),
         title: `${cfg.title} Report`,
-        subtitle: statusFilter ? `Status: ${statusFilter}` : "All statuses",
+        subtitle: selected.size > 0 ? `${selected.size} selected` : statusFilter ? `Status: ${statusFilter}` : "All statuses",
         business: biz,
         landscape: true,
         kpis: [
-          ["Documents", String(visible.length)],
-          ["Total value", money(visible.reduce((s, d) => s + d.total, 0))],
+          ["Documents", String(exportSource.length)],
+          ["Total value", money(exportSource.reduce((s, d) => s + d.total, 0))],
         ],
         columns: [
           { header: "Number", key: "Number" },
@@ -471,8 +479,10 @@ export default function DocumentsManager({
       // otherwise save the newly typed customer so they can be reused next time.
       let cid = customerId;
       if (!cid && customerName.trim() && customerPhone.trim()) {
+        // Match by normalized number so a differently-formatted duplicate reuses
+        // the same customer instead of trying to create a second record.
         const existing = customers.find(
-          (c) => c.phone.trim() === customerPhone.trim()
+          (c) => phoneDigits(c.phone) === phoneDigits(customerPhone)
         );
         if (existing) {
           cid = existing._id;
@@ -481,9 +491,14 @@ export default function DocumentsManager({
             const res = await fetch("/api/customers", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ name: customerName.trim(), phone: customerPhone.trim() }),
+              body: JSON.stringify({ name: customerName.trim(), phone: customerPhone.trim(), address: customerAddress.trim() }),
             });
             if (res.ok) cid = ((await res.json()) as PickerCustomer)._id;
+            else if (res.status === 409) {
+              // Number already belongs to someone — link to them.
+              const j = await res.json().catch(() => ({}));
+              if (j.existingId) cid = j.existingId;
+            }
           } catch {
             // the document still saves without a linked customer record
           }
@@ -499,6 +514,7 @@ export default function DocumentsManager({
         items: items.filter((i) => i.name.trim()),
         discount: Number(discount) || 0,
         tax: Number(tax) || 0,
+        ...(kind === "invoice" ? { amountPaid: Number(amountPaid) || 0 } : {}),
         [cfg.dateField]: docDate,
         status,
         source,
@@ -1244,6 +1260,41 @@ export default function DocumentsManager({
                 <span className="font-bold">Total</span>
                 <span className="font-bold text-gold">{money(total)}</span>
               </div>
+              {kind === "invoice" && (() => {
+                const paidNum = Math.max(0, Number(amountPaid) || 0);
+                const balance = Math.max(0, total - paidNum);
+                const partial = paidNum > 0 && paidNum < total;
+                return (
+                  <>
+                    <div className="mt-3 flex items-center justify-between gap-3 border-t border-line pt-3">
+                      <label htmlFor="d-paid" className="font-semibold">Amount paid</label>
+                      <input
+                        id="d-paid"
+                        type="number"
+                        min={0}
+                        value={amountPaid}
+                        onChange={(e) => setAmountPaid(e.target.value)}
+                        placeholder="0"
+                        className="w-32 rounded-lg border border-line bg-background px-2 py-1 text-right text-sm"
+                      />
+                    </div>
+                    <div className="mt-2 flex justify-between">
+                      <span className="font-bold">Balance remaining</span>
+                      <span className={`font-bold ${partial ? "text-amber-500" : balance === 0 && paidNum > 0 ? "text-emerald-500" : ""}`}>
+                        {money(balance)}
+                      </span>
+                    </div>
+                    {partial && (
+                      <p className="mt-1 text-right text-xs font-semibold text-amber-500">
+                        ⚠ Partially paid — {money(balance)} still owed
+                      </p>
+                    )}
+                    {paidNum >= total && total > 0 && (
+                      <p className="mt-1 text-right text-xs font-semibold text-emerald-500">✓ Fully paid</p>
+                    )}
+                  </>
+                );
+              })()}
             </div>
 
             {error && (

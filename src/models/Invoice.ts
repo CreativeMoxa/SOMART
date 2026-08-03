@@ -5,7 +5,7 @@ import { PAYMENT_METHODS } from "@/models/Sale";
 import { documentLineFields } from "@/models/lineItem";
 import { auditFields } from "@/lib/auditFields";
 
-export const INVOICE_STATUSES = ["draft", "unpaid", "paid", "overdue"] as const;
+export const INVOICE_STATUSES = ["draft", "unpaid", "partial", "paid", "overdue"] as const;
 
 const invoiceSchema = new Schema(
   {
@@ -20,6 +20,9 @@ const invoiceSchema = new Schema(
     discount: { type: Number, default: 0 },
     tax: { type: Number, default: 0 },
     total: { type: Number, required: true },
+    // Part-payment tracking: how much has been paid so far. Balance = total −
+    // amountPaid. A non-zero amount below the total marks the invoice "partial".
+    amountPaid: { type: Number, default: 0 },
     // Profit snapshot at time of sale (see src/lib/profit.ts).
     totalCost: { type: Number, default: 0 },
     profit: { type: Number, default: 0 },

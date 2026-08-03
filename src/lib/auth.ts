@@ -116,6 +116,14 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
     if (!employee.allowMultipleDevices && employee.currentSessionId !== session.sid) {
       return null;
     }
+    // Heartbeat for online / last-seen — throttled to at most once a minute so
+    // we don't write on every request.
+    const last = employee.lastActiveAt ? new Date(employee.lastActiveAt).getTime() : 0;
+    if (Date.now() - last > 60_000) {
+      Employee.updateOne({ _id: employee._id }, { $set: { lastActiveAt: new Date() } }).catch(
+        () => {}
+      );
+    }
     return {
       id: String(employee._id),
       name: employee.name,

@@ -6,6 +6,7 @@ import { applyInvoicePaid, revertInvoicePaid, removeInvoiceSale, syncSaleFromInv
 import { isAdmin } from "@/lib/auth";
 import { actorName, recordAction } from "@/lib/audit";
 import { normalizePaymentMethod } from "@/lib/payment";
+import { deriveInvoiceStatus } from "@/lib/invoiceStatus";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -65,6 +66,18 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     const invoice = await Invoice.findById(id);
     if (!invoice) return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
     const wasPaid = invoice.status === "paid";
+
+    // Partial-payment reconciliation: keep status ⇄ amountPaid consistent.
+    const invTotal = (update.total ?? invoice.total) as number;
+    if (body.amountPaid !== undefined) {
+      const d = deriveInvoiceStatus((update.status as string) ?? invoice.status, Number(body.amountPaid), invTotal);
+      update.status = d.status;
+      update.amountPaid = d.amountPaid;
+    } else if (body.status === "paid") {
+      update.amountPaid = invTotal; // marked fully paid
+    } else if (body.status === "unpaid" || body.status === "draft") {
+      update.amountPaid = 0;
+    }
 
     invoice.set(update);
     // Self-heal any legacy stored value so save() passes the current enum.

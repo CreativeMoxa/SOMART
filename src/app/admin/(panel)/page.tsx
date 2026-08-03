@@ -88,6 +88,7 @@ export default async function AdminDashboardPage() {
         />
         <StatCard label="Inventory Value" value={money(m.inventoryValue)} href="/admin/products" />
         <StatCard label="Unpaid Invoices" value={String(m.unpaidInvoices)} href="/admin/invoices?status=unpaid" />
+        <StatCard label="Partial Invoices" value={String(m.partialInvoices)} accent href="/admin/invoices?status=partial" />
         <StatCard label="Today's Orders" value={String(m.todayOrders)} accent href="/admin/sales?range=today" />
         <StatCard label="This Week Orders" value={String(m.weekOrders)} href="/admin/sales?range=week" />
         <StatCard label="Last Week Orders" value={String(m.lastWeekOrders)} />

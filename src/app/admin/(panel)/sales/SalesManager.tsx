@@ -177,8 +177,11 @@ export default function SalesManager({ initialRange = "" }: { initialRange?: str
     }
   }
 
+  // Ticked rows export only those; nothing ticked exports the whole (filtered) view.
+  const exportSource = selected.size > 0 ? sales.filter((s) => selected.has(s._id)) : visible;
+
   function exportRows() {
-    return visible.map((s) => ({
+    return exportSource.map((s) => ({
       Number: s.number,
       Date: new Date(s.createdAt).toLocaleString("en-US", {
         dateStyle: "medium",
@@ -208,11 +211,12 @@ export default function SalesManager({ initialRange = "" }: { initialRange?: str
     try {
       const res = await fetch("/api/settings");
       const business = res.ok ? await res.json() : { companyName: "SOMART" };
-      const completed = visible.filter((s) => s.status !== "pending");
+      const completed = exportSource.filter((s) => s.status !== "pending");
       const { exportPdf } = await import("@/lib/export");
       await exportPdf({
         filename: "sales",
         title: "Sales Report",
+        subtitle: selected.size > 0 ? `${selected.size} selected` : undefined,
         business,
         landscape: true,
         kpis: [
