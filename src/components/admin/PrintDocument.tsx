@@ -38,11 +38,13 @@ function shortDate(d: string | Date) {
   ).padStart(2, "0")}/${date.getFullYear()}`;
 }
 
-const MUTED = "#6b6b6b";
-const BORDER = "#d3d3d3";
-const BAND = "#ededf0";
-const DECOR = "#e9e9ec";
-const AMOUNT_BG = "#f5f5f5";
+// Brand document palette — deep navy ink with soft lavender accents.
+const NAVY = "#16225c";
+const MUTED = "#5b6478";
+const BORDER = "#d8dae8";
+const BAND = "#eef0fc";
+const DECOR = "#ebe9fb";
+const AMOUNT_BG = "#f3f4fc";
 
 export default function PrintDocument({
   doc,
@@ -64,8 +66,9 @@ export default function PrintDocument({
 
   return (
     <div
-      className="relative mx-auto max-w-[820px] overflow-hidden bg-white px-12 py-10 text-black"
+      className="relative mx-auto max-w-[820px] overflow-hidden bg-white px-12 py-10"
       style={{
+        color: NAVY,
         WebkitPrintColorAdjust: "exact",
         printColorAdjust: "exact",
         minHeight: "1000px",
@@ -167,7 +170,7 @@ export default function PrintDocument({
         {/* Items table */}
         <table className="mt-5 w-full border-collapse text-sm">
           <thead>
-            <tr style={{ background: "#111", color: "#fff" }}>
+            <tr style={{ background: NAVY, color: "#fff" }}>
               <th className="px-3 py-2.5 text-left font-medium">Description</th>
               <th className="px-3 py-2.5 text-right font-medium">Quantity</th>
               <th className="px-3 py-2.5 text-right font-medium">Unit Price</th>
@@ -228,7 +231,7 @@ export default function PrintDocument({
             )}
             <div
               className="flex justify-between px-3 py-2 font-bold"
-              style={{ background: "#111", color: "#fff" }}
+              style={{ background: NAVY, color: "#fff" }}
             >
               <span>Total</span>
               <span>{money(doc.total)}</span>

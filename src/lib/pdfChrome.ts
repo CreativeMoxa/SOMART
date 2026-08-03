@@ -6,10 +6,12 @@ import type { jsPDF } from "jspdf";
 // reports) so they all match the branded template: soft grey decorative
 // corners, a tagline + logo header, and a centered thank-you footer.
 
-export const DECOR_GREY: [number, number, number] = [233, 233, 236];
-export const BAND_GREY: [number, number, number] = [237, 237, 239];
-export const INK: [number, number, number] = [17, 17, 17];
-export const MUTED: [number, number, number] = [120, 120, 120];
+// Brand document palette — deep navy ink with soft lavender accents. (Names
+// kept for compatibility; the decor/band greys are now lavender.)
+export const DECOR_GREY: [number, number, number] = [235, 233, 251]; // #ebe9fb
+export const BAND_GREY: [number, number, number] = [238, 240, 252]; // #eef0fc
+export const INK: [number, number, number] = [22, 34, 92]; // #16225c navy
+export const MUTED: [number, number, number] = [91, 100, 120]; // #5b6478
 
 type LoadedImage = { dataUrl: string; width: number; height: number };
 
