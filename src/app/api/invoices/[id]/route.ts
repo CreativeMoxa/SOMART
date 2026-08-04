@@ -61,6 +61,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       if (body.source !== undefined) update.source = body.source;
       if (body.paymentMethod !== undefined)
         update.paymentMethod = normalizePaymentMethod(body.paymentMethod);
+      if (body.pdfSent !== undefined) update.pdfSent = body.pdfSent;
     }
 
     const invoice = await Invoice.findById(id);

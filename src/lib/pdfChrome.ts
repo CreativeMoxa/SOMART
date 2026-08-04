@@ -101,12 +101,12 @@ export async function drawHeader(
     pdf.text(tagline, margin, 46);
   }
 
-  // Logo mark (white-on-black JPEG used as-is → the template's black tile).
-  const mark = await loadImageData("/logo-mark.jpeg");
+  // Navy logo on a transparent background (matches the branded documents).
+  const mark = await loadImageData("/logo-mark-navy.png");
   const size = 42;
   const logoX = pageWidth - margin - size;
   if (mark) {
-    pdf.addImage(mark.dataUrl, "JPEG", logoX, 30, size, size);
+    pdf.addImage(mark.dataUrl, "PNG", logoX, 30, size, size);
   }
   if (location) {
     pdf.setFont("helvetica", "normal");

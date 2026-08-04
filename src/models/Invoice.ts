@@ -34,6 +34,9 @@ const invoiceSchema = new Schema(
     saleId: { type: Schema.Types.ObjectId, ref: "Sale", default: null },
     dueDate: { type: String, default: "" },
     notes: { type: String, default: "" },
+    // Was the PDF sent to the customer? Tracked outside the document so whoever
+    // is responsible for sending never loses track across a busy team.
+    pdfSent: { type: String, enum: ["sent", "not-sent", "unknown"], default: "unknown" },
   },
   { timestamps: true }
 );

@@ -43,6 +43,7 @@ type Doc = {
   total: number;
   amountPaid?: number;
   status: string;
+  pdfSent?: string;
   source?: string;
   customerType?: string;
   paymentMethod?: string;
@@ -84,6 +85,13 @@ const config = {
       rejected: "bg-red-500/15 text-red-500",
     } as Record<string, string>,
   },
+};
+
+// Badge colours for the "PDF sent to customer?" tracker.
+const PDF_SENT_COLORS: Record<string, string> = {
+  sent: "bg-emerald-500/15 text-emerald-500",
+  "not-sent": "bg-red-500/15 text-red-500",
+  unknown: "bg-amber-500/15 text-amber-500",
 };
 
 // Payment options for invoices — the chosen method carries through to the Sale.
@@ -569,6 +577,22 @@ export default function DocumentsManager({
     }
   }
 
+  // "Was the PDF sent?" — a lightweight status the team updates from the list.
+  async function updatePdfSent(doc: Doc, pdfSent: string) {
+    setDocs((list) => list.map((d) => (d._id === doc._id ? { ...d, pdfSent } : d))); // optimistic
+    try {
+      const res = await fetch(`${cfg.api}/${doc._id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pdfSent }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? "Update failed");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Update failed");
+      await load();
+    }
+  }
+
   async function handleDelete(doc: Doc) {
     if (!(await confirmDialog(`Delete ${cfg.singular.toLowerCase()} ${doc.number}?`))) return;
     try {
@@ -703,6 +727,7 @@ export default function DocumentsManager({
                 <th className="px-4 py-3 font-semibold">Source</th>
                 <th className="px-4 py-3 font-semibold">Total</th>
                 <th className="px-4 py-3 font-semibold">Status</th>
+                {kind === "invoice" && <th className="px-4 py-3 font-semibold">PDF</th>}
                 <th className="px-4 py-3 font-semibold">{cfg.dateLabel}</th>
                 <th className="px-4 py-3 text-right font-semibold">Actions</th>
               </tr>
@@ -759,6 +784,20 @@ export default function DocumentsManager({
                       ))}
                     </select>
                   </td>
+                  {kind === "invoice" && (
+                    <td className="px-4 py-3">
+                      <select
+                        aria-label={`PDF sent status of ${doc.number}`}
+                        value={doc.pdfSent ?? "unknown"}
+                        onChange={(e) => updatePdfSent(doc, e.target.value)}
+                        className={`cursor-pointer rounded-full border-0 px-3 py-1 text-xs font-bold ${PDF_SENT_COLORS[doc.pdfSent ?? "unknown"]}`}
+                      >
+                        <option value="sent">Sent</option>
+                        <option value="not-sent">Not sent</option>
+                        <option value="unknown">Unknown</option>
+                      </select>
+                    </td>
+                  )}
                   <td className="px-4 py-3 text-muted">{doc[cfg.dateField] || "—"}</td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap justify-end gap-1.5">
@@ -815,7 +854,7 @@ export default function DocumentsManager({
               ))}
               {visible.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="px-4 py-12 text-center text-muted">
+                  <td colSpan={kind === "invoice" ? 10 : 9} className="px-4 py-12 text-center text-muted">
                     No {cfg.title.toLowerCase()} yet.
                   </td>
                 </tr>
