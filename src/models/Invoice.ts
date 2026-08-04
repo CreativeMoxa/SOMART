@@ -36,7 +36,7 @@ const invoiceSchema = new Schema(
     notes: { type: String, default: "" },
     // Was the PDF sent to the customer? Tracked outside the document so whoever
     // is responsible for sending never loses track across a busy team.
-    pdfSent: { type: String, enum: ["sent", "not-sent", "unknown"], default: "unknown" },
+    pdfSent: { type: String, enum: ["sent", "not-sent", "unknown"], default: "not-sent" },
   },
   { timestamps: true }
 );
