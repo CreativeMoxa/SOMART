@@ -1004,14 +1004,20 @@ export default function DocumentsManager({
               </div>
               <div className="sm:col-span-2">
                 <label htmlFor="d-address" className="text-sm font-semibold">
-                  Customer address <span className="font-normal text-muted">(shown on the PDF)</span>
+                  Customer city / address <span className="font-normal text-muted">(shown on the PDF)</span>
                 </label>
                 <input
                   id="d-address"
+                  list="doc-cities"
                   value={customerAddress}
                   onChange={(e) => setCustomerAddress(e.target.value)}
                   className={inputClass}
                 />
+                <datalist id="doc-cities">
+                  {((business as { customerCities?: string[] } | null)?.customerCities ?? []).map((c) => (
+                    <option key={c} value={c} />
+                  ))}
+                </datalist>
               </div>
             </div>
 

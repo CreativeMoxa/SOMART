@@ -28,12 +28,24 @@ const settingSchema = new Schema(
       type: [
         {
           _id: false,
-          imageUrl: { type: String, default: "" },
+          imageUrl: { type: String, default: "" }, // legacy single (= images[0])
+          images: { type: [String], default: [] }, // multiple photos, switchable on the storefront
           title: { type: String, default: "" },
           subtitle: { type: String, default: "" },
         },
       ],
       default: [],
+    },
+    // Cities the shop delivers to (public storefront). Managed in Settings.
+    deliveryCities: {
+      type: [String],
+      default: ["Hargeisa", "Mogadisho", "Djibouti", "Garowe", "Bosaso", "Erigavo", "Las'anod", "Berbera", "Burco", "Jigjiga", "Borama", "Diredawa"],
+    },
+    // Canonical city list reused when creating customers (customer module,
+    // invoices, …) so the same city is always spelled the same way — searchable.
+    customerCities: {
+      type: [String],
+      default: ["Hargeisa", "Mogadisho", "Djibouti", "Garowe", "Bosaso", "Berbera", "Burco", "Borama"],
     },
     currency: { type: String, default: "USD" },
     currencySymbol: { type: String, default: "$" },

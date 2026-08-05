@@ -2,6 +2,7 @@ import Link from "next/link";
 import { connectDB } from "@/lib/db";
 import { Product } from "@/models/Product";
 import { getSettings } from "@/models/Setting";
+import SaleShowcase from "@/components/SaleShowcase";
 import {
   ArrowRightIcon,
   CheckCircleIcon,
@@ -65,7 +66,7 @@ const features = [
     Icon: TruckIcon,
     accent: "#fb923c",
     title: "Nationwide Delivery",
-    desc: "Fast, reliable delivery to every East African city we serve, with cash on delivery available.",
+    desc: "Fast, reliable delivery to every East African city we serve, with on-time delivery guaranteed.",
   },
   {
     Icon: StarIcon,
@@ -115,13 +116,14 @@ const heroActions = [
   { Icon: SparklesIcon, label: "More", href: "/products?category=accessories" },
 ];
 
-type SaleItem = { imageUrl: string; title: string; subtitle: string };
+type SaleItem = { imageUrl: string; images: string[]; title: string; subtitle: string };
 
 type HomeData = {
   heroImage: string;
   showcaseName: string;
   showcaseSubtitle: string;
   saleItems: SaleItem[];
+  deliveryCities: string[];
   whatsapp: string;
 };
 
@@ -137,11 +139,16 @@ async function getHomeData(): Promise<HomeData> {
     // The homepage "Sale" section is fully hand-authored in admin → Settings →
     // Sale: up to three custom slots (photo + title + text), no prices.
     const saleItems: SaleItem[] = (settings.saleItems ?? [])
-      .map((s) => ({
-        imageUrl: s?.imageUrl ?? "",
-        title: s?.title ?? "",
-        subtitle: s?.subtitle ?? "",
-      }))
+      .map((s) => {
+        const imgs = (s?.images ?? []).filter(Boolean);
+        const images = imgs.length ? imgs : s?.imageUrl ? [s.imageUrl] : [];
+        return {
+          imageUrl: images[0] ?? "",
+          images,
+          title: s?.title ?? "",
+          subtitle: s?.subtitle ?? "",
+        };
+      })
       .filter((s) => s.title || s.imageUrl)
       .slice(0, 3);
 
@@ -152,16 +159,17 @@ async function getHomeData(): Promise<HomeData> {
       showcaseName: settings.heroImageTitle || "",
       showcaseSubtitle: settings.heroImageSubtitle || "",
       saleItems,
+      deliveryCities: (settings.deliveryCities ?? []).filter(Boolean).length ? settings.deliveryCities.filter(Boolean) : cities,
       whatsapp: settings.whatsappNumber?.replace(/[^0-9]/g, "") ?? "",
     };
   } catch (err) {
     console.error("Failed to load home data:", err);
-    return { heroImage: "", showcaseName: "", showcaseSubtitle: "", saleItems: [], whatsapp: "" };
+    return { heroImage: "", showcaseName: "", showcaseSubtitle: "", saleItems: [], deliveryCities: cities, whatsapp: "" };
   }
 }
 
 export default async function HomePage() {
-  const { heroImage, showcaseName, showcaseSubtitle, saleItems, whatsapp } = await getHomeData();
+  const { heroImage, showcaseName, showcaseSubtitle, saleItems, deliveryCities, whatsapp } = await getHomeData();
   const heroSale = saleItems.slice(0, 2);
   const waLink = (text: string) =>
     whatsapp ? `https://wa.me/${whatsapp}?text=${encodeURIComponent(text)}` : "/products";
@@ -211,7 +219,7 @@ export default async function HomePage() {
               </a>
             </div>
             <div className="animate-fade-up delay-400 mt-9 flex flex-wrap gap-x-6 gap-y-2">
-              {["Authentic Brands", "Cash on Delivery", "Fast Shipping"].map((t) => (
+              {["Authentic Brands", "On-Time Delivery", "Fast Shipping"].map((t) => (
                 <span key={t} className="flex items-center gap-2 text-sm font-medium text-muted">
                   <CheckCircleIcon className="h-4 w-4 text-emerald-400" /> {t}
                 </span>
@@ -353,50 +361,7 @@ export default async function HomePage() {
             Our hand-picked deals of the moment. Message us on WhatsApp for the
             price and to order.
           </p>
-          <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {saleItems.map((item, i) => (
-              <div
-                key={i}
-                className="glow-card group flex flex-col overflow-hidden rounded-3xl border border-line bg-surface text-left"
-              >
-                <div className="relative overflow-hidden">
-                  {item.imageUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={item.imageUrl}
-                      alt={item.title}
-                      className="aspect-[4/3] w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                    />
-                  ) : (
-                    <div className="flex aspect-[4/3] w-full items-center justify-center bg-gradient-to-br from-brand/20 to-brand-2/20 text-foreground">
-                      <SparklesIcon className="h-14 w-14" />
-                    </div>
-                  )}
-                  <span className="absolute left-3 top-3 rounded-full bg-red-500 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white">
-                    Sale
-                  </span>
-                </div>
-                <div className="flex flex-1 flex-col p-5">
-                  <h3 className="text-xl font-bold">{item.title || "Special offer"}</h3>
-                  {item.subtitle && (
-                    <p className="mt-1.5 flex-1 text-sm leading-relaxed text-muted">
-                      {item.subtitle}
-                    </p>
-                  )}
-                  <a
-                    href={waLink(
-                      `Hi SOMART! I'm interested in your sale item: ${item.title}. What's the price?`
-                    )}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-5 inline-flex cursor-pointer items-center justify-center gap-2 rounded-full bg-[#25D366] px-5 py-3 text-sm font-bold uppercase tracking-[0.1em] text-white transition-transform duration-200 hover:scale-[1.02]"
-                  >
-                    <WhatsAppIcon className="h-4.5 w-4.5" /> Ask price on WhatsApp
-                  </a>
-                </div>
-              </div>
-            ))}
-          </div>
+          <SaleShowcase items={saleItems} whatsapp={whatsapp} />
         </section>
       )}
 
@@ -475,7 +440,7 @@ export default async function HomePage() {
               </h2>
               <p className="mt-4 max-w-lg text-lg leading-relaxed text-muted">
                 From Hargeisa to Mogadisho, Djibouti to Dire Dawa — order online and
-                we bring your pieces straight to your door. Cash on delivery available.
+                we bring your pieces straight to your door. On-time delivery guaranteed.
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
                 <a
@@ -519,7 +484,7 @@ export default async function HomePage() {
                   </p>
                   <div className="mt-3 rounded-2xl bg-brand-gradient p-4 text-center text-white">
                     <p className="text-[11px] uppercase tracking-[0.15em] opacity-80">
-                      Cash on Delivery
+                      On-Time Delivery
                     </p>
                     <p className="mt-1 text-xl font-extrabold">Order in Minutes</p>
                     <p className="mt-1 inline-flex items-center gap-1 text-xs">
@@ -629,7 +594,7 @@ export default async function HomePage() {
               We deliver to
             </p>
             <div className="mt-5 flex flex-wrap justify-center gap-2.5">
-              {cities.map((city) => (
+              {deliveryCities.map((city) => (
                 <span
                   key={city}
                   className="flex items-center gap-1.5 rounded-full border border-line bg-background px-3.5 py-2 text-sm font-medium text-muted transition-colors duration-200 hover:border-brand/50 hover:text-foreground"

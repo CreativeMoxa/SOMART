@@ -45,6 +45,7 @@ const inputClass =
 export default function CustomersManager() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [invoiceStats, setInvoiceStats] = useState<Record<string, { count: number; outstanding: number }>>({});
+  const [cityOptions, setCityOptions] = useState<string[]>([]);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -88,6 +89,14 @@ export default function CustomersManager() {
     const t = setTimeout(() => load(query), 300);
     return () => clearTimeout(t);
   }, [query, load]);
+
+  // Managed city list from Settings — keeps city spelling consistent.
+  useEffect(() => {
+    fetch("/api/settings")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((s) => s?.customerCities && setCityOptions(s.customerCities))
+      .catch(() => {});
+  }, []);
 
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -552,11 +561,16 @@ export default function CustomersManager() {
                 <label htmlFor="c-address" className="text-sm font-semibold">City</label>
                 <input
                   id="c-address"
+                  list="customer-cities"
                   placeholder="e.g. Hargeisa"
                   value={form.address}
                   onChange={(e) => set("address", e.target.value)}
                   className={inputClass}
                 />
+                <datalist id="customer-cities">
+                  {cityOptions.map((c) => <option key={c} value={c} />)}
+                </datalist>
+                <p className="mt-1 text-xs text-muted">Pick from your saved cities (or type a new one). Manage the list in Settings.</p>
               </div>
             </div>
 

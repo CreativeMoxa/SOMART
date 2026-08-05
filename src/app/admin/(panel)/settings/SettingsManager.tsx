@@ -4,9 +4,11 @@ import { useEffect, useState, type FormEvent } from "react";
 import { DEFAULT_TEMPLATES, TEMPLATE_PLACEHOLDERS } from "@/lib/templates";
 import { UploadIcon } from "@/components/icons";
 
-type SaleItem = { imageUrl: string; title: string; subtitle: string };
+type SaleItem = { imageUrl: string; images?: string[]; title: string; subtitle: string };
 
 type Settings = {
+  deliveryCities?: string[];
+  customerCities?: string[];
   companyName: string;
   tagline: string;
   elementLogoUrl?: string;
@@ -32,7 +34,8 @@ type Settings = {
   templateWhatsappDocument?: string;
 };
 
-const EMPTY_SALE: SaleItem = { imageUrl: "", title: "", subtitle: "" };
+const EMPTY_SALE: SaleItem = { imageUrl: "", images: [], title: "", subtitle: "" };
+const imagesOf = (s: SaleItem) => (s.images?.length ? s.images : s.imageUrl ? [s.imageUrl] : []);
 
 const inputClass =
   "mt-1 w-full rounded-xl border border-line bg-background px-3.5 py-2.5 text-sm transition-colors duration-200 focus:border-gold focus:outline-2 focus:outline-offset-1 focus:outline-gold/40";
@@ -262,6 +265,28 @@ export default function SettingsManager() {
           </div>
         </div>
 
+        {/* ---------------- Delivery & Cities ---------------- */}
+        <div className="rounded-2xl border border-line bg-surface p-6">
+          <h2 className="text-lg font-bold">Delivery &amp; Cities</h2>
+          <p className="mt-1 text-sm text-muted">
+            Manage the cities you deliver to (shown on the storefront) and the reusable city list used when creating customers.
+          </p>
+          <div className="mt-5 grid gap-6 sm:grid-cols-2">
+            <CityListEditor
+              label="Delivery cities"
+              hint="Shown in the “We deliver to” section on the public website."
+              value={settings.deliveryCities ?? []}
+              onChange={(v) => set("deliveryCities", v)}
+            />
+            <CityListEditor
+              label="Customer cities"
+              hint="Pick-list for the city field when adding customers or invoices — keeps every city spelled the same so search always finds them."
+              value={settings.customerCities ?? []}
+              onChange={(v) => set("customerCities", v)}
+            />
+          </div>
+        </div>
+
         {/* ---------------- Branding & Logos ---------------- */}
         <div className="rounded-2xl border border-line bg-surface p-6">
           <h2 className="text-lg font-bold">Branding &amp; Logos</h2>
@@ -427,72 +452,74 @@ export default function SettingsManager() {
                 <p className="text-xs font-bold uppercase tracking-[0.15em] text-gold">
                   Sale slot {i + 1}
                 </p>
-                <div className="mt-3 flex flex-col gap-4 sm:flex-row">
-                  <div className="flex shrink-0 items-start gap-2">
-                    {slot.imageUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={slot.imageUrl}
-                        alt=""
-                        className="h-20 w-20 rounded-xl border border-line object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-20 w-20 items-center justify-center rounded-xl border border-dashed border-line text-muted">
-                        <UploadIcon className="h-5 w-5" />
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex-1 space-y-3">
-                    <div>
-                      <label className="text-sm font-semibold">Title</label>
-                      <input
-                        value={slot.title}
-                        onChange={(e) => setSaleItem(i, { title: e.target.value })}
-                        placeholder="e.g. Ray-Ban Aviator — Gold"
-                        className={inputClass}
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm font-semibold">
-                        Short note <span className="font-normal text-muted">(optional)</span>
-                      </label>
-                      <input
-                        value={slot.subtitle}
-                        onChange={(e) => setSaleItem(i, { subtitle: e.target.value })}
-                        placeholder="e.g. Limited stock — polarized lenses"
-                        className={inputClass}
-                      />
-                    </div>
-                    <div className="flex flex-wrap items-center gap-3">
-                      <label className="cursor-pointer rounded-full border border-line px-4 py-2 text-xs font-semibold text-muted transition-colors duration-200 hover:border-gold hover:text-gold">
-                        {uploadingKey === `sale-${i}`
-                          ? "Uploading…"
-                          : slot.imageUrl
-                            ? "Replace photo"
-                            : "Upload photo"}
+                <div className="mt-3 space-y-3">
+                  {/* Photos — customers can switch between these on the storefront */}
+                  <div>
+                    <label className="text-sm font-semibold">Photos <span className="font-normal text-muted">(add several — customers switch between them)</span></label>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {imagesOf(slot).map((src, idx) => (
+                        <div key={idx} className="relative">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={src} alt="" className="h-16 w-16 rounded-xl border border-line object-cover" />
+                          <button
+                            type="button"
+                            aria-label="Remove photo"
+                            onClick={() => {
+                              const next = imagesOf(slot).filter((_, j) => j !== idx);
+                              setSaleItem(i, { images: next, imageUrl: next[0] ?? "" });
+                            }}
+                            className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                      <label className="flex h-16 w-16 cursor-pointer items-center justify-center rounded-xl border border-dashed border-line text-muted transition-colors duration-200 hover:border-gold hover:text-gold">
+                        {uploadingKey === `sale-${i}` ? "…" : <UploadIcon className="h-5 w-5" />}
                         <input
                           type="file"
                           accept="image/*"
                           className="hidden"
                           disabled={uploadingKey !== null}
                           onChange={(e) =>
-                            handleUpload(`sale-${i}`, e.currentTarget, (url) =>
-                              setSaleItem(i, { imageUrl: url })
-                            )
+                            handleUpload(`sale-${i}`, e.currentTarget, (url) => {
+                              const next = [...imagesOf(slot), url];
+                              setSaleItem(i, { images: next, imageUrl: next[0] });
+                            })
                           }
                         />
                       </label>
-                      {(slot.title || slot.subtitle || slot.imageUrl) && (
-                        <button
-                          type="button"
-                          onClick={() => setSaleItem(i, { ...EMPTY_SALE })}
-                          className="cursor-pointer text-xs font-semibold text-red-400 hover:underline"
-                        >
-                          Clear slot
-                        </button>
-                      )}
                     </div>
                   </div>
+                  <div>
+                    <label className="text-sm font-semibold">Title</label>
+                    <input
+                      value={slot.title}
+                      onChange={(e) => setSaleItem(i, { title: e.target.value })}
+                      placeholder="e.g. Ray-Ban Aviator — Gold"
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-semibold">
+                      Short note <span className="font-normal text-muted">(optional)</span>
+                    </label>
+                    <input
+                      value={slot.subtitle}
+                      onChange={(e) => setSaleItem(i, { subtitle: e.target.value })}
+                      placeholder="e.g. Limited stock — polarized lenses"
+                      className={inputClass}
+                    />
+                  </div>
+                  {(slot.title || slot.subtitle || imagesOf(slot).length > 0) && (
+                    <button
+                      type="button"
+                      onClick={() => setSaleItem(i, { ...EMPTY_SALE })}
+                      className="cursor-pointer text-xs font-semibold text-red-400 hover:underline"
+                    >
+                      Clear slot
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -617,6 +644,68 @@ export default function SettingsManager() {
           {saving ? "Saving…" : "Save Settings"}
         </button>
       </form>
+    </div>
+  );
+}
+
+function CityListEditor({
+  label,
+  hint,
+  value,
+  onChange,
+}: {
+  label: string;
+  hint: string;
+  value: string[];
+  onChange: (v: string[]) => void;
+}) {
+  const [text, setText] = useState("");
+  const add = () => {
+    const v = text.trim();
+    if (v && !value.some((c) => c.toLowerCase() === v.toLowerCase())) onChange([...value, v]);
+    setText("");
+  };
+  return (
+    <div>
+      <span className="text-sm font-semibold">{label}</span>
+      <p className="text-xs text-muted">{hint}</p>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {value.length === 0 && <span className="text-xs text-muted">No cities yet.</span>}
+        {value.map((c, i) => (
+          <span key={i} className="inline-flex items-center gap-1.5 rounded-full bg-gold/15 px-3 py-1 text-xs font-semibold text-gold">
+            {c}
+            <button
+              type="button"
+              onClick={() => onChange(value.filter((_, j) => j !== i))}
+              aria-label={`Remove ${c}`}
+              className="cursor-pointer text-red-400 hover:text-red-500"
+            >
+              ×
+            </button>
+          </span>
+        ))}
+      </div>
+      <div className="mt-2 flex gap-2">
+        <input
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              add();
+            }
+          }}
+          placeholder="Add a city…"
+          className="flex-1 rounded-xl border border-line bg-background px-3 py-2 text-sm focus:border-gold focus:outline-2 focus:outline-offset-1 focus:outline-gold/40"
+        />
+        <button
+          type="button"
+          onClick={add}
+          className="cursor-pointer rounded-full border border-line px-4 py-2 text-xs font-semibold text-muted transition-colors duration-200 hover:border-gold hover:text-gold"
+        >
+          Add
+        </button>
+      </div>
     </div>
   );
 }
