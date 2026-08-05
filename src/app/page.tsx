@@ -116,7 +116,7 @@ const heroActions = [
   { Icon: SparklesIcon, label: "More", href: "/products?category=accessories" },
 ];
 
-type SaleItem = { imageUrl: string; images: string[]; title: string; subtitle: string };
+type SaleItem = { imageUrl: string; images: string[]; title: string; subtitle: string; slug?: string };
 
 type HomeData = {
   heroImage: string;
@@ -138,15 +138,35 @@ async function getHomeData(): Promise<HomeData> {
 
     // The homepage "Sale" section is fully hand-authored in admin → Settings →
     // Sale: up to three custom slots (photo + title + text), no prices.
+    // Sale slots may link to a catalogue product — pull its photos + name from
+    // the live product so they stay in sync. Custom (unlinked) slots still work.
+    const linkedIds = (settings.saleItems ?? [])
+      .map((s) => s?.productId)
+      .filter((id): id is string => Boolean(id) && /^[0-9a-fA-F]{24}$/.test(String(id)));
+    const linkedProducts = linkedIds.length
+      ? await Product.find({ _id: { $in: linkedIds }, visible: { $ne: false } })
+          .select("name slug images imageUrl")
+          .lean()
+      : [];
+    const prodById = new Map(linkedProducts.map((p) => [String(p._id), p]));
+
     const saleItems: SaleItem[] = (settings.saleItems ?? [])
       .map((s) => {
-        const imgs = (s?.images ?? []).filter(Boolean);
-        const images = imgs.length ? imgs : s?.imageUrl ? [s.imageUrl] : [];
+        const linked = s?.productId ? prodById.get(String(s.productId)) : null;
+        const rawImgs = linked
+          ? (linked.images ?? []).filter(Boolean).length
+            ? linked.images.filter(Boolean)
+            : linked.imageUrl
+              ? [linked.imageUrl]
+              : []
+          : (s?.images ?? []).filter(Boolean);
+        const images = rawImgs.length ? rawImgs : s?.imageUrl ? [s.imageUrl] : [];
         return {
           imageUrl: images[0] ?? "",
           images,
-          title: s?.title ?? "",
+          title: s?.title || linked?.name || "",
           subtitle: s?.subtitle ?? "",
+          slug: linked?.slug,
         };
       })
       .filter((s) => s.title || s.imageUrl)

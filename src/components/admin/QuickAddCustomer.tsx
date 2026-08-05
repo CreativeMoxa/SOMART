@@ -18,10 +18,12 @@ export default function QuickAddCustomer({
   initialName = "",
   onClose,
   onCreated,
+  cities = [],
 }: {
   initialName?: string;
   onClose: () => void;
   onCreated: (customer: PickerCustomer) => void;
+  cities?: string[];
 }) {
   const [name, setName] = useState(initialName);
   const [phone, setPhone] = useState("");
@@ -109,14 +111,19 @@ export default function QuickAddCustomer({
           </div>
           <div>
             <label htmlFor="qc-address" className="text-sm font-semibold">
-              Address <span className="font-normal text-muted">(optional)</span>
+              City <span className="font-normal text-muted">(choose from your list)</span>
             </label>
             <input
               id="qc-address"
+              list="qc-cities"
+              placeholder="e.g. Hargeisa"
               value={address}
               onChange={(e) => setAddress(e.target.value)}
               className={inputClass}
             />
+            <datalist id="qc-cities">
+              {cities.map((c) => <option key={c} value={c} />)}
+            </datalist>
           </div>
         </div>
 

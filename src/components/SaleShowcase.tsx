@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { WhatsAppIcon, SparklesIcon } from "@/components/icons";
 
-type SaleItem = { imageUrl: string; images: string[]; title: string; subtitle: string };
+type SaleItem = { imageUrl: string; images: string[]; title: string; subtitle: string; slug?: string };
 
 export default function SaleShowcase({ items, whatsapp }: { items: SaleItem[]; whatsapp: string }) {
   return (
@@ -56,16 +57,29 @@ function SaleCard({ item, whatsapp }: { item: SaleItem; whatsapp: string }) {
       )}
 
       <div className="flex flex-1 flex-col p-5">
-        <h3 className="text-lg font-bold">{item.title || "Special offer"}</h3>
+        {item.slug ? (
+          <Link href={`/products/${item.slug}`} className="text-lg font-bold transition-colors duration-200 hover:text-gold">
+            {item.title || "Special offer"}
+          </Link>
+        ) : (
+          <h3 className="text-lg font-bold">{item.title || "Special offer"}</h3>
+        )}
         {item.subtitle && <p className="mt-1.5 flex-1 text-sm leading-relaxed text-muted">{item.subtitle}</p>}
-        <a
-          href={wa}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-4 inline-flex w-fit cursor-pointer items-center gap-1.5 rounded-full bg-[#25D366]/90 px-3.5 py-1.5 text-xs font-semibold text-white transition-colors duration-200 hover:bg-[#25D366]"
-        >
-          <WhatsAppIcon className="h-3.5 w-3.5" /> Ask price
-        </a>
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <a
+            href={wa}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex w-fit cursor-pointer items-center gap-1.5 rounded-full bg-[#25D366]/90 px-3.5 py-1.5 text-xs font-semibold text-white transition-colors duration-200 hover:bg-[#25D366]"
+          >
+            <WhatsAppIcon className="h-3.5 w-3.5" /> Ask price
+          </a>
+          {item.slug && (
+            <Link href={`/products/${item.slug}`} className="inline-flex w-fit items-center rounded-full border border-line px-3.5 py-1.5 text-xs font-semibold text-muted transition-colors duration-200 hover:border-gold hover:text-gold">
+              View product
+            </Link>
+          )}
+        </div>
       </div>
     </div>
   );

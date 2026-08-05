@@ -1423,6 +1423,7 @@ export default function DocumentsManager({
       {addingCustomer && (
         <QuickAddCustomer
           initialName={customerId ? "" : customerName}
+          cities={(business as { customerCities?: string[] } | null)?.customerCities ?? []}
           onClose={() => setAddingCustomer(false)}
           onCreated={(c) => {
             setCustomers((list) => [c, ...list]);

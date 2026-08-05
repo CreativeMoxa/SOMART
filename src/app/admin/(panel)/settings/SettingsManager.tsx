@@ -4,7 +4,8 @@ import { useEffect, useState, type FormEvent } from "react";
 import { DEFAULT_TEMPLATES, TEMPLATE_PLACEHOLDERS } from "@/lib/templates";
 import { UploadIcon } from "@/components/icons";
 
-type SaleItem = { imageUrl: string; images?: string[]; title: string; subtitle: string };
+type SaleItem = { imageUrl: string; images?: string[]; title: string; subtitle: string; productId?: string };
+type ProductOption = { _id: string; name: string; slug: string; images?: string[]; imageUrl?: string };
 
 type Settings = {
   deliveryCities?: string[];
@@ -34,7 +35,7 @@ type Settings = {
   templateWhatsappDocument?: string;
 };
 
-const EMPTY_SALE: SaleItem = { imageUrl: "", images: [], title: "", subtitle: "" };
+const EMPTY_SALE: SaleItem = { imageUrl: "", images: [], title: "", subtitle: "", productId: "" };
 const imagesOf = (s: SaleItem) => (s.images?.length ? s.images : s.imageUrl ? [s.imageUrl] : []);
 
 const inputClass =
@@ -46,12 +47,17 @@ export default function SettingsManager() {
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploadingKey, setUploadingKey] = useState<string | null>(null);
+  const [products, setProducts] = useState<ProductOption[]>([]);
 
   useEffect(() => {
     fetch("/api/settings")
       .then((res) => res.json())
       .then(setSettings)
       .catch(() => setError("Failed to load settings"));
+    fetch("/api/products")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((list) => setProducts(Array.isArray(list) ? list : []))
+      .catch(() => {});
   }, []);
 
   function set<K extends keyof Settings>(key: K, value: Settings[K]) {
@@ -453,7 +459,41 @@ export default function SettingsManager() {
                   Sale slot {i + 1}
                 </p>
                 <div className="mt-3 space-y-3">
-                  {/* Photos — customers can switch between these on the storefront */}
+                  {/* Link a catalogue product — its photos & name are used */}
+                  <div>
+                    <label className="text-sm font-semibold">
+                      Link a product <span className="font-normal text-muted">(uses its photos &amp; name automatically)</span>
+                    </label>
+                    <select
+                      value={slot.productId ?? ""}
+                      onChange={(e) => {
+                        const pid = e.target.value;
+                        const p = products.find((x) => x._id === pid);
+                        setSaleItem(i, { productId: pid, title: pid ? slot.title || p?.name || "" : slot.title });
+                      }}
+                      className={`${inputClass} cursor-pointer`}
+                    >
+                      <option value="">— Custom slot (upload your own photos) —</option>
+                      {products.map((p) => (
+                        <option key={p._id} value={p._id}>{p.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {slot.productId ? (
+                    <div>
+                      <label className="text-sm font-semibold">Photos <span className="font-normal text-muted">(from the linked product — switchable on the storefront)</span></label>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {(() => {
+                          const p = products.find((x) => x._id === slot.productId);
+                          const imgs = (p?.images ?? []).filter(Boolean).length ? p!.images!.filter(Boolean) : p?.imageUrl ? [p.imageUrl] : [];
+                          if (!imgs.length) return <span className="text-xs text-muted">This product has no photos yet — add them in Products.</span>;
+                          // eslint-disable-next-line @next/next/no-img-element
+                          return imgs.map((src, idx) => <img key={idx} src={src} alt="" className="h-16 w-16 rounded-xl border border-line object-cover" />);
+                        })()}
+                      </div>
+                    </div>
+                  ) : (
                   <div>
                     <label className="text-sm font-semibold">Photos <span className="font-normal text-muted">(add several — customers switch between them)</span></label>
                     <div className="mt-2 flex flex-wrap gap-2">
@@ -491,6 +531,7 @@ export default function SettingsManager() {
                       </label>
                     </div>
                   </div>
+                  )}
                   <div>
                     <label className="text-sm font-semibold">Title</label>
                     <input
@@ -511,7 +552,7 @@ export default function SettingsManager() {
                       className={inputClass}
                     />
                   </div>
-                  {(slot.title || slot.subtitle || imagesOf(slot).length > 0) && (
+                  {(slot.title || slot.subtitle || slot.productId || imagesOf(slot).length > 0) && (
                     <button
                       type="button"
                       onClick={() => setSaleItem(i, { ...EMPTY_SALE })}

@@ -28,6 +28,7 @@ const settingSchema = new Schema(
       type: [
         {
           _id: false,
+          productId: { type: String, default: "" }, // link to a catalogue product (photos + name pulled from it)
           imageUrl: { type: String, default: "" }, // legacy single (= images[0])
           images: { type: [String], default: [] }, // multiple photos, switchable on the storefront
           title: { type: String, default: "" },
