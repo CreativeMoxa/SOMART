@@ -5,6 +5,7 @@ import { SOURCE_LABELS, type MarketingSource } from "@/lib/marketing";
 import { ExportButtons } from "@/components/admin/TableTools";
 import ProfitReport from "./ProfitReport";
 import InventoryReport from "./InventoryReport";
+import AIReport from "./AIReport";
 
 type ReportKind = "profit" | "inventory" | "sales" | "invoices" | "marketing" | "expenses" | "customers";
 
@@ -117,6 +118,7 @@ export default function ReportsManager({ initialTab = "" }: { initialTab?: strin
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [business, setBusiness] = useState<{ companyName: string } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showAI, setShowAI] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [isCeo, setIsCeo] = useState(false);
@@ -380,10 +382,21 @@ export default function ReportsManager({ initialTab = "" }: { initialTab?: strin
             Presentation-ready reports for every module — filter by date, then export.
           </p>
         </div>
-        {kind !== "profit" && kind !== "inventory" && (
-          <ExportButtons onExcel={handleExcel} onPdf={handlePdf} busy={busy || loading} />
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowAI(true)}
+            className="cursor-pointer rounded-full bg-gradient-to-r from-gold to-gold-bright px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-black shadow-sm transition-transform duration-200 hover:scale-[1.02]"
+          >
+            ✨ Generate AI Report
+          </button>
+          {kind !== "profit" && kind !== "inventory" && (
+            <ExportButtons onExcel={handleExcel} onPdf={handlePdf} busy={busy || loading} />
+          )}
+        </div>
       </div>
+
+      {showAI && <AIReport onClose={() => setShowAI(false)} />}
 
       {isCeo && (
         <div className="mt-6 rounded-2xl border border-line bg-surface/40 p-5">
