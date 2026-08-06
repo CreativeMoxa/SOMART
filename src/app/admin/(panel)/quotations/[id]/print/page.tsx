@@ -44,6 +44,7 @@ export default async function QuotationPrintPage({
             bankAccount: settings.bankAccount,
             currencySymbol: settings.currencySymbol,
             elementLogoUrl: settings.elementLogoUrl,
+            website: settings.website,
           }}
         />
       </div>

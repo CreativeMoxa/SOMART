@@ -91,6 +91,7 @@ export default async function InvoicePrintPage({
             bankAccount: settings.bankAccount,
             currencySymbol: settings.currencySymbol,
             elementLogoUrl: settings.elementLogoUrl,
+            website: settings.website,
           }}
         />
       </div>

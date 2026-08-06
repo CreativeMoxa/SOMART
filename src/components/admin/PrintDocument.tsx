@@ -29,6 +29,7 @@ type Business = {
   bankAccount?: string;
   currencySymbol?: string;
   elementLogoUrl?: string;
+  website?: string;
 };
 
 function shortDate(d: string | Date) {
@@ -154,6 +155,20 @@ export default function PrintDocument({
                   </span>
                 </div>
               )}
+              {business.website && (
+                <div className="flex items-center justify-end gap-1.5">
+                  <span className="text-sm" style={{ color: MUTED }}>{business.website}</span>
+                  <span
+                    className="flex h-5 w-5 items-center justify-center rounded-full"
+                    style={{ background: NAVY }}
+                  >
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="9.5" />
+                      <path d="M2.5 12h19M12 2.5c2.7 2.7 4 6 4 9.5s-1.3 6.8-4 9.5c-2.7-2.7-4-6-4-9.5s1.3-6.8 4-9.5Z" />
+                    </svg>
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -175,7 +190,7 @@ export default function PrintDocument({
 
         {/* Date band */}
         <div
-          className="mt-6 flex gap-20 rounded-md px-5 py-3"
+          className="mt-6 flex gap-20 rounded-2xl px-5 py-3.5"
           style={{ background: BAND }}
         >
           <div>
@@ -194,43 +209,32 @@ export default function PrintDocument({
           )}
         </div>
 
-        {/* Items table — rounded framed */}
-        <div className="mt-5 overflow-hidden" style={{ border: `1px solid ${BORDER}`, borderRadius: 12 }}>
+        {/* Items table — soft rounded frame with light row dividers */}
+        <div className="mt-5 overflow-hidden" style={{ border: `1px solid ${BORDER}`, borderRadius: 16 }}>
         <table className="w-full border-collapse text-sm">
           <thead>
             <tr style={{ background: NAVY, color: "#fff" }}>
-              <th className="px-3 py-2.5 text-left font-medium">Description</th>
-              <th className="px-3 py-2.5 text-right font-medium">Quantity</th>
-              <th className="px-3 py-2.5 text-right font-medium">Unit Price</th>
-              <th className="px-3 py-2.5 text-right font-medium">Amount</th>
+              <th className="px-4 py-3 text-left font-medium">Description</th>
+              <th className="px-4 py-3 text-right font-medium">Quantity</th>
+              <th className="px-4 py-3 text-right font-medium">Unit Price</th>
+              <th className="px-4 py-3 text-right font-medium">Amount</th>
             </tr>
           </thead>
           <tbody>
-            {doc.items.map((item, i) => (
-              <tr key={i}>
-                <td className="px-3 py-2.5" style={{ border: `1px solid ${BORDER}` }}>
-                  {item.name}
-                </td>
-                <td
-                  className="px-3 py-2.5 text-right"
-                  style={{ border: `1px solid ${BORDER}` }}
-                >
-                  {item.qty.toFixed(2)}
-                </td>
-                <td
-                  className="px-3 py-2.5 text-right"
-                  style={{ border: `1px solid ${BORDER}` }}
-                >
-                  {item.price.toFixed(2)}
-                </td>
-                <td
-                  className="px-3 py-2.5 text-right"
-                  style={{ border: `1px solid ${BORDER}`, background: AMOUNT_BG }}
-                >
-                  {money(item.price * item.qty)}
-                </td>
-              </tr>
-            ))}
+            {doc.items.map((item, i) => {
+              const last = i === doc.items.length - 1;
+              const cell = last ? {} : { borderBottom: `1px solid ${BORDER}` };
+              return (
+                <tr key={i}>
+                  <td className="px-4 py-3" style={cell}>{item.name}</td>
+                  <td className="px-4 py-3 text-right" style={cell}>{item.qty.toFixed(2)}</td>
+                  <td className="px-4 py-3 text-right" style={cell}>{item.price.toFixed(2)}</td>
+                  <td className="px-4 py-3 text-right" style={{ ...cell, background: AMOUNT_BG }}>
+                    {money(item.price * item.qty)}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
         </div>
@@ -260,7 +264,7 @@ export default function PrintDocument({
             )}
             <div
               className="flex justify-between px-4 py-2.5 font-bold"
-              style={{ background: NAVY, color: "#fff", borderRadius: 10 }}
+              style={{ background: NAVY, color: "#fff", borderRadius: 12 }}
             >
               <span>Total</span>
               <span>{money(doc.total)}</span>
