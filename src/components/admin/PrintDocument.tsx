@@ -117,20 +117,20 @@ export default function PrintDocument({
           <p className="max-w-[55%] text-sm font-bold">
             {business.tagline || business.companyName}
           </p>
-          <div className="text-right">
+          {/* Logo centered above the locked address / phone / website group */}
+          <div className="flex flex-col items-center">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={business.elementLogoUrl || "/logo-mark-navy.png"}
               alt={business.companyName}
               width={48}
               height={48}
-              className="ml-auto object-contain"
+              className="object-contain"
               style={{ background: "transparent" }}
             />
             <div className="mt-2 space-y-1.5">
               {business.address && (
-                <div className="flex items-center justify-end gap-1.5">
-                  <span className="text-sm" style={{ color: MUTED }}>{business.address}</span>
+                <div className="flex items-center justify-center gap-1.5">
                   <span
                     className="flex h-5 w-5 items-center justify-center rounded-full"
                     style={{ background: NAVY }}
@@ -140,11 +140,11 @@ export default function PrintDocument({
                       <circle cx="12" cy="10" r="2.5" />
                     </svg>
                   </span>
+                  <span className="text-sm" style={{ color: MUTED }}>{business.address}</span>
                 </div>
               )}
               {business.phone && (
-                <div className="flex items-center justify-end gap-1.5">
-                  <span className="text-sm" style={{ color: MUTED }}>{business.phone}</span>
+                <div className="flex items-center justify-center gap-1.5">
                   <span
                     className="flex h-5 w-5 items-center justify-center rounded-full"
                     style={{ background: NAVY }}
@@ -153,11 +153,11 @@ export default function PrintDocument({
                       <path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.4-1.2a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2Z" />
                     </svg>
                   </span>
+                  <span className="text-sm" style={{ color: MUTED }}>{business.phone}</span>
                 </div>
               )}
               {business.website && (
-                <div className="flex items-center justify-end gap-1.5">
-                  <span className="text-sm" style={{ color: MUTED }}>{business.website}</span>
+                <div className="flex items-center justify-center gap-1.5">
                   <span
                     className="flex h-5 w-5 items-center justify-center rounded-full"
                     style={{ background: NAVY }}
@@ -167,6 +167,7 @@ export default function PrintDocument({
                       <path d="M2.5 12h19M12 2.5c2.7 2.7 4 6 4 9.5s-1.3 6.8-4 9.5c-2.7-2.7-4-6-4-9.5s1.3-6.8 4-9.5Z" />
                     </svg>
                   </span>
+                  <span className="text-sm" style={{ color: MUTED }}>{business.website}</span>
                 </div>
               )}
             </div>

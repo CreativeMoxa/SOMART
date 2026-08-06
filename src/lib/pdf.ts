@@ -43,6 +43,7 @@ export type PdfBusiness = {
   tagline?: string;
   bankAccount?: string;
   currencySymbol?: string;
+  website?: string;
 };
 
 function shortDate(d: string | Date) {
@@ -72,6 +73,9 @@ export async function downloadDocumentPdf(
     margin,
     tagline: business.tagline || business.companyName,
     location: business.address,
+    phone: business.phone,
+    website: business.website,
+    contactStack: true,
   });
 
   // Customer block (left) + document title (right).
@@ -114,7 +118,13 @@ export async function downloadDocumentPdf(
   pdf.text(shortDate(doc.createdAt), margin + 16, bandY + 35);
   if (rightValue) pdf.text(shortDate(rightValue), col2X, bandY + 35);
 
-  // Items table.
+  // Items table — soft rounded frame with a navy rounded-top header, light
+  // row-only dividers (no hard grid), matching the HTML print document.
+  const RADIUS = 7;
+  const ROW_LINE: [number, number, number] = [216, 218, 232]; // #d8dae8
+  const AMOUNT_FILL: [number, number, number] = [243, 244, 252]; // #f3f4fc
+  const tableRef = { top: 0 };
+
   autoTable(pdf, {
     startY: bandY + bandH + 18,
     margin: { left: margin, right: margin },
@@ -125,17 +135,15 @@ export async function downloadDocumentPdf(
       i.price.toFixed(2),
       money(i.price * i.qty),
     ]),
-    theme: "grid",
+    theme: "plain",
     styles: {
       font: "helvetica",
       fontSize: 10,
       cellPadding: { top: 8, right: 10, bottom: 8, left: 12 },
-      lineColor: [206, 206, 206],
-      lineWidth: 0.5,
       textColor: 40,
+      lineWidth: 0,
     },
     headStyles: {
-      fillColor: INK,
       textColor: 255,
       fontStyle: "normal",
       cellPadding: { top: 9, right: 10, bottom: 9, left: 12 },
@@ -144,12 +152,61 @@ export async function downloadDocumentPdf(
       0: { halign: "left" },
       1: { halign: "right", cellWidth: 72 },
       2: { halign: "right", cellWidth: 76 },
-      3: { halign: "right", cellWidth: 84, fillColor: [245, 245, 245] },
+      3: { halign: "right", cellWidth: 84 },
+    },
+    didParseCell: (data) => {
+      // Suppress the per-cell head background so we can paint one rounded bar.
+      if (data.section === "head") {
+        (data.cell.styles as { fillColor: unknown }).fillColor = false;
+      }
+    },
+    willDrawCell: (data) => {
+      if (data.section === "head" && data.column.index === 0) {
+        const x = margin;
+        const w = pageWidth - margin * 2;
+        const y = data.cell.y;
+        const h = data.row.height;
+        tableRef.top = y;
+        // Navy header: rounded on top, squared at the bottom so it meets the body.
+        pdf.setFillColor(...INK);
+        pdf.roundedRect(x, y, w, h, RADIUS, RADIUS, "F");
+        pdf.rect(x, y + h / 2, w, h / 2, "F");
+      }
+      // Light tint behind the Amount column.
+      if (data.section === "body" && data.column.index === 3) {
+        pdf.setFillColor(...AMOUNT_FILL);
+        pdf.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, "F");
+      }
+    },
+    didDrawCell: (data) => {
+      // Row divider under every body row except the last.
+      if (data.section === "body" && data.column.index === 0) {
+        const isLast = data.row.index === doc.items.length - 1;
+        if (!isLast) {
+          pdf.setDrawColor(...ROW_LINE);
+          pdf.setLineWidth(0.5);
+          const y = data.cell.y + data.row.height;
+          pdf.line(margin, y, pageWidth - margin, y);
+        }
+      }
     },
   });
 
   const finalY =
     (pdf as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY;
+
+  // Rounded outer frame around the whole table.
+  pdf.setDrawColor(...ROW_LINE);
+  pdf.setLineWidth(0.7);
+  pdf.roundedRect(
+    margin,
+    tableRef.top,
+    pageWidth - margin * 2,
+    finalY - tableRef.top,
+    RADIUS,
+    RADIUS,
+    "S"
+  );
 
   // Totals box (right), with optional breakdown above the black Total row.
   const boxRight = pageWidth - margin;
@@ -164,7 +221,7 @@ export async function downloadDocumentPdf(
   ) => {
     if (opts.black) {
       pdf.setFillColor(...INK);
-      pdf.rect(boxLeft, ry, boxRight - boxLeft, rowH, "F");
+      pdf.roundedRect(boxLeft, ry, boxRight - boxLeft, rowH, 5, 5, "F");
       pdf.setTextColor(255);
     } else {
       pdf.setDrawColor(210);
