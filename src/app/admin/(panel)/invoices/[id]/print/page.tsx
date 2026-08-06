@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { connectDB } from "@/lib/db";
 import { Invoice } from "@/models/Invoice";
 import { Product } from "@/models/Product";
+import { Sale } from "@/models/Sale";
 import { getSettings } from "@/models/Setting";
 import PrintDocument, { type PrintableDoc } from "@/components/admin/PrintDocument";
 import PrintButton from "@/components/admin/PrintButton";
@@ -71,6 +72,12 @@ export default async function InvoicePrintPage({
   }
 
   const doc: PrintableDoc = JSON.parse(JSON.stringify(invoice));
+
+  // Show the connected sale's number in the Payment Communication line.
+  if (invoice.saleId) {
+    const sale = await Sale.findById(invoice.saleId).select("number").lean();
+    if (sale) doc.saleNumber = sale.number;
+  }
 
   return (
     <div>

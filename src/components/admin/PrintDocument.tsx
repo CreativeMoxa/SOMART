@@ -17,6 +17,7 @@ export type PrintableDoc = {
   validUntil?: string;
   notes: string;
   createdAt: string;
+  saleNumber?: string | null;
 };
 
 type Business = {
@@ -244,7 +245,7 @@ export default function PrintDocument({
         <div className="mt-5 flex items-start justify-between gap-6">
           <div className="text-sm">
             <p>
-              Payment Communication: <strong>{doc.number}</strong>
+              Payment Communication: <strong>{doc.saleNumber || doc.number}</strong>
             </p>
             {business.bankAccount && (
               <p className="mt-1">

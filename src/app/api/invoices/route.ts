@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { Invoice, INVOICE_STATUSES } from "@/models/Invoice";
+import { Sale } from "@/models/Sale";
 import { nextNumber } from "@/lib/numbering";
 import { shapeDocumentPayload, enrichItemsWithProfit } from "@/lib/documents";
 import { applyInvoicePaid } from "@/lib/invoiceSale";
@@ -22,6 +23,23 @@ export async function GET(req: NextRequest) {
       .limit(limit)
       .batchSize(limit)
       .lean();
+
+    // Attach the connected sale's number (for the "Payment Communication" line
+    // on the PDF) in a single extra lookup rather than per-row populate.
+    const saleIds = invoices
+      .map((inv) => inv.saleId)
+      .filter((id): id is NonNullable<typeof id> => Boolean(id));
+    if (saleIds.length) {
+      const sales = await Sale.find({ _id: { $in: saleIds } })
+        .select("_id number")
+        .lean();
+      const numberById = new Map(sales.map((s) => [String(s._id), s.number]));
+      for (const inv of invoices) {
+        (inv as { saleNumber?: string | null }).saleNumber = inv.saleId
+          ? numberById.get(String(inv.saleId)) ?? null
+          : null;
+      }
+    }
     return NextResponse.json(invoices);
   } catch (err) {
     console.error("GET /api/invoices failed:", err);

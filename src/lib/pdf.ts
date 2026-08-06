@@ -32,6 +32,9 @@ export type PdfDocument = {
   validUntil?: string;
   notes: string;
   createdAt: string;
+  // Number of the Sale this invoice is connected to (set once paid), shown in
+  // the Payment Communication line so the document points at its sale.
+  saleNumber?: string | null;
 };
 
 export type PdfBusiness = {
@@ -258,10 +261,11 @@ export async function downloadDocumentPdf(
   pdf.setFontSize(10);
   pdf.setTextColor(...INK);
   const commLabel = "Payment Communication: ";
+  const commValue = doc.saleNumber || doc.number;
   pdf.setFont("helvetica", "normal");
   pdf.text(commLabel, margin, py);
   pdf.setFont("helvetica", "bold");
-  pdf.text(doc.number, margin + pdf.getTextWidth(commLabel), py);
+  pdf.text(commValue, margin + pdf.getTextWidth(commLabel), py);
   if (business.bankAccount) {
     py += 16;
     const acctLabel = "on this account: ";

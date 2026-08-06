@@ -48,6 +48,7 @@ type Doc = {
   customerType?: string;
   paymentMethod?: string;
   saleId?: string | null;
+  saleNumber?: string | null;
   dueDate?: string;
   validUntil?: string;
   notes: string;
