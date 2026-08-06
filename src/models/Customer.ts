@@ -5,6 +5,9 @@ import { phoneDigits } from "@/lib/phone";
 const customerSchema = new Schema(
   {
     ...auditFields,
+    // Stable, ever-increasing customer number (oldest = 1). A new customer
+    // always takes the next number, never re-uses an old one.
+    seq: { type: Number, default: 0, index: true },
     name: { type: String, required: true, trim: true },
     phone: { type: String, required: true, trim: true },
     // Normalised phone digits (no country code / formatting) — kept in sync
@@ -33,3 +36,9 @@ export type CustomerDoc = InferSchemaType<typeof customerSchema> & {
 export const Customer: Model<CustomerDoc> =
   mongoose.models.Customer ||
   mongoose.model<CustomerDoc>("Customer", customerSchema);
+
+// The next customer number = highest existing + 1 (never re-used).
+export async function nextCustomerSeq(): Promise<number> {
+  const last = await Customer.findOne().sort({ seq: -1 }).select("seq").lean();
+  return ((last?.seq as number) ?? 0) + 1;
+}

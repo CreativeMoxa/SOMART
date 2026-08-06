@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
-import { Customer } from "@/models/Customer";
+import { Customer, nextCustomerSeq } from "@/models/Customer";
 import { isAdmin } from "@/lib/auth";
 import { phoneDigits } from "@/lib/phone";
 
@@ -64,7 +64,12 @@ export async function POST(req: NextRequest) {
       imported++;
     }
 
-    if (toInsert.length > 0) await Customer.insertMany(toInsert);
+    if (toInsert.length > 0) {
+      // Give each imported customer the next sequential number.
+      let seq = await nextCustomerSeq();
+      for (const c of toInsert) (c as { seq?: number }).seq = seq++;
+      await Customer.insertMany(toInsert);
+    }
 
     return NextResponse.json({ imported, duplicates, invalid, total: rows.length });
   } catch (err) {

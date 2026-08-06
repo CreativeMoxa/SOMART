@@ -7,6 +7,7 @@ import { confirmDialog } from "@/components/admin/ConfirmDialog";
 
 type Customer = {
   _id: string;
+  seq?: number;
   name: string;
   phone: string;
   email: string;
@@ -429,7 +430,7 @@ export default function CustomersManager() {
                       onChange={() => toggle(customer._id)}
                     />
                   </td>
-                  <td className="px-2 py-3 text-xs text-muted">{rowIndex + 1}</td>
+                  <td className="px-2 py-3 text-xs text-muted">{customer.seq ?? rowIndex + 1}</td>
                   <td className="px-4 py-3 font-semibold">{customer.name}</td>
                   <td className="px-4 py-3 text-muted">{customer.phone}</td>
                   <td className="px-4 py-3 text-muted">{customer.address || "—"}</td>

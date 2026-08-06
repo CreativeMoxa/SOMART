@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
-import { Customer } from "@/models/Customer";
+import { Customer, nextCustomerSeq } from "@/models/Customer";
 import { isAdmin } from "@/lib/auth";
 import { stampAudit, recordAction } from "@/lib/audit";
 import { phoneDigits, escapeRegex } from "@/lib/phone";
 
-const SELECT = "name phone email address notes createdAt";
+const SELECT = "seq name phone email address notes createdAt";
 
 export async function GET(req: NextRequest) {
   if (!(await isAdmin())) {
@@ -79,6 +79,7 @@ export async function POST(req: NextRequest) {
         );
       }
     }
+    body.seq = await nextCustomerSeq();
     await stampAudit(body, "create");
     const customer = await Customer.create(body);
     await recordAction(`added Customer ${customer.name}`, "customers", customer.name);
