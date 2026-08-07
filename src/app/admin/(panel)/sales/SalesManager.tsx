@@ -15,6 +15,7 @@ import {
   DATE_RANGES,
   RANGE_LABELS,
   inRange,
+  inCustomRange,
   normalizeRange,
   type DateRange,
 } from "@/lib/dateRange";
@@ -67,24 +68,63 @@ function unitPrice(p: ProductOption) {
   return pct > 0 ? Math.round(p.price * (100 - pct)) / 100 : p.price;
 }
 
-export default function SalesManager({ initialRange = "" }: { initialRange?: string }) {
+export default function SalesManager({
+  initialRange = "",
+  initialStart = "",
+  initialEnd = "",
+}: {
+  initialRange?: string;
+  initialStart?: string;
+  initialEnd?: string;
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const [range, setRange] = useState<DateRange>(normalizeRange(initialRange));
+  const [customStart, setCustomStart] = useState(initialStart);
+  const [customEnd, setCustomEnd] = useState(initialEnd);
   const [sales, setSales] = useState<Sale[]>([]);
   const [products, setProducts] = useState<ProductOption[]>([]);
   const [customers, setCustomers] = useState<CustomerOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const customActive = Boolean(customStart || customEnd);
+
   // Keep the active filter in the URL so it survives refresh and is shareable.
-  function applyRange(next: DateRange) {
-    setRange(next);
-    clear();
-    router.replace(next ? `${pathname}?range=${next}` : pathname, { scroll: false });
+  function pushUrl(params: { range?: DateRange; start?: string; end?: string }) {
+    const q = new URLSearchParams();
+    if (params.range) q.set("range", params.range);
+    if (params.start) q.set("start", params.start);
+    if (params.end) q.set("end", params.end);
+    const qs = q.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
   }
 
-  const visible = sales.filter((s) => inRange(s.createdAt, range));
+  // Quick-chip range and the custom start/end filter are mutually exclusive:
+  // picking a chip clears the custom dates, and vice-versa.
+  function applyRange(next: DateRange) {
+    setRange(next);
+    setCustomStart("");
+    setCustomEnd("");
+    clear();
+    pushUrl({ range: next });
+  }
+
+  function applyCustom(next: { start?: string; end?: string }) {
+    const start = next.start ?? customStart;
+    const end = next.end ?? customEnd;
+    setCustomStart(start);
+    setCustomEnd(end);
+    setRange("");
+    clear();
+    pushUrl({ start, end });
+  }
+
+  const visible = sales.filter((s) =>
+    customActive
+      ? inCustomRange(s.createdAt, customStart, customEnd)
+      : inRange(s.createdAt, range)
+  );
 
   const [open, setOpen] = useState(false);
   const [cart, setCart] = useState<CartRow[]>([{ productId: "", qty: 1 }]);
@@ -294,7 +334,11 @@ export default function SalesManager({ initialRange = "" }: { initialRange?: str
           <h1 className="mt-1 text-3xl font-semibold">Sales History</h1>
           <p className="mt-1 text-sm text-muted">
             {visible.length} sale{visible.length === 1 ? "" : "s"}
-            {range ? ` · ${RANGE_LABELS[range]}` : " recorded"}
+            {customActive
+              ? ` · ${customStart || "start"} → ${customEnd || "today"}`
+              : range
+                ? ` · ${RANGE_LABELS[range]}`
+                : " recorded"}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -314,7 +358,7 @@ export default function SalesManager({ initialRange = "" }: { initialRange?: str
           type="button"
           onClick={() => applyRange("")}
           className={`cursor-pointer rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-wider transition-colors duration-200 ${
-            range === ""
+            range === "" && !customActive
               ? "bg-foreground text-background"
               : "border border-line text-muted hover:border-gold hover:text-gold"
           }`}
@@ -327,7 +371,7 @@ export default function SalesManager({ initialRange = "" }: { initialRange?: str
             type="button"
             onClick={() => applyRange(r)}
             className={`cursor-pointer rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-wider transition-colors duration-200 ${
-              range === r
+              range === r && !customActive
                 ? "bg-foreground text-background"
                 : "border border-line text-muted hover:border-gold hover:text-gold"
             }`}
@@ -335,6 +379,46 @@ export default function SalesManager({ initialRange = "" }: { initialRange?: str
             {RANGE_LABELS[r]}
           </button>
         ))}
+      </div>
+
+      {/* Custom start / end date range */}
+      <div className="mt-3 flex flex-wrap items-end gap-3 rounded-2xl border border-line p-3">
+        <div>
+          <label htmlFor="range-start" className="block text-[11px] font-semibold uppercase tracking-wider text-muted">
+            Start date
+          </label>
+          <input
+            id="range-start"
+            type="date"
+            value={customStart}
+            max={customEnd || undefined}
+            onChange={(e) => applyCustom({ start: e.target.value })}
+            className="mt-1 rounded-xl border border-line bg-background px-3 py-2 text-sm transition-colors duration-200 focus:border-gold focus:outline-2 focus:outline-offset-1 focus:outline-gold/40"
+          />
+        </div>
+        <span className="pb-2.5 text-muted">→</span>
+        <div>
+          <label htmlFor="range-end" className="block text-[11px] font-semibold uppercase tracking-wider text-muted">
+            End date
+          </label>
+          <input
+            id="range-end"
+            type="date"
+            value={customEnd}
+            min={customStart || undefined}
+            onChange={(e) => applyCustom({ end: e.target.value })}
+            className="mt-1 rounded-xl border border-line bg-background px-3 py-2 text-sm transition-colors duration-200 focus:border-gold focus:outline-2 focus:outline-offset-1 focus:outline-gold/40"
+          />
+        </div>
+        {customActive && (
+          <button
+            type="button"
+            onClick={() => applyRange("")}
+            className="cursor-pointer rounded-full border border-line px-4 py-2 text-xs font-semibold uppercase tracking-wider text-muted transition-colors duration-200 hover:border-gold hover:text-gold"
+          >
+            Clear
+          </button>
+        )}
       </div>
 
       <BulkBar
@@ -458,7 +542,13 @@ export default function SalesManager({ initialRange = "" }: { initialRange?: str
                   <td colSpan={11} className="px-4 py-12 text-center text-muted">
                     {sales.length === 0
                       ? "No sales yet — record your first sale."
-                      : `No sales in ${range ? RANGE_LABELS[range] : "this view"}.`}
+                      : `No sales in ${
+                          customActive
+                            ? "this date range"
+                            : range
+                              ? RANGE_LABELS[range]
+                              : "this view"
+                        }.`}
                   </td>
                 </tr>
               )}
