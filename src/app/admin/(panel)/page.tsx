@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getDashboardMetrics } from "@/lib/metrics";
+import WeeklySalesChart from "./WeeklySalesChart";
 
 export const metadata: Metadata = { title: "Admin Dashboard" };
 export const dynamic = "force-dynamic";
@@ -41,26 +42,6 @@ function StatCard({
   return <div className="rounded-2xl border border-line bg-surface p-5">{inner}</div>;
 }
 
-function BarChart({ data }: { data: { label: string; total: number }[] }) {
-  const max = Math.max(...data.map((d) => d.total), 1);
-  return (
-    <div className="flex h-44 items-end gap-3">
-      {data.map((d) => (
-        <div key={d.label} className="flex flex-1 flex-col items-center gap-1.5">
-          <span className="text-[10px] font-semibold text-muted">
-            {d.total > 0 ? money(d.total) : ""}
-          </span>
-          <div
-            className="w-full rounded-t-lg bg-gold-bright/80 transition-all duration-500"
-            style={{ height: `${Math.max((d.total / max) * 130, d.total > 0 ? 8 : 2)}px` }}
-          />
-          <span className="text-xs font-semibold text-muted">{d.label}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 export default async function AdminDashboardPage() {
   const m = await getDashboardMetrics();
 
@@ -73,6 +54,8 @@ export default async function AdminDashboardPage() {
         <StatCard label="Today's Sales" value={money(m.todaySales)} accent href="/admin/sales?range=today" />
         <StatCard label="Today's Revenue" value={money(m.todaySales)} accent href="/admin/sales?range=today" />
         <StatCard label="Today's Profit" value={money(m.todayProfit)} accent href="/admin/reports?tab=profit&range=today" />
+        <StatCard label="This Week Revenue" value={money(m.weekRevenue)} href="/admin/sales?range=week" />
+        <StatCard label="This Week Profit" value={money(m.weekProfit)} accent href="/admin/reports?tab=profit&range=week" />
         <StatCard label="Monthly Revenue" value={money(m.monthRevenue)} href="/admin/sales?range=month" />
         <StatCard label="Last Month Revenue" value={money(m.lastMonthRevenue)} />
         <StatCard label="Annual Revenue" value={money(m.yearRevenue)} href="/admin/sales?range=year" />
@@ -101,9 +84,14 @@ export default async function AdminDashboardPage() {
 
       <div className="mt-6 grid gap-4 lg:grid-cols-2">
         <div className="rounded-2xl border border-line bg-surface p-5">
-          <h2 className="text-lg font-semibold">Sales — Last 7 Days</h2>
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-lg font-semibold">Sales by Day</h2>
+            <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">
+              Swipe ← → to browse
+            </span>
+          </div>
           <div className="mt-4">
-            <BarChart data={m.last7Days} />
+            <WeeklySalesChart series={m.dailySeries} />
           </div>
         </div>
 

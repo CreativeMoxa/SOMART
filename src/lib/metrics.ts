@@ -71,13 +71,14 @@ export async function getDashboardMetrics() {
   let todayProfit = 0;
   let todayOrders = 0;
   let weekOrders = 0;
+  let weekRevenue = 0;
+  let weekProfit = 0;
   let lastWeekOrders = 0;
   let monthOrders = 0;
   let monthRevenue = 0;
   let monthProfit = 0;
   let yearRevenue = 0;
   let yearProfit = 0;
-  const dailyTotals = new Map<string, number>();
   const monthBySource = new Map<string, { count: number; revenue: number }>();
 
   for (const sale of sales) {
@@ -94,16 +95,15 @@ export async function getDashboardMetrics() {
       entry.revenue += sale.total;
       monthBySource.set(src, entry);
     }
-    if (created >= weekStart) weekOrders += 1;
-    else if (created >= lastWeekStart) lastWeekOrders += 1;
+    if (created >= weekStart) {
+      weekOrders += 1;
+      weekRevenue += sale.total;
+      weekProfit += sale.profit ?? 0;
+    } else if (created >= lastWeekStart) lastWeekOrders += 1;
     if (created >= startOfDay) {
       todaySales += sale.total;
       todayProfit += sale.profit ?? 0;
       todayOrders += 1;
-    }
-    if (created >= sevenDaysAgo) {
-      const key = dayKey(created);
-      dailyTotals.set(key, (dailyTotals.get(key) ?? 0) + sale.total);
     }
   }
 
@@ -127,13 +127,36 @@ export async function getDashboardMetrics() {
     totalRevenue: totalsBySource.get(s)?.revenue ?? 0,
   }));
 
-  const last7Days: { label: string; total: number }[] = [];
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date(startOfDay.getTime() - i * 24 * 60 * 60 * 1000);
-    last7Days.push({
-      label: d.toLocaleDateString("en-US", { weekday: "short" }),
-      total: dailyTotals.get(dayKey(d)) ?? 0,
+  // All-time daily sales totals (DB-side) → a contiguous day-by-day series the
+  // dashboard chart can page through week by week. Gaps are filled with 0 and
+  // the series always spans at least the trailing 7 days so a full week shows.
+  const dailyAgg = await Sale.aggregate<{ _id: string; total: number }>([
+    { $match: { status: { $ne: "pending" } } },
+    {
+      $group: {
+        _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+        total: { $sum: "$total" },
+      },
+    },
+  ]);
+  const totalByDay = new Map(dailyAgg.map((r) => [r._id, r.total]));
+  const sortedKeys = [...totalByDay.keys()].sort();
+  const firstTime = sortedKeys.length
+    ? new Date(`${sortedKeys[0]}T00:00:00Z`).getTime()
+    : sevenDaysAgo.getTime();
+  const startTime = Math.min(firstTime, sevenDaysAgo.getTime());
+  const todayKeyStr = dayKey(startOfDay);
+  const dailySeries: { date: string; label: string; dateLabel: string; total: number }[] = [];
+  for (let t = startTime, guard = 0; guard < 4000; t += day, guard++) {
+    const d = new Date(t);
+    const key = d.toISOString().slice(0, 10);
+    dailySeries.push({
+      date: key,
+      label: d.toLocaleDateString("en-US", { weekday: "short", timeZone: "UTC" }),
+      dateLabel: d.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" }),
+      total: totalByDay.get(key) ?? 0,
     });
+    if (key >= todayKeyStr) break;
   }
 
   const monthExpenses = monthExpensesAgg[0]?.total ?? 0;
@@ -162,6 +185,8 @@ export async function getDashboardMetrics() {
     todayProfit,
     todayOrders,
     weekOrders,
+    weekRevenue,
+    weekProfit,
     lastWeekOrders,
     monthOrders,
     webViews,
@@ -181,7 +206,7 @@ export async function getDashboardMetrics() {
     partialInvoices,
     lowStock,
     topProducts,
-    last7Days,
+    dailySeries,
     marketing,
     recentSales: JSON.parse(JSON.stringify(recentSales)) as {
       _id: string;
