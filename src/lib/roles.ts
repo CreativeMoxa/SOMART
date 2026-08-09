@@ -22,6 +22,7 @@ export const MODULES = [
   "accounting",
   "reports",
   "tasks",
+  "todos",
   "employees",
   "settings",
 ] as const;
@@ -103,6 +104,7 @@ export const ADMIN_LINKS: readonly AdminLink[] = [
   { module: "accounting", href: "/admin/expenses", label: "Accounting", accent: "#fb7185" },
   { module: "reports", href: "/admin/reports", label: "Reports", accent: "#818cf8" },
   { module: "tasks", href: "/admin/tasks", label: "Task Manager", accent: "#f59e0b" },
+  { module: "todos", href: "/admin/todos", label: "To-Do List", accent: "#facc15" },
   { module: "employees", href: "/admin/employees", label: "Employees", accent: "#22d3ee" },
   { module: "settings", href: "/admin/settings", label: "Settings", accent: "#94a3b8" },
 ];
