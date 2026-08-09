@@ -5,7 +5,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { isManagerRole } from "@/lib/roles";
 import { nextNumber } from "@/lib/numbering";
 import { recordAction } from "@/lib/audit";
-import { TASK_STATUS_LABELS, itemPastDue, type TaskStatus, type Recurrence } from "@/lib/taskManager";
+import { TASK_STATUS_LABELS, itemPastDue, taskCompletion, type TaskStatus, type Recurrence } from "@/lib/taskManager";
 import { notifyTaskAssignees } from "@/lib/taskNotify";
 
 export const dynamic = "force-dynamic";
@@ -107,6 +107,26 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       task.activity.push({ actor: user.name, action: "added a comment", at: new Date() });
     }
 
+    // Auto-complete: once every checklist item is finished, the task marks
+    // itself completed so the assignee doesn't also have to flip the status by
+    // hand. Only when the caller didn't set a status explicitly and the task
+    // isn't cancelled/draft. Reads doneCount/target (what the UI sends), so it
+    // works even though item statuses are recomputed later on save.
+    let autoCompleted = false;
+    if (body.status === undefined && task.subtasks.length > 0) {
+      const { done, total } = taskCompletion(task);
+      if (
+        total > 0 &&
+        done >= total &&
+        task.status !== "completed" &&
+        task.status !== "cancelled" &&
+        task.status !== "draft"
+      ) {
+        task.status = "completed";
+        autoCompleted = true;
+      }
+    }
+
     // Completion side-effects.
     if (task.status === "completed" && prevStatus !== "completed") {
       task.completedDate = todayKey();
@@ -117,8 +137,10 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     // Activity trail for meaningful manager changes.
     if (task.status !== prevStatus) {
       task.activity.push({
-        actor: user.name,
-        action: `moved to ${TASK_STATUS_LABELS[task.status as TaskStatus] ?? task.status}`,
+        actor: autoCompleted ? "System" : user.name,
+        action: autoCompleted
+          ? "auto-completed — all subtasks done"
+          : `moved to ${TASK_STATUS_LABELS[task.status as TaskStatus] ?? task.status}`,
         at: new Date(),
       });
     }
