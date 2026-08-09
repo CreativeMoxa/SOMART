@@ -185,6 +185,17 @@ export function TruckIcon(props: IconProps) {
   );
 }
 
+export function UsersIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <circle cx="9" cy="8" r="3.2" />
+      <path d="M3.5 19a5.5 5.5 0 0 1 11 0" />
+      <path d="M16 5.2a3.2 3.2 0 0 1 0 5.6" />
+      <path d="M17.5 13.6A5.5 5.5 0 0 1 20.5 18.5" />
+    </svg>
+  );
+}
+
 export function MapPinIcon(props: IconProps) {
   return (
     <svg {...base(props)}>

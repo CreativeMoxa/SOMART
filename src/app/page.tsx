@@ -14,6 +14,7 @@ import {
   SunglassesIcon,
   TrendingUpIcon,
   TruckIcon,
+  UsersIcon,
   WatchIcon,
   WhatsAppIcon,
 } from "@/components/icons";
@@ -78,31 +79,34 @@ const features = [
 
 const orderTypes = [
   {
+    key: "watches" as const,
     Icon: WatchIcon,
     name: "Watches",
     tagline: "Time, worn beautifully",
-    stat: "80+",
     statLabel: "models in stock",
+    fallback: "Different models in stock",
     href: "/products?category=watches",
     popular: false,
     perks: ["Luxury & classic styles", "Authentic movements", "Warranty included", "Gift-ready packaging"],
   },
   {
+    key: "sunglasses" as const,
     Icon: SunglassesIcon,
     name: "Sunglasses",
     tagline: "Shade with attitude",
-    stat: "120+",
     statLabel: "styles in stock",
+    fallback: "Best sunglass styles in stock",
     href: "/products?category=sunglasses",
     popular: true,
     perks: ["UV400 protection", "Designer brands", "Polarized options", "New arrivals weekly"],
   },
   {
+    key: "accessories" as const,
     Icon: SparklesIcon,
     name: "Other Accessories",
     tagline: "Finish the look",
-    stat: "60+",
     statLabel: "fresh picks",
+    fallback: "New fresh picks",
     href: "/products?category=accessories",
     popular: false,
     perks: ["Bags & wallets", "Jewelry & chains", "Caps & more", "Fresh styles often"],
@@ -125,6 +129,8 @@ type HomeData = {
   saleItems: SaleItem[];
   deliveryCities: string[];
   whatsapp: string;
+  communityUrl: string;
+  stats: { watches: string; sunglasses: string; accessories: string };
 };
 
 async function getHomeData(): Promise<HomeData> {
@@ -181,15 +187,25 @@ async function getHomeData(): Promise<HomeData> {
       saleItems,
       deliveryCities: (settings.deliveryCities ?? []).filter(Boolean).length ? settings.deliveryCities.filter(Boolean) : cities,
       whatsapp: settings.whatsappNumber?.replace(/[^0-9]/g, "") ?? "",
+      communityUrl: settings.communityUrl ?? "",
+      stats: {
+        watches: (settings.statWatches ?? "").trim(),
+        sunglasses: (settings.statSunglasses ?? "").trim(),
+        accessories: (settings.statAccessories ?? "").trim(),
+      },
     };
   } catch (err) {
     console.error("Failed to load home data:", err);
-    return { heroImage: "", showcaseName: "", showcaseSubtitle: "", saleItems: [], deliveryCities: cities, whatsapp: "" };
+    return {
+      heroImage: "", showcaseName: "", showcaseSubtitle: "", saleItems: [],
+      deliveryCities: cities, whatsapp: "", communityUrl: "",
+      stats: { watches: "", sunglasses: "", accessories: "" },
+    };
   }
 }
 
 export default async function HomePage() {
-  const { heroImage, showcaseName, showcaseSubtitle, saleItems, deliveryCities, whatsapp } = await getHomeData();
+  const { heroImage, showcaseName, showcaseSubtitle, saleItems, deliveryCities, whatsapp, communityUrl, stats } = await getHomeData();
   const heroSale = saleItems.slice(0, 2);
   const waLink = (text: string) =>
     whatsapp ? `https://wa.me/${whatsapp}?text=${encodeURIComponent(text)}` : "/products";
@@ -230,12 +246,12 @@ export default async function HomePage() {
                 <ArrowRightIcon className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />
               </Link>
               <a
-                href={waLink("Hi SOMART! I'd like to know how ordering works.")}
+                href={communityUrl || waLink("Hi SOMART! I'd like to join your community group.")}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex cursor-pointer items-center gap-2 rounded-full border border-line bg-surface px-7 py-3.5 text-sm font-bold uppercase tracking-[0.12em] text-foreground transition-colors duration-200 hover:border-brand/50"
               >
-                How It Works
+                <UsersIcon className="h-4 w-4 text-gold" /> Community
               </a>
             </div>
             <div className="animate-fade-up delay-400 mt-9 flex flex-wrap gap-x-6 gap-y-2">
@@ -398,7 +414,9 @@ export default async function HomePage() {
           it only takes a minute.
         </p>
         <div className="mt-12 grid items-start gap-5 lg:grid-cols-3">
-          {orderTypes.map(({ Icon, name, tagline, stat, statLabel, href, popular, perks }) => (
+          {orderTypes.map(({ key, Icon, name, tagline, statLabel, fallback, href, popular, perks }) => {
+            const count = stats[key];
+            return (
             <div
               key={name}
               className={`glow-card relative flex flex-col rounded-3xl border bg-surface p-8 text-left ${
@@ -419,10 +437,14 @@ export default async function HomePage() {
               </span>
               <h3 className="mt-5 text-2xl font-bold">{name}</h3>
               <p className="mt-1 text-sm text-muted">{tagline}</p>
-              <p className="mt-5 flex items-baseline gap-2">
-                <span className="text-4xl font-extrabold text-gradient">{stat}</span>
-                <span className="text-sm text-muted">{statLabel}</span>
-              </p>
+              {count ? (
+                <p className="mt-5 flex items-baseline gap-2">
+                  <span className="text-4xl font-extrabold text-gradient">{count}+</span>
+                  <span className="text-sm text-muted">{statLabel}</span>
+                </p>
+              ) : (
+                <p className="mt-5 text-lg font-semibold text-gradient">{fallback}</p>
+              )}
               <ul className="mt-6 space-y-3">
                 {perks.map((perk) => (
                   <li key={perk} className="flex items-center gap-2.5 text-sm">
@@ -442,7 +464,8 @@ export default async function HomePage() {
                 Shop {name.replace("Other ", "")}
               </Link>
             </div>
-          ))}
+            );
+          })}
         </div>
       </section>
 

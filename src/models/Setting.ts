@@ -22,6 +22,13 @@ const settingSchema = new Schema(
     heroImageUrl: { type: String, default: "" },
     heroImageTitle: { type: String, default: "" },
     heroImageSubtitle: { type: String, default: "" },
+    // Hero "Community" button — link to your announcements group (WhatsApp,
+    // Telegram, etc.). Empty falls back to a WhatsApp chat.
+    communityUrl: { type: String, default: "" },
+    // Homepage category stat numbers. Empty → a text-only line (no count).
+    statWatches: { type: String, default: "" },
+    statSunglasses: { type: String, default: "" },
+    statAccessories: { type: String, default: "" },
     // Homepage "Sale" section — up to 3 custom slots (photo + title + text).
     // Not tied to catalogue products; each links customers to WhatsApp.
     saleItems: {

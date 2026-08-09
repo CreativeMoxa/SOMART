@@ -25,6 +25,10 @@ type Settings = {
   heroImageUrl?: string;
   heroImageTitle?: string;
   heroImageSubtitle?: string;
+  communityUrl?: string;
+  statWatches?: string;
+  statSunglasses?: string;
+  statAccessories?: string;
   saleItems?: SaleItem[];
   currency: string;
   currencySymbol: string;
@@ -441,6 +445,68 @@ export default function SettingsManager() {
               placeholder="e.g. New this week"
               className={inputClass}
             />
+          </div>
+
+          <div className="mt-5">
+            <label htmlFor="st-community" className="text-sm font-semibold">
+              Community group link{" "}
+              <span className="font-normal text-muted">(hero &quot;Community&quot; button)</span>
+            </label>
+            <input
+              id="st-community"
+              value={settings.communityUrl ?? ""}
+              onChange={(e) => set("communityUrl", e.target.value)}
+              placeholder="https://chat.whatsapp.com/…  (or Telegram, etc.)"
+              className={inputClass}
+            />
+            <p className="mt-1 text-xs text-muted">
+              Where the homepage &quot;Community&quot; button sends customers — your group for
+              announcing sales. Empty opens a WhatsApp chat instead.
+            </p>
+          </div>
+
+          <div className="mt-5">
+            <p className="text-sm font-semibold">Category stat numbers</p>
+            <p className="mt-1 text-xs text-muted">
+              The count shown on the three homepage category cards. Leave a box empty to
+              show a text line with no number (e.g. &quot;Different models in stock&quot;). Enter
+              just the number — the &quot;+&quot; is added automatically.
+            </p>
+            <div className="mt-3 grid gap-3 sm:grid-cols-3">
+              <div>
+                <label htmlFor="st-stat-watches" className="text-xs font-semibold text-muted">Watches</label>
+                <input
+                  id="st-stat-watches"
+                  inputMode="numeric"
+                  value={settings.statWatches ?? ""}
+                  onChange={(e) => set("statWatches", e.target.value.replace(/[^0-9]/g, ""))}
+                  placeholder="e.g. 80"
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label htmlFor="st-stat-sun" className="text-xs font-semibold text-muted">Sunglasses</label>
+                <input
+                  id="st-stat-sun"
+                  inputMode="numeric"
+                  value={settings.statSunglasses ?? ""}
+                  onChange={(e) => set("statSunglasses", e.target.value.replace(/[^0-9]/g, ""))}
+                  placeholder="e.g. 120"
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label htmlFor="st-stat-acc" className="text-xs font-semibold text-muted">Accessories</label>
+                <input
+                  id="st-stat-acc"
+                  inputMode="numeric"
+                  value={settings.statAccessories ?? ""}
+                  onChange={(e) => set("statAccessories", e.target.value.replace(/[^0-9]/g, ""))}
+                  placeholder="e.g. 60"
+                  className={inputClass}
+                />
+              </div>
+            </div>
           </div>
         </div>
 
