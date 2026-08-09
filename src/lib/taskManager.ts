@@ -101,7 +101,7 @@ export function itemPastDue(dueDate?: string): boolean {
 // Each checklist item is quantity-based: `target` units are needed (e.g. "post
 // 3 videos") and `doneCount` is how many are finished. Legacy items that only
 // had a status/done flag are treated as a single unit.
-type ChecklistItem = { target?: number; doneCount?: number; status?: string; done?: boolean };
+type ChecklistItem = { target?: number; doneCount?: number; status?: string; done?: boolean; dueDate?: string };
 export function itemUnits(item: ChecklistItem): { done: number; target: number } {
   const target = Math.max(1, Math.round(item.target ?? 1));
   let done: number;
@@ -136,6 +136,25 @@ export function taskCompletion(task: {
     total += u.target;
   }
   return { done, total, percent: total ? Math.round((done / total) * 100) : 0 };
+}
+
+// Fully-automatic status for a task that has a checklist: Completed once every
+// item is done, Overdue when the task or any unfinished item is past its own
+// deadline, otherwise In Progress / Not Started based on how much is done.
+// Tasks with no checklist are not derived here — their status stays manual.
+export function deriveTaskStatus(task: {
+  subtasks?: ChecklistItem[];
+  dueDate?: string;
+}): TaskStatus {
+  const items = task.subtasks ?? [];
+  const { done, total } = taskCompletion({ subtasks: items });
+  if (total > 0 && done >= total) return "completed";
+  const anyItemOverdue = items.some((it) => {
+    const u = itemUnits(it);
+    return u.done < u.target && itemPastDue(it.dueDate);
+  });
+  if (anyItemOverdue || itemPastDue(task.dueDate)) return "overdue";
+  return done > 0 ? "in-progress" : "not-started";
 }
 
 export const PRIORITIES = ["low", "medium", "high", "critical"] as const;

@@ -1,6 +1,6 @@
 import mongoose, { Schema, type InferSchemaType, type Model } from "mongoose";
 import { auditFields } from "@/lib/auditFields";
-import { TASK_STATUSES, PRIORITIES, RECURRENCES, CHECKLIST_STATUSES, itemUnits, deriveItemStatus } from "@/lib/taskManager";
+import { TASK_STATUSES, PRIORITIES, RECURRENCES, CHECKLIST_STATUSES, itemUnits, deriveItemStatus, deriveTaskStatus } from "@/lib/taskManager";
 
 // A single unit of work. Subtasks/checklist items, comments and the activity
 // history live embedded on the task so it stays one self-contained record.
@@ -100,6 +100,12 @@ taskSchema.pre("save", function () {
     item.doneCount = done;
     item.status = deriveItemStatus(done, target);
     item.done = item.status === "completed";
+  }
+  // A task with a checklist derives its own status automatically (completed /
+  // overdue / in-progress / not-started). A cancelled task stays cancelled
+  // until reopened. Tasks with no checklist keep their manual status.
+  if (this.subtasks.length > 0 && this.status !== "cancelled") {
+    this.status = deriveTaskStatus(this);
   }
 });
 

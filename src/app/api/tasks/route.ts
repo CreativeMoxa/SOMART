@@ -6,6 +6,7 @@ import { isManagerRole } from "@/lib/roles";
 import { nextNumber } from "@/lib/numbering";
 import { recordAction } from "@/lib/audit";
 import { notifyTaskAssignees } from "@/lib/taskNotify";
+import { deriveTaskStatus } from "@/lib/taskManager";
 
 export const dynamic = "force-dynamic";
 
@@ -75,7 +76,7 @@ export async function POST(req: NextRequest) {
     const assignees: string[] = Array.isArray(body.assignees) ? body.assignees : [];
     const assigneeIds: string[] = Array.isArray(body.assigneeIds) ? body.assigneeIds : [];
 
-    const task = await Task.create({
+    const createDoc: Record<string, unknown> = {
       ...seed,
       ...body,
       assignees,
@@ -89,7 +90,17 @@ export async function POST(req: NextRequest) {
           ? [{ actor: user.name, action: `assigned to ${assignees.join(", ")}`, at: new Date() }]
           : []),
       ],
-    });
+    };
+    // A task created with a checklist gets its automatic status from the start
+    // (mirrors the model hook + PATCH), so it's never left on a stale "draft".
+    const subs = Array.isArray(createDoc.subtasks) ? (createDoc.subtasks as unknown[]) : [];
+    if (subs.length > 0 && createDoc.status !== "cancelled") {
+      createDoc.status = deriveTaskStatus({
+        subtasks: subs as Parameters<typeof deriveTaskStatus>[0]["subtasks"],
+        dueDate: createDoc.dueDate as string | undefined,
+      });
+    }
+    const task = await Task.create(createDoc);
 
     await recordAction(`created task ${task.number} — ${task.title}`, "tasks", task.number);
     // Email the assigned employees.

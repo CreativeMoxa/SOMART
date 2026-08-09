@@ -5,7 +5,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { isManagerRole } from "@/lib/roles";
 import { nextNumber } from "@/lib/numbering";
 import { recordAction } from "@/lib/audit";
-import { TASK_STATUS_LABELS, itemPastDue, taskCompletion, type TaskStatus, type Recurrence } from "@/lib/taskManager";
+import { TASK_STATUS_LABELS, itemPastDue, taskCompletion, deriveTaskStatus, type TaskStatus, type Recurrence } from "@/lib/taskManager";
 import { notifyTaskAssignees } from "@/lib/taskNotify";
 
 export const dynamic = "force-dynamic";
@@ -107,23 +107,21 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       task.activity.push({ actor: user.name, action: "added a comment", at: new Date() });
     }
 
-    // Auto-complete: once every checklist item is finished, the task marks
-    // itself completed so the assignee doesn't also have to flip the status by
-    // hand. Only when the caller didn't set a status explicitly and the task
-    // isn't cancelled/draft. Reads doneCount/target (what the UI sends), so it
-    // works even though item statuses are recomputed later on save.
-    let autoCompleted = false;
-    if (body.status === undefined && task.subtasks.length > 0) {
-      const { done, total } = taskCompletion(task);
-      if (
-        total > 0 &&
-        done >= total &&
-        task.status !== "completed" &&
-        task.status !== "cancelled" &&
-        task.status !== "draft"
-      ) {
-        task.status = "completed";
-        autoCompleted = true;
+    // Fully-automatic status for tasks that have a checklist: Completed when
+    // every item is done, Overdue when the task or an unfinished item is past
+    // its deadline, otherwise In Progress / Not Started from how much is done
+    // (see deriveTaskStatus). The assignee never flips the status by hand. A
+    // cancelled task stays cancelled until a manager reopens it. Progress is
+    // kept in sync with the checklist so the bar always matches.
+    let autoStatus = false;
+    if (task.subtasks.length > 0) {
+      task.progress = taskCompletion(task).percent;
+      if (task.status !== "cancelled") {
+        const derived = deriveTaskStatus(task);
+        if (derived !== task.status) {
+          task.status = derived;
+          autoStatus = true;
+        }
       }
     }
 
@@ -134,13 +132,16 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     }
     if (task.status !== "completed") task.completedDate = task.completedDate && prevStatus === "completed" ? "" : task.completedDate;
 
-    // Activity trail for meaningful manager changes.
+    // Activity trail for status changes (auto from the checklist or manual).
     if (task.status !== prevStatus) {
+      const label = TASK_STATUS_LABELS[task.status as TaskStatus] ?? task.status;
       task.activity.push({
-        actor: autoCompleted ? "System" : user.name,
-        action: autoCompleted
-          ? "auto-completed — all subtasks done"
-          : `moved to ${TASK_STATUS_LABELS[task.status as TaskStatus] ?? task.status}`,
+        actor: autoStatus ? "System" : user.name,
+        action: autoStatus
+          ? task.status === "completed"
+            ? "auto-completed — all subtasks done"
+            : `auto-set to ${label} from the checklist`
+          : `moved to ${label}`,
         at: new Date(),
       });
     }

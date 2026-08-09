@@ -19,6 +19,7 @@ import {
   taskCompletion,
   itemUnits,
   deriveItemStatus,
+  deriveTaskStatus,
   itemPastDue,
   isOverdue,
   labelize,
@@ -108,7 +109,14 @@ function fmtDate(v?: string) {
   const d = new Date(v);
   return isNaN(d.getTime()) ? v : d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
+// A task with a checklist derives its status automatically (completed/overdue/
+// in-progress/not-started) — except a cancelled task, which stays cancelled
+// until reopened. Tasks with no checklist keep their manual status, flagged
+// overdue only by their own due date.
 function effStatus(t: Task): TaskStatus {
+  if (t.subtasks && t.subtasks.length > 0) {
+    return t.status === "cancelled" ? "cancelled" : deriveTaskStatus(t);
+  }
   return isOverdue(t.dueDate, t.status) ? "overdue" : t.status;
 }
 
@@ -668,7 +676,7 @@ function BoardView({ tasks, isManager, onOpen, onMove }: {
   return (
     <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
       {KANBAN_STATUSES.map((col) => {
-        const items = tasks.filter((t) => (col === "overdue" ? effStatus(t) === "overdue" : t.status === col));
+        const items = tasks.filter((t) => effStatus(t) === col);
         return (
           <div
             key={col}
@@ -1093,19 +1101,45 @@ function TaskDetail({ task, isManager, onClose, onEdit, onPatch, onDuplicate, on
           <div><dt className="text-xs uppercase text-muted">Completed</dt><dd className="font-semibold">{fmtDate(task.completedDate)}</dd></div>
         </dl>
 
-        {/* Progress + status controls (managers or assignee) */}
+        {/* Progress + status. With a checklist the status is fully automatic
+            (completed / overdue / in-progress from the items); without one a
+            manager or the assignee sets it by hand. */}
         <div className="mt-5 rounded-xl border border-line p-3">
-          <label className="text-sm font-semibold">Progress: {progress}%</label>
-          <input type="range" min={0} max={100} step={5} value={progress} onChange={(e) => setProgress(Number(e.target.value))}
-            onMouseUp={() => onPatch(task._id, { progress })} onTouchEnd={() => onPatch(task._id, { progress })} className="mt-2 w-full" />
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <select value={task.status} onChange={(e) => onPatch(task._id, { status: e.target.value })} className="rounded-xl border border-line bg-surface px-3 py-2 text-sm">
-              {TASK_STATUSES.map((s) => <option key={s} value={s}>{TASK_STATUS_LABELS[s]}</option>)}
-            </select>
-            {task.status !== "completed" && (
-              <button onClick={() => onPatch(task._id, { status: "completed" })} className={`${chip} bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/25`}>✓ Complete</button>
-            )}
-          </div>
+          {task.subtasks.length > 0 ? (
+            <>
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-semibold">Status</span>
+                <Badge status={effStatus(task)} />
+              </div>
+              <p className="mt-1 text-xs text-muted">Automatic from the checklist — {comp.percent}% done.</p>
+              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-background">
+                <div className="h-full rounded-full bg-gold-bright/80 transition-all duration-500" style={{ width: `${comp.percent}%` }} />
+              </div>
+              {isManager && (
+                <div className="mt-3">
+                  {task.status === "cancelled" ? (
+                    <button onClick={() => onPatch(task._id, { status: "in-progress" })} className={`${chip} bg-sky-500/15 text-sky-400 hover:bg-sky-500/25`}>↺ Reopen task</button>
+                  ) : (
+                    <button onClick={() => onPatch(task._id, { status: "cancelled" })} className={`${chip} bg-rose-500/15 text-rose-400 hover:bg-rose-500/25`}>✕ Cancel task</button>
+                  )}
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              <label className="text-sm font-semibold">Progress: {progress}%</label>
+              <input type="range" min={0} max={100} step={5} value={progress} onChange={(e) => setProgress(Number(e.target.value))}
+                onMouseUp={() => onPatch(task._id, { progress })} onTouchEnd={() => onPatch(task._id, { progress })} className="mt-2 w-full" />
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <select value={task.status} onChange={(e) => onPatch(task._id, { status: e.target.value })} className="rounded-xl border border-line bg-surface px-3 py-2 text-sm">
+                  {TASK_STATUSES.map((s) => <option key={s} value={s}>{TASK_STATUS_LABELS[s]}</option>)}
+                </select>
+                {task.status !== "completed" && (
+                  <button onClick={() => onPatch(task._id, { status: "completed" })} className={`${chip} bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/25`}>✓ Complete</button>
+                )}
+              </div>
+            </>
+          )}
         </div>
 
         {/* Task list — each item has its own name, priority, due date & status.
@@ -1121,6 +1155,7 @@ function TaskDetail({ task, isManager, onClose, onEdit, onPatch, onDuplicate, on
                 const u = itemUnits(s);
                 const st = deriveItemStatus(u.done, u.target);
                 const pastDue = itemPastDue(s.dueDate);
+                const overdue = pastDue && st !== "completed";
                 const locked = pastDue && !isManager;
                 const setCount = (n: number) =>
                   onPatch(task._id, { subtasks: task.subtasks.map((x, j) => j === i ? { ...x, doneCount: Math.max(0, Math.min(u.target, n)) } : x) });
@@ -1136,7 +1171,7 @@ function TaskDetail({ task, isManager, onClose, onEdit, onPatch, onDuplicate, on
                         Due {fmtDate(s.dueDate)}{locked ? " · 🔒 locked" : ""}
                       </span>
                       <div className="flex items-center gap-2">
-                        <span className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-bold ${CHECKLIST_STATUS_BADGE[st]}`}>{CHECKLIST_STATUS_LABELS[st]}</span>
+                        <span className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-bold ${overdue ? "bg-red-500/20 text-red-500" : CHECKLIST_STATUS_BADGE[st]}`}>{overdue ? "Overdue" : CHECKLIST_STATUS_LABELS[st]}</span>
                         <div className="flex items-center gap-1.5" title={locked ? "Past the due date — only a manager can change this" : undefined}>
                           <button type="button" disabled={locked || u.done <= 0} onClick={() => setCount(u.done - 1)}
                             className="flex h-6 w-6 items-center justify-center rounded-full border border-line text-sm disabled:opacity-40">−</button>
