@@ -1,8 +1,21 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { connectDB } from "@/lib/db";
 import { Product } from "@/models/Product";
 import { getSettings } from "@/models/Setting";
 import SaleShowcase from "@/components/SaleShowcase";
+
+export const metadata: Metadata = {
+  description:
+    "Shop designer eyewear, luxury watches and fashion accessories at SOMART. 100% authentic, with fast delivery across East Africa. Order online or on WhatsApp.",
+  alternates: { canonical: "/" },
+  openGraph: {
+    title: "SOMART — Eyewear & Fashion Accessories",
+    description:
+      "Designer eyewear, luxury watches and fashion accessories, delivered across East Africa.",
+    url: "/",
+  },
+};
 import {
   ArrowRightIcon,
   CheckCircleIcon,

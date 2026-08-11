@@ -8,6 +8,15 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Shop",
+  description:
+    "Browse the SOMART collection — designer eyeglasses, sunglasses, watches and fashion accessories. 100% authentic, delivered across East Africa.",
+  alternates: { canonical: "/products" },
+  openGraph: {
+    title: "Shop | SOMART",
+    description:
+      "Designer eyeglasses, sunglasses, watches and fashion accessories.",
+    url: "/products",
+  },
 };
 
 const PAGE_SIZE = 12;

@@ -3,7 +3,13 @@ import { connectDB } from "@/lib/db";
 import { getSettings } from "@/models/Setting";
 import { WhatsAppIcon } from "@/components/icons";
 
-export const metadata: Metadata = { title: "Contact Us" };
+export const metadata: Metadata = {
+  title: "Contact Us",
+  description:
+    "Get in touch with SOMART. Message us on WhatsApp or reach out for help with orders, styling advice and delivery across East Africa.",
+  alternates: { canonical: "/contact" },
+  openGraph: { title: "Contact Us | SOMART", url: "/contact" },
+};
 // Contact details rarely change — cache and refresh every 5 minutes.
 export const revalidate = 300;
 

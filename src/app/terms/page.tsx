@@ -1,6 +1,12 @@
 import type { Metadata } from "next";
 
-export const metadata: Metadata = { title: "Terms & Conditions" };
+export const metadata: Metadata = {
+  title: "Terms & Conditions",
+  description:
+    "The terms and conditions for using the SOMART website and ordering our products.",
+  alternates: { canonical: "/terms" },
+  openGraph: { title: "Terms & Conditions | SOMART", url: "/terms" },
+};
 
 export default function TermsPage() {
   return (

@@ -2,7 +2,13 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 
-export const metadata: Metadata = { title: "About Us" };
+export const metadata: Metadata = {
+  title: "About Us",
+  description:
+    "Learn about SOMART — curated, authentic designer eyewear, watches and fashion accessories, with personal service and delivery across East Africa.",
+  alternates: { canonical: "/about" },
+  openGraph: { title: "About Us | SOMART", url: "/about" },
+};
 
 const values = [
   {

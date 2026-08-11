@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { connectDB } from "@/lib/db";
 import { Product } from "@/models/Product";
 import { getSettings } from "@/models/Setting";
+import { SITE_URL, SITE_NAME } from "@/lib/site";
 import { DEFAULT_TEMPLATES, renderTemplate } from "@/lib/templates";
 import ProductCard, { type ProductJSON } from "@/components/ProductCard";
 import Gallery from "./Gallery";
@@ -74,7 +75,36 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   const data = await getData(slug);
-  return { title: data ? data.product.name : "Product" };
+  if (!data) return { title: "Product" };
+
+  const { product } = data;
+  const categoryLabel = categoryLabels[product.category] ?? product.category;
+  const description =
+    product.description?.trim() ||
+    `${product.name}${product.brand ? ` by ${product.brand}` : ""} — ${categoryLabel} available at ${SITE_NAME}. Ask for the price on WhatsApp.`;
+  const image =
+    (product.images && product.images.length > 0 && product.images[0]) ||
+    product.imageUrl ||
+    undefined;
+
+  return {
+    title: product.name,
+    description,
+    alternates: { canonical: `/products/${slug}` },
+    openGraph: {
+      type: "website",
+      title: `${product.name} | ${SITE_NAME}`,
+      description,
+      url: `/products/${slug}`,
+      ...(image ? { images: [{ url: image, alt: product.name }] } : {}),
+    },
+    twitter: {
+      card: image ? "summary_large_image" : "summary",
+      title: `${product.name} | ${SITE_NAME}`,
+      description,
+      ...(image ? { images: [image] } : {}),
+    },
+  };
 }
 
 export default async function ProductDetailPage({
@@ -97,6 +127,39 @@ export default async function ProductDetailPage({
         ? [product.imageUrl]
         : [];
 
+  // Product structured data. Prices are intentionally not public on this store
+  // (customers ask on WhatsApp), so no Offer/price is emitted — only fields that
+  // are genuinely shown on the page. No reviews or ratings are invented.
+  const productJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: product.name,
+    ...(product.description ? { description: product.description } : {}),
+    ...(images.length > 0 ? { image: images } : {}),
+    ...(product.brand ? { brand: { "@type": "Brand", name: product.brand } } : {}),
+    ...(product.category ? { category: categoryLabels[product.category] ?? product.category } : {}),
+    sku: product.slug,
+    url: `${SITE_URL}/products/${slug}`,
+    availability: inStock
+      ? "https://schema.org/InStock"
+      : "https://schema.org/OutOfStock",
+  };
+
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Shop", item: `${SITE_URL}/products` },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: categoryLabels[product.category] ?? product.category,
+        item: `${SITE_URL}/products?category=${product.category}`,
+      },
+      { "@type": "ListItem", position: 3, name: product.name, item: `${SITE_URL}/products/${slug}` },
+    ],
+  };
+
   const waText = encodeURIComponent(
     renderTemplate(whatsappTemplate, {
       business_name: businessName,
@@ -109,6 +172,14 @@ export default async function ProductDetailPage({
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
       <nav className="animate-fade-in text-xs font-semibold uppercase tracking-[0.15em] text-muted">
         <Link href="/products" className="cursor-pointer transition-colors duration-200 hover:text-gold">
           Shop

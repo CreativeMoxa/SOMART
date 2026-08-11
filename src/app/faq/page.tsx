@@ -1,7 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-export const metadata: Metadata = { title: "FAQ" };
+export const metadata: Metadata = {
+  title: "FAQ",
+  description:
+    "Frequently asked questions about SOMART — ordering, WhatsApp pricing, authenticity, delivery and returns across East Africa.",
+  alternates: { canonical: "/faq" },
+  openGraph: { title: "FAQ | SOMART", url: "/faq" },
+};
 
 const faqs = [
   {
