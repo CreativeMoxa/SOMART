@@ -22,6 +22,7 @@ type Settings = {
   website?: string;
   instagramUrl?: string;
   facebookUrl?: string;
+  tiktokUrl?: string;
   address: string;
   businessHours?: string;
   heroImageUrl?: string;
@@ -295,6 +296,17 @@ export default function SettingsManager() {
                 className={inputClass}
               />
               <p className="mt-1 text-xs text-muted">Full page link. Shown in the website footer. Leave blank to hide.</p>
+            </div>
+            <div>
+              <label htmlFor="st-tiktok" className="text-sm font-semibold">TikTok</label>
+              <input
+                id="st-tiktok"
+                value={settings.tiktokUrl ?? ""}
+                onChange={(e) => set("tiktokUrl", e.target.value)}
+                placeholder="https://tiktok.com/@yourpage"
+                className={inputClass}
+              />
+              <p className="mt-1 text-xs text-muted">Full profile link. Shown in the website footer. Leave blank to hide.</p>
             </div>
           </div>
         </div>

@@ -11,6 +11,7 @@ import {
   MailIcon,
   MapPinIcon,
   PhoneIcon,
+  TikTokIcon,
   WhatsAppIcon,
 } from "@/components/icons";
 
@@ -41,6 +42,7 @@ export default async function Footer() {
     website: settings?.website ?? "",
     instagramUrl: settings?.instagramUrl ?? "",
     facebookUrl: settings?.facebookUrl ?? "",
+    tiktokUrl: settings?.tiktokUrl ?? "",
     address: settings?.address ?? "",
     businessHours: settings?.businessHours ?? "",
   };
@@ -48,7 +50,7 @@ export default async function Footer() {
 
   // Organization structured data. sameAs links the social profiles the owner
   // has actually set — nothing is invented.
-  const socialLinks = [s.instagramUrl, s.facebookUrl].filter(Boolean);
+  const socialLinks = [s.instagramUrl, s.facebookUrl, s.tiktokUrl].filter(Boolean);
   const orgJsonLd = {
     "@context": "https://schema.org",
     "@type": "Organization",
@@ -180,7 +182,7 @@ export default async function Footer() {
             </a>
           )}
 
-          {(s.instagramUrl || s.facebookUrl) && (
+          {(s.instagramUrl || s.facebookUrl || s.tiktokUrl) && (
             <div className="mt-5 flex items-center gap-3">
               {s.instagramUrl && (
                 <a
@@ -202,6 +204,17 @@ export default async function Footer() {
                   className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand/12 text-gold transition-colors duration-200 hover:bg-brand/20"
                 >
                   <FacebookIcon className="h-4.5 w-4.5" />
+                </a>
+              )}
+              {s.tiktokUrl && (
+                <a
+                  href={s.tiktokUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="SOMART on TikTok"
+                  className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand/12 text-gold transition-colors duration-200 hover:bg-brand/20"
+                >
+                  <TikTokIcon className="h-4.5 w-4.5" />
                 </a>
               )}
             </div>
