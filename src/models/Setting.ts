@@ -16,6 +16,10 @@ const settingSchema = new Schema(
     operationsPhone: { type: String, default: "" },
     email: { type: String, default: "somartt.co@gmail.com" },
     website: { type: String, default: "" },
+    // Social profiles — shown in the website footer and used for Organization
+    // structured data (sameAs) so Google links the accounts to the brand.
+    instagramUrl: { type: String, default: "" },
+    facebookUrl: { type: String, default: "" },
     address: { type: String, default: "" },
     businessHours: { type: String, default: "Mon–Sat: 9am – 7pm" },
     // Public-website controls (managed from admin → Settings → Public Website).

@@ -2,9 +2,12 @@ import Link from "next/link";
 import Image from "next/image";
 import { connectDB } from "@/lib/db";
 import { getSettings } from "@/models/Setting";
+import { SITE_URL, SITE_NAME } from "@/lib/site";
 import {
   ClockIcon,
+  FacebookIcon,
   GlobeIcon,
+  InstagramIcon,
   MailIcon,
   MapPinIcon,
   PhoneIcon,
@@ -36,10 +39,24 @@ export default async function Footer() {
     phone: settings?.phone ?? "",
     email: settings?.email ?? "",
     website: settings?.website ?? "",
+    instagramUrl: settings?.instagramUrl ?? "",
+    facebookUrl: settings?.facebookUrl ?? "",
     address: settings?.address ?? "",
     businessHours: settings?.businessHours ?? "",
   };
   const wa = s.whatsappNumber.replace(/[^0-9]/g, "");
+
+  // Organization structured data. sameAs links the social profiles the owner
+  // has actually set — nothing is invented.
+  const socialLinks = [s.instagramUrl, s.facebookUrl].filter(Boolean);
+  const orgJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: s.companyName || SITE_NAME,
+    url: SITE_URL,
+    logo: `${SITE_URL}/logo-mark-navy.png`,
+    ...(socialLinks.length > 0 ? { sameAs: socialLinks } : {}),
+  };
 
   const contactRows: ContactRow[] = [
     s.salesPhone && {
@@ -71,6 +88,10 @@ export default async function Footer() {
 
   return (
     <footer className="mt-auto border-t border-line bg-surface print:hidden">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(orgJsonLd) }}
+      />
       <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:px-6 lg:grid-cols-[1.3fr_1fr_1fr_1.5fr]">
         <div>
           <div className="flex items-center gap-2.5">
@@ -157,6 +178,33 @@ export default async function Footer() {
             >
               <WhatsAppIcon className="h-4.5 w-4.5" /> WhatsApp Us
             </a>
+          )}
+
+          {(s.instagramUrl || s.facebookUrl) && (
+            <div className="mt-5 flex items-center gap-3">
+              {s.instagramUrl && (
+                <a
+                  href={s.instagramUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="SOMART on Instagram"
+                  className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand/12 text-gold transition-colors duration-200 hover:bg-brand/20"
+                >
+                  <InstagramIcon className="h-4.5 w-4.5" />
+                </a>
+              )}
+              {s.facebookUrl && (
+                <a
+                  href={s.facebookUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="SOMART on Facebook"
+                  className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand/12 text-gold transition-colors duration-200 hover:bg-brand/20"
+                >
+                  <FacebookIcon className="h-4.5 w-4.5" />
+                </a>
+              )}
+            </div>
           )}
         </div>
       </div>

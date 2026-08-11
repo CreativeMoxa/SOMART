@@ -61,16 +61,9 @@ export const metadata: Metadata = {
   },
 };
 
-// Organization + WebSite structured data. Only static, factual brand info is
-// included — no invented prices, ratings, socials or contact numbers.
-const orgJsonLd = {
-  "@context": "https://schema.org",
-  "@type": "Organization",
-  name: SITE_NAME,
-  url: SITE_URL,
-  logo: `${SITE_URL}/logo-mark-navy.png`,
-};
-
+// WebSite structured data (static). The Organization node — enriched with the
+// owner's social links (sameAs) — is emitted from the footer, which loads
+// settings, so it isn't duplicated here.
 const websiteJsonLd = {
   "@context": "https://schema.org",
   "@type": "WebSite",
@@ -103,10 +96,6 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: themeInit }} />
       </head>
       <body className="flex min-h-screen flex-col bg-background text-foreground">
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(orgJsonLd) }}
-        />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}

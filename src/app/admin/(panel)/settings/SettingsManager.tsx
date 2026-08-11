@@ -20,6 +20,8 @@ type Settings = {
   operationsPhone?: string;
   email: string;
   website?: string;
+  instagramUrl?: string;
+  facebookUrl?: string;
   address: string;
   businessHours?: string;
   heroImageUrl?: string;
@@ -271,6 +273,28 @@ export default function SettingsManager() {
                 placeholder="somart.vercel.app"
                 className={inputClass}
               />
+            </div>
+            <div>
+              <label htmlFor="st-instagram" className="text-sm font-semibold">Instagram</label>
+              <input
+                id="st-instagram"
+                value={settings.instagramUrl ?? ""}
+                onChange={(e) => set("instagramUrl", e.target.value)}
+                placeholder="https://instagram.com/yourpage"
+                className={inputClass}
+              />
+              <p className="mt-1 text-xs text-muted">Full profile link. Shown in the website footer. Leave blank to hide.</p>
+            </div>
+            <div>
+              <label htmlFor="st-facebook" className="text-sm font-semibold">Facebook</label>
+              <input
+                id="st-facebook"
+                value={settings.facebookUrl ?? ""}
+                onChange={(e) => set("facebookUrl", e.target.value)}
+                placeholder="https://facebook.com/yourpage"
+                className={inputClass}
+              />
+              <p className="mt-1 text-xs text-muted">Full page link. Shown in the website footer. Leave blank to hide.</p>
             </div>
           </div>
         </div>
