@@ -41,10 +41,8 @@ export const metadata: Metadata = {
       "max-video-preview": -1,
     },
   },
-  icons: {
-    icon: "/logo-mark-navy.png",
-    apple: "/logo-mark-navy.png",
-  },
+  // Favicon / touch icon come from src/app/icon.png and src/app/apple-icon.png
+  // (Next.js file-based metadata). No `icons` field needed here.
   openGraph: {
     type: "website",
     siteName: SITE_NAME,
