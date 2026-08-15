@@ -50,14 +50,14 @@ export const metadata: Metadata = {
     title: "SOMART — Eyewear & Fashion Accessories",
     description:
       "Curated designer eyeglasses, sunglasses, watches and fashion accessories, delivered across East Africa.",
-    images: [{ url: "/logo-mark-navy.png", alt: "SOMART" }],
+    images: [{ url: "/logo-og.png", alt: "SOMART" }],
   },
   twitter: {
     card: "summary",
     title: "SOMART — Eyewear & Fashion Accessories",
     description:
       "Curated designer eyeglasses, sunglasses, watches and fashion accessories, delivered across East Africa.",
-    images: ["/logo-mark-navy.png"],
+    images: ["/logo-og.png"],
   },
 };
 
