@@ -7,7 +7,10 @@ import { auditFields } from "@/lib/auditFields";
 const shipmentItemFields = {
   productId: { type: Schema.Types.ObjectId, ref: "Product", default: null },
   name: { type: String, required: true },
+  // Primary photo (= images[0]); kept for backward compatibility.
   imageUrl: { type: String, default: "" },
+  // All photos for this line. Rolled onto the product's images[] on receive.
+  images: { type: [String], default: [] },
   // Supplier links — a product can be sourced from several 1688 sellers
   // (e.g. different colours bought from different shops).
   link1688: { type: String, default: "" }, // legacy single = links1688[0]

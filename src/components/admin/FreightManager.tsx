@@ -16,6 +16,7 @@ type ShipmentItem = {
   productId: string | null;
   name: string;
   imageUrl: string;
+  images: string[];
   link1688: string;
   links1688: string[];
   trackingNumber: string;
@@ -59,6 +60,7 @@ type ProductOption = {
   price: number;
   costPrice?: number;
   imageUrl?: string;
+  images?: string[];
   link1688?: string;
   links1688?: string[];
   variants?: { name: string; qty: number }[];
@@ -83,6 +85,7 @@ function emptyItem(): ShipmentItem {
     productId: null,
     name: "",
     imageUrl: "",
+    images: [],
     link1688: "",
     links1688: [],
     trackingNumber: "",
@@ -225,6 +228,12 @@ export default function FreightManager({ freightType }: { freightType: FreightTy
               : i.link1688
                 ? [i.link1688]
                 : [],
+            // Older lines only have the single imageUrl — lift it into images[].
+            images: (i.images ?? []).length
+              ? [...i.images]
+              : i.imageUrl
+                ? [i.imageUrl]
+                : [],
           }))
         : [emptyItem()]
     );
@@ -303,7 +312,8 @@ export default function FreightManager({ freightType }: { freightType: FreightTy
       category: p.category,
       costPrice: p.costPrice ?? 0,
       sellingPrice: p.price,
-      imageUrl: p.imageUrl || "",
+      imageUrl: (p.images ?? [])[0] || p.imageUrl || "",
+      images: (p.images ?? []).length ? [...p.images!] : p.imageUrl ? [p.imageUrl] : [],
       // Carry the product's saved supplier links into this shipment line.
       link1688: (p.links1688 ?? [])[0] || p.link1688 || "",
       links1688: (p.links1688 ?? []).length
@@ -316,16 +326,33 @@ export default function FreightManager({ freightType }: { freightType: FreightTy
     setPickerOpenAt(null);
   }
 
-  async function uploadImage(i: number, file: File) {
+  // Upload one or several photos and append them to the line's gallery. The
+  // first photo is the primary one (kept mirrored in imageUrl).
+  async function uploadImages(i: number, files: FileList) {
     setUploadingRow(i);
     setError(null);
     try {
-      const data = new FormData();
-      data.append("file", file);
-      const res = await fetch("/api/upload", { method: "POST", body: data });
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.error ?? "Upload failed");
-      setItem(i, { imageUrl: body.url });
+      const uploaded: string[] = [];
+      for (const file of Array.from(files)) {
+        const data = new FormData();
+        data.append("file", file);
+        // eslint-disable-next-line no-await-in-loop
+        const res = await fetch("/api/upload", { method: "POST", body: data });
+        // eslint-disable-next-line no-await-in-loop
+        const body = await res.json();
+        if (!res.ok) throw new Error(body.error ?? "Upload failed");
+        uploaded.push(body.url);
+      }
+      if (uploaded.length) {
+        setItems((rows) =>
+          rows.map((r, idx) => {
+            if (idx !== i) return r;
+            const current = (r.images ?? []).length ? r.images : r.imageUrl ? [r.imageUrl] : [];
+            const images = [...new Set([...current, ...uploaded])];
+            return { ...r, images, imageUrl: images[0] ?? "" };
+          })
+        );
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed");
     } finally {
@@ -333,6 +360,17 @@ export default function FreightManager({ freightType }: { freightType: FreightTy
       const ref = fileRefs.current[i];
       if (ref) ref.value = "";
     }
+  }
+
+  // Remove one photo from a line; keep imageUrl pointing at the new first photo.
+  function removeItemImage(i: number, imgIdx: number) {
+    setItems((rows) =>
+      rows.map((r, idx) => {
+        if (idx !== i) return r;
+        const images = (r.images ?? []).filter((_, j) => j !== imgIdx);
+        return { ...r, images, imageUrl: images[0] ?? "" };
+      })
+    );
   }
 
   const editTotalQty = items.reduce((s, i) => s + (Number(i.qty) || 0), 0);
@@ -700,12 +738,26 @@ export default function FreightManager({ freightType }: { freightType: FreightTy
                               <tr key={idx} className="border-t border-line/60">
                                 <td className="py-2.5">
                                   <div className="flex items-center gap-2.5">
-                                    {item.imageUrl ? (
-                                      // eslint-disable-next-line @next/next/no-img-element
-                                      <img src={item.imageUrl} alt="" className="h-9 w-9 rounded-lg border border-line object-cover" />
-                                    ) : (
-                                      <div className="h-9 w-9 rounded-lg bg-surface" />
-                                    )}
+                                    {(() => {
+                                      const imgs = (item.images ?? []).length
+                                        ? item.images
+                                        : item.imageUrl
+                                          ? [item.imageUrl]
+                                          : [];
+                                      return imgs[0] ? (
+                                        <div className="relative">
+                                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                                          <img src={imgs[0]} alt="" className="h-9 w-9 rounded-lg border border-line object-cover" />
+                                          {imgs.length > 1 && (
+                                            <span className="absolute -bottom-1 -right-1 rounded-full bg-foreground px-1 text-[8px] font-bold text-background">
+                                              +{imgs.length - 1}
+                                            </span>
+                                          )}
+                                        </div>
+                                      ) : (
+                                        <div className="h-9 w-9 rounded-lg bg-surface" />
+                                      );
+                                    })()}
                                     <div>
                                       <p className="font-medium">{item.name}</p>
                                       {item.link1688 && (
@@ -872,26 +924,43 @@ export default function FreightManager({ freightType }: { freightType: FreightTy
                         </p>
                       )}
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
-                        <div className="relative flex shrink-0 items-start gap-2 sm:block">
-                          {item.imageUrl ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={item.imageUrl} alt="" className="h-16 w-16 rounded-xl border border-line object-cover" />
-                          ) : (
-                            <div className="flex h-16 w-16 items-center justify-center rounded-xl border border-dashed border-line text-muted">
-                              <UploadIcon className="h-5 w-5" />
+                        <div className="flex shrink-0 flex-wrap gap-2 sm:w-16">
+                          {(item.images ?? []).map((url, imgIdx) => (
+                            <div key={imgIdx} className="relative">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={url} alt="" className="h-16 w-16 rounded-xl border border-line object-cover" />
+                              {imgIdx === 0 && (
+                                <span className="absolute left-0 top-0 rounded-br-lg rounded-tl-xl bg-gold-bright px-1 text-[8px] font-bold uppercase tracking-wide">
+                                  Main
+                                </span>
+                              )}
+                              {!locked && (
+                                <button
+                                  type="button"
+                                  onClick={() => removeItemImage(i, imgIdx)}
+                                  aria-label="Remove photo"
+                                  className="absolute -right-1.5 -top-1.5 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full bg-red-500 text-white shadow"
+                                >
+                                  <XIcon className="h-3 w-3" />
+                                </button>
+                              )}
                             </div>
-                          )}
+                          ))}
                           {!locked && (
-                            <label className="mt-1 block cursor-pointer text-center text-[10px] font-semibold uppercase text-gold hover:underline">
-                              {uploadingRow === i ? "…" : "Photo"}
+                            <label className="flex h-16 w-16 cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-line text-muted transition-colors duration-200 hover:border-gold hover:text-gold">
+                              <UploadIcon className="h-5 w-5" />
+                              <span className="mt-0.5 text-[9px] font-semibold uppercase">
+                                {uploadingRow === i ? "…" : (item.images ?? []).length ? "Add" : "Photos"}
+                              </span>
                               <input
                                 ref={(el) => {
                                   fileRefs.current[i] = el;
                                 }}
                                 type="file"
                                 accept="image/*"
+                                multiple
                                 className="hidden"
-                                onChange={(e) => e.target.files?.[0] && uploadImage(i, e.target.files[0])}
+                                onChange={(e) => e.target.files?.length && uploadImages(i, e.target.files)}
                               />
                             </label>
                           )}

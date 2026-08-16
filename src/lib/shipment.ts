@@ -9,6 +9,7 @@ export type ShipmentItemInput = {
   productId?: string | null;
   name?: unknown;
   imageUrl?: unknown;
+  images?: unknown;
   link1688?: unknown;
   links1688?: unknown;
   trackingNumber?: unknown;
@@ -52,6 +53,13 @@ export function shapeShipmentPayload(body: Record<string, unknown>) {
       const pid = String(i.productId ?? "");
       const variants = cleanVariants(i.variants);
       const links1688 = cleanLinks(i.links1688, i.link1688);
+      // Clean the photo list: trim, drop blanks, de-duplicate. Fall back to the
+      // legacy single imageUrl so older payloads keep working.
+      const rawImages = Array.isArray(i.images)
+        ? i.images.map((x) => String(x ?? "").trim()).filter(Boolean)
+        : [];
+      const single = String(i.imageUrl ?? "").trim();
+      const images = [...new Set(rawImages.length ? rawImages : single ? [single] : [])];
       // With variants, the line qty is their sum; otherwise the typed qty.
       const qty =
         variants.length > 0
@@ -63,7 +71,8 @@ export function shapeShipmentPayload(body: Record<string, unknown>) {
       return {
         productId: OBJECT_ID.test(pid) ? pid : null,
         name: String(i.name ?? "").trim(),
-        imageUrl: String(i.imageUrl ?? "").trim(),
+        imageUrl: images[0] ?? "",
+        images,
         link1688: links1688[0] ?? "",
         links1688,
         trackingNumber: String(i.trackingNumber ?? "").trim(),

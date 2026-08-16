@@ -42,6 +42,15 @@ export async function receiveItem(shipment: ShipmentDocument, item: ShipmentItem
 
   let product = item.productId ? await Product.findById(item.productId) : null;
 
+  // All photos captured on this line (fall back to the legacy single image).
+  const lineImages = [
+    ...new Set(
+      ((item.images ?? []).length ? item.images : item.imageUrl ? [item.imageUrl] : [])
+        .map((u) => String(u ?? "").trim())
+        .filter(Boolean)
+    ),
+  ];
+
   if (!product) {
     const category = PRODUCT_CATEGORIES.includes(
       item.category as (typeof PRODUCT_CATEGORIES)[number]
@@ -65,8 +74,8 @@ export async function receiveItem(shipment: ShipmentDocument, item: ShipmentItem
       description: item.description || "",
       link1688: (item.links1688 ?? [])[0] || item.link1688 || "",
       links1688: [...(item.links1688 ?? [])],
-      imageUrl: item.imageUrl || "",
-      images: item.imageUrl ? [item.imageUrl] : [],
+      imageUrl: lineImages[0] || "",
+      images: lineImages,
       variants: (item.variants ?? []).map((v) => ({ name: v.name, qty: Number(v.qty) || 0 })),
       minStock: item.minStock ?? 5,
       stockQty: 0,
@@ -94,9 +103,17 @@ export async function receiveItem(shipment: ShipmentDocument, item: ShipmentItem
       product.set("links1688", merged);
       product.link1688 = merged[0] ?? "";
     }
-    if (!product.imageUrl && item.imageUrl) {
-      product.imageUrl = item.imageUrl;
-      if (!product.images?.length) product.images = [item.imageUrl];
+    // Merge the line's photos into the product's gallery (add new, keep
+    // existing, de-duplicate) — same approach as the supplier links above.
+    if (lineImages.length > 0) {
+      const existingImages = product.images?.length
+        ? [...product.images]
+        : product.imageUrl
+          ? [product.imageUrl]
+          : [];
+      const mergedImages = [...new Set([...existingImages, ...lineImages])];
+      product.set("images", mergedImages);
+      if (!product.imageUrl) product.imageUrl = mergedImages[0] ?? "";
     }
     // Roll this line's colour counts onto the product's breakdown.
     if ((item.variants ?? []).length > 0) {
