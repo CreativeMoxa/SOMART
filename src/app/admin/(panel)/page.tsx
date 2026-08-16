@@ -69,6 +69,12 @@ export default async function AdminDashboardPage() {
           accent={m.netProfit > 0}
           href="/admin/reports?tab=profit&range=month"
         />
+        <StatCard
+          label="Annual Net Profit"
+          value={money(m.yearNetProfit)}
+          accent={m.yearNetProfit > 0}
+          href="/admin/reports?tab=profit&range=year"
+        />
         <StatCard label="Inventory Value" value={money(m.inventoryValue)} href="/admin/products" />
         <StatCard label="Unpaid Invoices" value={String(m.unpaidInvoices)} href="/admin/invoices?status=unpaid" />
         <StatCard label="Partial Invoices" value={String(m.partialInvoices)} accent href="/admin/invoices?status=partial" />

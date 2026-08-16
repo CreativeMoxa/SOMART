@@ -33,7 +33,7 @@ export async function getDashboardMetrics() {
   const last30 = new Date(now.getTime() - 30 * day);
   const last365 = new Date(now.getTime() - 365 * day);
 
-  const [sales, monthExpensesAgg, products, totalCustomers, unpaidInvoices, partialInvoices, webViews, lastMonthAgg] =
+  const [sales, monthExpensesAgg, yearExpensesAgg, products, totalCustomers, unpaidInvoices, partialInvoices, webViews, lastMonthAgg] =
     await Promise.all([
       Sale.find({
         createdAt: { $gte: startOfYear },
@@ -44,6 +44,11 @@ export async function getDashboardMetrics() {
         .lean(),
       Expense.aggregate([
         { $match: { date: { $gte: dayKey(startOfMonth) } } },
+        { $group: { _id: null, total: { $sum: "$amount" } } },
+      ]),
+      // Expenses since Jan 1 (date is a "YYYY-MM-DD" string; lexical compare = chronological).
+      Expense.aggregate([
+        { $match: { date: { $gte: dayKey(startOfYear) } } },
         { $group: { _id: null, total: { $sum: "$amount" } } },
       ]),
       Product.find()
@@ -160,6 +165,7 @@ export async function getDashboardMetrics() {
   }
 
   const monthExpenses = monthExpensesAgg[0]?.total ?? 0;
+  const yearExpenses = yearExpensesAgg[0]?.total ?? 0;
   const inventoryValue = products.reduce(
     (sum, p) => sum + (p.costPrice > 0 ? p.costPrice : p.price) * (p.stockQty ?? 0),
     0
@@ -196,7 +202,9 @@ export async function getDashboardMetrics() {
     lastMonthProfit,
     yearProfit,
     monthExpenses,
+    yearExpenses,
     netProfit: monthProfit - monthExpenses,
+    yearNetProfit: yearProfit - yearExpenses,
     yearRevenue,
     inventoryValue,
     totalOrders: await Sale.countDocuments({ status: { $ne: "pending" } }),
