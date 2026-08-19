@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { computeProfit } from "@/lib/profit";
 import { MOVEMENT_LABELS, type MovementType } from "@/lib/inventoryMovement";
 import { ExportButtons } from "@/components/admin/TableTools";
@@ -166,13 +166,31 @@ export default function InventoryManager() {
   const exportList = selectedVisible.length > 0 ? selectedVisible : visible;
   const allVisibleSelected = visible.length > 0 && visible.every((p) => selectedIds.has(p._id));
 
-  function toggleSelect(id: string) {
+  // Row index of the last ticked checkbox — the anchor for Shift-click ranges.
+  const lastIndexRef = useRef<number | null>(null);
+
+  // Handle a row checkbox click. Plain click toggles one; Shift+click selects
+  // (or clears) the whole range between the previous click and this one.
+  function handleRowCheck(index: number, id: string, shift: boolean) {
     setSelectedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      const targetState = !prev.has(id); // what a normal toggle would set this row to
+      if (shift && lastIndexRef.current !== null) {
+        const [a, b] = [lastIndexRef.current, index].sort((x, y) => x - y);
+        for (let k = a; k <= b; k++) {
+          const pid = visible[k]?._id;
+          if (!pid) continue;
+          if (targetState) next.add(pid);
+          else next.delete(pid);
+        }
+      } else if (targetState) {
+        next.add(id);
+      } else {
+        next.delete(id);
+      }
       return next;
     });
+    lastIndexRef.current = index;
   }
   function toggleSelectAll() {
     setSelectedIds((prev) => {
@@ -183,6 +201,7 @@ export default function InventoryManager() {
   }
   function clearSelection() {
     setSelectedIds(new Set());
+    lastIndexRef.current = null;
   }
 
   // ── Actions ──────────────────────────────────────────────────────────────
@@ -334,7 +353,7 @@ export default function InventoryManager() {
                 </button>
               </>
             ) : (
-              "Tick products to export only those, or export all."
+              "Tick products to export only those (Shift-click to select a range), or export all."
             )}
           </p>
         </div>
@@ -429,7 +448,7 @@ export default function InventoryManager() {
               </tr>
             </thead>
             <tbody>
-              {visible.map((p) => {
+              {visible.map((p, rowIndex) => {
                 const stock = p.stockQty ?? 0;
                 const st = statusOf(p);
                 const { profitAmount, marginPercent } = computeProfit(p.price, p.costPrice ?? 0);
@@ -441,7 +460,7 @@ export default function InventoryManager() {
                         type="checkbox"
                         aria-label={`Select ${p.name}`}
                         checked={isSelected}
-                        onChange={() => toggleSelect(p._id)}
+                        onChange={(e) => handleRowCheck(rowIndex, p._id, (e.nativeEvent as MouseEvent).shiftKey)}
                         className="h-4 w-4 cursor-pointer accent-gold"
                       />
                     </td>
