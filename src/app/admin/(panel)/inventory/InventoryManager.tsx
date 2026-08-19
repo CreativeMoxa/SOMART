@@ -100,6 +100,8 @@ export default function InventoryManager() {
   const [historyOf, setHistoryOf] = useState<Product | null>(null);
   const [history, setHistory] = useState<Movement[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  // Products ticked for export. Empty = export everything currently shown.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const load = useCallback(async () => {
     try {
@@ -158,6 +160,31 @@ export default function InventoryManager() {
     return true;
   });
 
+  // Selection → which products the export uses. When some are ticked, export
+  // only those; otherwise fall back to everything currently shown.
+  const selectedVisible = visible.filter((p) => selectedIds.has(p._id));
+  const exportList = selectedVisible.length > 0 ? selectedVisible : visible;
+  const allVisibleSelected = visible.length > 0 && visible.every((p) => selectedIds.has(p._id));
+
+  function toggleSelect(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+  function toggleSelectAll() {
+    setSelectedIds((prev) => {
+      // If every shown product is already ticked, clear them; otherwise tick all shown.
+      if (visible.length > 0 && visible.every((p) => prev.has(p._id))) return new Set();
+      return new Set(visible.map((p) => p._id));
+    });
+  }
+  function clearSelection() {
+    setSelectedIds(new Set());
+  }
+
   // ── Actions ──────────────────────────────────────────────────────────────
   function openAction(key: ActionKey, product: Product) {
     setAction({ key, product });
@@ -214,7 +241,7 @@ export default function InventoryManager() {
 
   // ── Export ───────────────────────────────────────────────────────────────
   function exportRows() {
-    return visible.map((p) => {
+    return exportList.map((p) => {
       const { profitAmount, markupPercent, marginPercent } = computeProfit(p.price, p.costPrice ?? 0);
       const stock = p.stockQty ?? 0;
       return {
@@ -242,17 +269,26 @@ export default function InventoryManager() {
     try {
       const res = await fetch("/api/settings");
       const business = res.ok ? await res.json() : { companyName: "SOMART" };
+      // KPIs reflect exactly what's being exported (the selection, or all shown).
+      const listStock = exportList.reduce((s, p) => s + (p.stockQty ?? 0), 0);
+      const listValue = exportList.reduce((s, p) => s + (p.costPrice || p.price) * (p.stockQty ?? 0), 0);
+      const listProfit = exportList.reduce(
+        (s, p) => s + computeProfit(p.price, p.costPrice ?? 0).profitAmount * (p.stockQty ?? 0),
+        0
+      );
+      const isSelection = selectedVisible.length > 0;
       const { exportPdf } = await import("@/lib/export");
       await exportPdf({
-        filename: "store-inventory",
+        filename: isSelection ? "store-inventory-selected" : "store-inventory",
         title: "Store Inventory Report",
+        subtitle: isSelection ? `${exportList.length} selected product${exportList.length === 1 ? "" : "s"}` : undefined,
         business,
         landscape: true,
         kpis: [
-          ["Products", String(products.length)],
-          ["Total Stock", String(totalStock)],
-          ["Inventory Value", money(inventoryValue)],
-          ["Expected Profit", money(expectedProfit)],
+          ["Products", String(exportList.length)],
+          ["Total Stock", String(listStock)],
+          ["Inventory Value", money(listValue)],
+          ["Expected Profit", money(listProfit)],
         ],
         columns: [
           { header: "Product", key: "Product" },
@@ -287,7 +323,21 @@ export default function InventoryManager() {
           <h1 className="mt-1 text-3xl font-semibold">Inventory</h1>
           <p className="mt-1 text-sm text-muted">{products.length} products in the shop</p>
         </div>
-        <ExportButtons onExcel={handleExcel} onPdf={handlePdf} busy={loading} />
+        <div className="flex flex-col items-end gap-1.5">
+          <ExportButtons onExcel={handleExcel} onPdf={handlePdf} busy={loading} />
+          <p className="text-[11px] text-muted">
+            {selectedVisible.length > 0 ? (
+              <>
+                Exporting <span className="font-bold text-gold">{selectedVisible.length}</span> selected ·{" "}
+                <button type="button" onClick={clearSelection} className="cursor-pointer font-semibold text-gold hover:underline">
+                  Clear
+                </button>
+              </>
+            ) : (
+              "Tick products to export only those, or export all."
+            )}
+          </p>
+        </div>
       </div>
 
       {/* Dashboard */}
@@ -357,6 +407,15 @@ export default function InventoryManager() {
           <table className="w-full min-w-[1100px] text-left text-sm">
             <thead className="border-b border-line bg-surface text-xs uppercase tracking-wider text-muted">
               <tr>
+                <th className="px-4 py-3 font-semibold">
+                  <input
+                    type="checkbox"
+                    aria-label="Select all products"
+                    checked={allVisibleSelected}
+                    onChange={toggleSelectAll}
+                    className="h-4 w-4 cursor-pointer accent-gold"
+                  />
+                </th>
                 <th className="px-4 py-3 font-semibold">Product</th>
                 <th className="px-4 py-3 font-semibold">Stock</th>
                 <th className="px-4 py-3 font-semibold">Status</th>
@@ -374,8 +433,18 @@ export default function InventoryManager() {
                 const stock = p.stockQty ?? 0;
                 const st = statusOf(p);
                 const { profitAmount, marginPercent } = computeProfit(p.price, p.costPrice ?? 0);
+                const isSelected = selectedIds.has(p._id);
                 return (
-                  <tr key={p._id} className="border-b border-line last:border-0">
+                  <tr key={p._id} className={`border-b border-line last:border-0 ${isSelected ? "bg-gold-bright/5" : ""}`}>
+                    <td className="px-4 py-3">
+                      <input
+                        type="checkbox"
+                        aria-label={`Select ${p.name}`}
+                        checked={isSelected}
+                        onChange={() => toggleSelect(p._id)}
+                        className="h-4 w-4 cursor-pointer accent-gold"
+                      />
+                    </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
                         {p.imageUrl ? (
@@ -470,7 +539,7 @@ export default function InventoryManager() {
               })}
               {visible.length === 0 && (
                 <tr>
-                  <td colSpan={10} className="px-4 py-12 text-center text-muted">
+                  <td colSpan={11} className="px-4 py-12 text-center text-muted">
                     {products.length === 0 ? "No products in inventory yet." : "No products match this filter."}
                   </td>
                 </tr>
