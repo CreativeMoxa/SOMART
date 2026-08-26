@@ -22,6 +22,12 @@ export default async function AdminPanelLayout({
   const denied = moduleKey !== null && !canAccess(user.role, moduleKey);
   const home = linksForRole(user.role)[0]?.href ?? "/admin/login";
 
+  // Land users straight on their first accessible module instead of an
+  // "Access denied" wall — e.g. a Cashier signing in hits /admin (Dashboard,
+  // which they can't open) and is sent to Invoices. `home` is always a module
+  // the role can access, so this never loops.
+  if (denied && home !== "/admin/login") redirect(home);
+
   return (
     <div className="mx-auto flex w-full max-w-[1400px] gap-6 px-4 py-8 sm:px-6">
       <AdminSidebar role={user.role} />

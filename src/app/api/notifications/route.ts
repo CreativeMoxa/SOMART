@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { Shipment } from "@/models/Shipment";
 import { Product } from "@/models/Product";
+import { Todo } from "@/models/Todo";
 import { isAdmin } from "@/lib/auth";
 
 // Computed alerts (arriving soon / delayed / recently received / low / out of
@@ -23,12 +24,17 @@ export async function GET() {
     const weekAgo = new Date();
     weekAgo.setDate(weekAgo.getDate() - 7);
 
-    const [pending, products] = await Promise.all([
+    const [pending, products, todoDocs] = await Promise.all([
       Shipment.find({ status: { $ne: "received" } })
         .select("number name freightType status expectedArrival")
         .lean(),
       Product.find()
         .select("name slug stockQty minStock")
+        .lean(),
+      // Open to-do list items (not archived, not fully completed).
+      Todo.find({ archived: { $ne: true } })
+        .select("number title dueDate items")
+        .sort({ dueDate: 1, createdAt: -1 })
         .lean(),
     ]);
 
@@ -52,6 +58,17 @@ export async function GET() {
     );
     const outOfStock = products.filter((p) => (p.stockQty ?? 0) === 0);
 
+    // A to-do is "done" only when it has items and every item is finished.
+    const todos = todoDocs
+      .filter((t) => !((t.items?.length ?? 0) > 0 && t.items.every((i) => i.done)))
+      .map((t) => ({
+        _id: String(t._id),
+        number: t.number,
+        title: t.title,
+        dueDate: t.dueDate || "",
+        overdue: Boolean(t.dueDate && t.dueDate < today),
+      }));
+
     return NextResponse.json({
       counts: {
         arrivingSoon: arrivingSoon.length,
@@ -59,17 +76,20 @@ export async function GET() {
         recentlyReceived: recentlyReceived.length,
         lowStock: lowStock.length,
         outOfStock: outOfStock.length,
+        todos: todos.length,
         total:
           arrivingSoon.length +
           delayed.length +
           lowStock.length +
-          outOfStock.length,
+          outOfStock.length +
+          todos.length,
       },
       arrivingSoon,
       delayed,
       recentlyReceived,
       lowStock: lowStock.slice(0, 20),
       outOfStock: outOfStock.slice(0, 20),
+      todos: todos.slice(0, 20),
     });
   } catch (err) {
     console.error("GET /api/notifications failed:", err);

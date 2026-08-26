@@ -11,6 +11,7 @@ type ShipmentLite = {
   expectedArrival?: string;
 };
 type ProductLite = { _id: string; name: string; slug: string; stockQty?: number };
+type TodoLite = { _id: string; number: string; title: string; dueDate?: string; overdue?: boolean };
 
 type Data = {
   counts: {
@@ -19,6 +20,7 @@ type Data = {
     recentlyReceived: number;
     lowStock: number;
     outOfStock: number;
+    todos: number;
     total: number;
   };
   arrivingSoon: ShipmentLite[];
@@ -26,6 +28,7 @@ type Data = {
   recentlyReceived: ShipmentLite[];
   lowStock: ProductLite[];
   outOfStock: ProductLite[];
+  todos: TodoLite[];
 };
 
 function freightPath(t: "air" | "sea") {
@@ -70,6 +73,16 @@ export default function NotificationsBell() {
             <p className="text-muted">You&apos;re all caught up.</p>
           ) : (
             <>
+              <Section title={`To-Do (${data.counts.todos})`} tone="amber">
+                {(data.todos ?? []).map((t) => (
+                  <Link key={t._id} href="/admin/todos" className="block hover:text-gold">
+                    <span className={t.overdue ? "text-red-500" : ""}>
+                      {t.title}
+                      {t.dueDate ? ` · due ${t.dueDate}${t.overdue ? " (overdue)" : ""}` : ""}
+                    </span>
+                  </Link>
+                ))}
+              </Section>
               <Section title={`Arriving soon (${data.counts.arrivingSoon})`} tone="sky">
                 {data.arrivingSoon.map((s) => (
                   <Link key={s._id} href={freightPath(s.freightType)} className="block hover:text-gold">
