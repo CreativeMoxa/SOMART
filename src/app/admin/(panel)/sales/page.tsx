@@ -7,14 +7,15 @@ export const dynamic = "force-dynamic";
 export default async function AdminSalesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ range?: string; start?: string; end?: string }>;
+  searchParams: Promise<{ range?: string; start?: string; end?: string; product?: string }>;
 }) {
-  const { range, start, end } = await searchParams;
+  const { range, start, end, product } = await searchParams;
   return (
     <SalesManager
       initialRange={range ?? ""}
       initialStart={start ?? ""}
       initialEnd={end ?? ""}
+      initialProduct={product ?? ""}
     />
   );
 }

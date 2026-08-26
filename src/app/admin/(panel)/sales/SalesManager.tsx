@@ -27,7 +27,7 @@ import {
 } from "@/lib/customerType";
 import { useSelection, BulkBar, ExportButtons, checkboxClass } from "@/components/admin/TableTools";
 
-type SaleItem = { name: string; price: number; qty: number };
+type SaleItem = { name: string; price: number; qty: number; productId?: string | null };
 type Sale = {
   _id: string;
   number: string;
@@ -73,10 +73,12 @@ export default function SalesManager({
   initialRange = "",
   initialStart = "",
   initialEnd = "",
+  initialProduct = "",
 }: {
   initialRange?: string;
   initialStart?: string;
   initialEnd?: string;
+  initialProduct?: string;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -89,6 +91,8 @@ export default function SalesManager({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  // When set (from Products → "Sold" link), show every sale of this product.
+  const [productFilter, setProductFilter] = useState(initialProduct);
 
   const customActive = Boolean(customStart || customEnd);
 
@@ -135,12 +139,26 @@ export default function SalesManager({
     (s.paymentMethod ?? "").toLowerCase().includes(q) ||
     s.items.some((i) => i.name.toLowerCase().includes(q));
 
-  const visible = sales.filter(
-    (s) =>
-      (customActive
-        ? inCustomRange(s.createdAt, customStart, customEnd)
-        : inRange(s.createdAt, range)) && matchesQuery(s)
-  );
+  // Product filter: match any line whose productId equals the filter. When
+  // active, show ALL matching sales (all-time) rather than the date window.
+  const hasProduct = (s: Sale) =>
+    s.items.some((i) => i.productId && String(i.productId) === productFilter);
+  const productName = productFilter
+    ? sales.flatMap((s) => s.items).find((i) => i.productId && String(i.productId) === productFilter)?.name ?? ""
+    : "";
+
+  const visible = sales.filter((s) => {
+    if (productFilter) return hasProduct(s) && matchesQuery(s);
+    const inDate = customActive
+      ? inCustomRange(s.createdAt, customStart, customEnd)
+      : inRange(s.createdAt, range);
+    return inDate && matchesQuery(s);
+  });
+
+  function clearProduct() {
+    setProductFilter("");
+    router.replace(pathname, { scroll: false });
+  }
 
   const [open, setOpen] = useState(false);
   const [cart, setCart] = useState<CartRow[]>([{ productId: "", qty: 1 }]);
@@ -397,6 +415,24 @@ export default function SalesManager({
           </button>
         ))}
       </div>
+
+      {/* Product filter banner (from Products → "Sold" link) */}
+      {productFilter && (
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gold/40 bg-gold-bright/10 px-4 py-3 text-sm">
+          <span>
+            Showing all sales of{" "}
+            <span className="font-bold text-gold">{productName || "this product"}</span>{" "}
+            <span className="text-muted">({visible.length})</span>
+          </span>
+          <button
+            type="button"
+            onClick={clearProduct}
+            className="cursor-pointer rounded-full border border-line px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-muted transition-colors duration-200 hover:border-gold hover:text-gold"
+          >
+            Clear filter
+          </button>
+        </div>
+      )}
 
       {/* Text search */}
       <div className="mt-4">

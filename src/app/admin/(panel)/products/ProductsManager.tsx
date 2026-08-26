@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type { ProductJSON } from "@/components/ProductCard";
 import { useSelection, BulkBar, checkboxClass } from "@/components/admin/TableTools";
@@ -566,7 +567,19 @@ export default function ProductsManager({ initialFilter = "" }: { initialFilter?
                       {product.stockQty ?? 0}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-muted">{product.soldCount ?? 0}</td>
+                  <td className="px-4 py-3">
+                    {(product.soldCount ?? 0) > 0 ? (
+                      <Link
+                        href={`/admin/sales?product=${product._id}`}
+                        title={`View every sale of ${product.name}`}
+                        className="cursor-pointer font-semibold text-gold hover:underline"
+                      >
+                        {product.soldCount}
+                      </Link>
+                    ) : (
+                      <span className="text-muted">0</span>
+                    )}
+                  </td>
                   <td className="px-4 py-3">
                     <button
                       type="button"
