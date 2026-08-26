@@ -88,7 +88,7 @@ export default async function AdminDashboardPage() {
         <StatCard label="Low Stock Items" value={String(m.lowStock.length)} href="/admin/products?filter=low-stock" />
       </div>
 
-      <div className="mt-6 grid gap-4 lg:grid-cols-2">
+      <div className="mt-6 grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
         <div className="rounded-2xl border border-line bg-surface p-5">
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-lg font-semibold">Sales by Day</h2>
