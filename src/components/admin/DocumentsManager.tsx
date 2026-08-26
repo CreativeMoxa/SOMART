@@ -24,7 +24,7 @@ import { DEFAULT_TEMPLATES, renderTemplate } from "@/lib/templates";
 import { useSelection, BulkBar, ExportButtons, checkboxClass } from "@/components/admin/TableTools";
 import type { PdfBusiness } from "@/lib/pdf";
 
-type BusinessSettings = PdfBusiness & { templateWhatsappDocument?: string };
+type BusinessSettings = PdfBusiness & { templateWhatsappDocument?: string; currency?: string; currencySymbol?: string };
 
 export type DocKind = "invoice" | "quotation";
 
@@ -200,6 +200,7 @@ export default function DocumentsManager({
   const [business, setBusiness] = useState<BusinessSettings | null>(null);
   const { selected, toggle, toggleAll, clear } = useSelection();
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [query, setQuery] = useState("");
 
   useEffect(() => {
     fetch("/api/settings")
@@ -243,7 +244,21 @@ export default function DocumentsManager({
   }, []);
 
   const byCustomer = customerFilter ? docs.filter((d) => d.customerId === customerFilter) : docs;
-  const visible = statusFilter ? byCustomer.filter((d) => d.status === statusFilter) : byCustomer;
+  const byStatus = statusFilter ? byCustomer.filter((d) => d.status === statusFilter) : byCustomer;
+  // Free-text search: number, customer, city (address), product names, payment.
+  const q = query.trim().toLowerCase();
+  const visible = !q
+    ? byStatus
+    : byStatus.filter(
+        (d) =>
+          d.number.toLowerCase().includes(q) ||
+          d.customerName.toLowerCase().includes(q) ||
+          (d.customerAddress ?? "").toLowerCase().includes(q) ||
+          (d.paymentMethod ?? "").toLowerCase().includes(q) ||
+          d.items.some((i) => i.name.toLowerCase().includes(q))
+      );
+  // Global currency (same for every document) — shown as a column per request.
+  const currencyCode = (business?.currency || "USD").toUpperCase();
   const customerFilterName = customerFilter
     ? docs.find((d) => d.customerId === customerFilter)?.customerName ?? "this customer"
     : "";
@@ -403,7 +418,9 @@ export default function DocumentsManager({
       Number: d.number,
       Date: new Date(d.createdAt).toLocaleDateString("en-US"),
       Customer: d.customerName,
+      City: d.customerAddress ?? "",
       Phone: d.customerPhone,
+      Currency: (business?.currency || "USD").toUpperCase(),
       "Marketing Source": SOURCE_LABELS[d.source as MarketingSource] ?? "Walk-in",
       "Customer Type": CUSTOMER_TYPE_LABELS[d.customerType as CustomerType] ?? "Retail",
       Status: d.status,
@@ -674,6 +691,18 @@ export default function DocumentsManager({
         ))}
       </div>
 
+      {/* Free-text search */}
+      <div className="mt-4">
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder={`Search by ${cfg.singular.toLowerCase()} #, customer, city, product or payment…`}
+          aria-label={`Search ${cfg.title.toLowerCase()}`}
+          className="w-full max-w-md rounded-full border border-line bg-background px-5 py-2.5 text-sm transition-colors duration-200 focus:border-gold focus:outline-2 focus:outline-offset-1 focus:outline-gold/40"
+        />
+      </div>
+
       {customerFilter && (
         <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-gold/40 bg-gold/10 px-4 py-2.5 text-sm">
           <span className="font-semibold text-gold">
@@ -725,6 +754,8 @@ export default function DocumentsManager({
                 <th className="w-10 px-2 py-3 font-semibold">#</th>
                 <th className="px-4 py-3 font-semibold">Number</th>
                 <th className="px-4 py-3 font-semibold">Customer</th>
+                <th className="px-4 py-3 font-semibold">City</th>
+                <th className="px-4 py-3 font-semibold">Currency</th>
                 <th className="px-4 py-3 font-semibold">Source</th>
                 <th className="px-4 py-3 font-semibold">Total</th>
                 <th className="px-4 py-3 font-semibold">Status</th>
@@ -765,6 +796,8 @@ export default function DocumentsManager({
                     <p>{doc.customerName}</p>
                     <p className="text-xs text-muted">{doc.customerPhone}</p>
                   </td>
+                  <td className="px-4 py-3 text-muted">{doc.customerAddress || "—"}</td>
+                  <td className="px-4 py-3 text-muted">{currencyCode}</td>
                   <td className="px-4 py-3">
                     <span className="rounded-full bg-surface px-2.5 py-1 text-xs font-semibold text-muted">
                       {SOURCE_LABELS[doc.source as MarketingSource] ?? "Walk-in"}
@@ -855,7 +888,7 @@ export default function DocumentsManager({
               ))}
               {visible.length === 0 && (
                 <tr>
-                  <td colSpan={kind === "invoice" ? 10 : 9} className="px-4 py-12 text-center text-muted">
+                  <td colSpan={kind === "invoice" ? 12 : 11} className="px-4 py-12 text-center text-muted">
                     No {cfg.title.toLowerCase()} yet.
                   </td>
                 </tr>

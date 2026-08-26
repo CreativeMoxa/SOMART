@@ -32,6 +32,7 @@ type Sale = {
   _id: string;
   number: string;
   customerName: string;
+  customerId?: string | null;
   items: SaleItem[];
   subtotal: number;
   discount: number;
@@ -52,7 +53,7 @@ type ProductOption = {
   discountPercent?: number;
   stockQty?: number;
 };
-type CustomerOption = { _id: string; name: string; phone: string };
+type CustomerOption = { _id: string; name: string; phone: string; address?: string };
 
 type CartRow = { productId: string; qty: number };
 
@@ -87,6 +88,7 @@ export default function SalesManager({
   const [customers, setCustomers] = useState<CustomerOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
 
   const customActive = Boolean(customStart || customEnd);
 
@@ -120,10 +122,24 @@ export default function SalesManager({
     pushUrl({ start, end });
   }
 
-  const visible = sales.filter((s) =>
-    customActive
-      ? inCustomRange(s.createdAt, customStart, customEnd)
-      : inRange(s.createdAt, range)
+  // City comes from the linked customer's address (how the app stores city).
+  const cityById = new Map(customers.map((c) => [c._id, (c.address ?? "").trim()]));
+  const cityOf = (s: Sale) => (s.customerId ? cityById.get(s.customerId) ?? "" : "");
+
+  const q = query.trim().toLowerCase();
+  const matchesQuery = (s: Sale) =>
+    !q ||
+    s.number.toLowerCase().includes(q) ||
+    s.customerName.toLowerCase().includes(q) ||
+    cityOf(s).toLowerCase().includes(q) ||
+    (s.paymentMethod ?? "").toLowerCase().includes(q) ||
+    s.items.some((i) => i.name.toLowerCase().includes(q));
+
+  const visible = sales.filter(
+    (s) =>
+      (customActive
+        ? inCustomRange(s.createdAt, customStart, customEnd)
+        : inRange(s.createdAt, range)) && matchesQuery(s)
   );
 
   const [open, setOpen] = useState(false);
@@ -228,6 +244,7 @@ export default function SalesManager({
         timeStyle: "short",
       }),
       Customer: s.customerName,
+      City: cityOf(s),
       "Marketing Source": SOURCE_LABELS[s.source as MarketingSource] ?? "Walk-in",
       "Customer Type": CUSTOMER_TYPE_LABELS[s.customerType as CustomerType] ?? "Retail",
       Status: s.status ?? "completed",
@@ -381,6 +398,18 @@ export default function SalesManager({
         ))}
       </div>
 
+      {/* Text search */}
+      <div className="mt-4">
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search by sale #, customer, city, product or payment…"
+          aria-label="Search sales"
+          className="w-full max-w-md rounded-full border border-line bg-background px-5 py-2.5 text-sm transition-colors duration-200 focus:border-gold focus:outline-2 focus:outline-offset-1 focus:outline-gold/40"
+        />
+      </div>
+
       {/* Custom start / end date range */}
       <div className="mt-3 flex flex-wrap items-end gap-3 rounded-2xl border border-line p-3">
         <div>
@@ -457,6 +486,7 @@ export default function SalesManager({
                 <th className="w-10 px-2 py-3 font-semibold">#</th>
                 <th className="px-4 py-3 font-semibold">Sale</th>
                 <th className="px-4 py-3 font-semibold">Customer</th>
+                <th className="px-4 py-3 font-semibold">City</th>
                 <th className="px-4 py-3 font-semibold">Type</th>
                 <th className="px-4 py-3 font-semibold">Status</th>
                 <th className="px-4 py-3 font-semibold">Items</th>
@@ -499,6 +529,7 @@ export default function SalesManager({
                       <p className="text-xs text-gold">via invoice</p>
                     )}
                   </td>
+                  <td className="px-4 py-3 text-muted">{cityOf(sale) || "—"}</td>
                   <td className="px-4 py-3">
                     <span className="rounded-full bg-surface px-2.5 py-1 text-xs font-semibold text-muted">
                       {SOURCE_LABELS[sale.source as MarketingSource] ?? "Walk-in"}
@@ -539,7 +570,7 @@ export default function SalesManager({
               ))}
               {visible.length === 0 && (
                 <tr>
-                  <td colSpan={11} className="px-4 py-12 text-center text-muted">
+                  <td colSpan={12} className="px-4 py-12 text-center text-muted">
                     {sales.length === 0
                       ? "No sales yet — record your first sale."
                       : `No sales in ${
