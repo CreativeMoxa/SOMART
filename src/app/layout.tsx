@@ -41,8 +41,15 @@ export const metadata: Metadata = {
       "max-video-preview": -1,
     },
   },
-  // Favicon / touch icon come from src/app/icon.png and src/app/apple-icon.png
-  // (Next.js file-based metadata). No `icons` field needed here.
+  // Favicon / touch icons at STABLE public URLs (no per-deploy hash) so Google
+  // keeps a single, unchanging favicon reference. Served from /public.
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icon.png", type: "image/png", sizes: "512x512" },
+    ],
+    apple: { url: "/apple-icon.png", sizes: "180x180" },
+  },
   openGraph: {
     type: "website",
     siteName: SITE_NAME,
