@@ -17,12 +17,13 @@ export async function GET(req: NextRequest) {
   }
   try {
     await connectDB();
-    const limit = Math.min(5000, Number(req.nextUrl.searchParams.get("limit")) || 100);
-    const sales = await Sale.find()
-      .sort({ createdAt: -1 })
-      .limit(limit)
-      .batchSize(limit)
-      .lean();
+    // `limit=all` returns the full history (the Sales screen filters client-side,
+    // so it needs every record); otherwise a bounded page (default 100).
+    const limitParam = req.nextUrl.searchParams.get("limit");
+    const limit = limitParam === "all" ? 0 : Math.min(50000, Number(limitParam) || 100);
+    const q = Sale.find().sort({ createdAt: -1 });
+    if (limit > 0) q.limit(limit).batchSize(limit);
+    const sales = await q.lean();
     return NextResponse.json(sales);
   } catch (err) {
     console.error("GET /api/sales failed:", err);

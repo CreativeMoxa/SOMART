@@ -175,7 +175,7 @@ export default function SalesManager({
   const load = useCallback(async () => {
     try {
       const [salesRes, productsRes, customersRes] = await Promise.all([
-        fetch("/api/sales"),
+        fetch("/api/sales?limit=all"),
         fetch("/api/products?slim=1"),
         fetch("/api/customers"),
       ]);
