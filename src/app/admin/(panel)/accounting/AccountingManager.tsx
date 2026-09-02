@@ -201,9 +201,16 @@ export default function AccountingManager() {
 
   return (
     <div>
-      <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-emerald-400">Finance</p>
-      <h1 className="mt-1 text-3xl font-semibold">Accounting</h1>
-      <p className="mt-1 text-sm text-muted">Your money in and out — automatically from sales &amp; expenses, plus manual entries.</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-emerald-400">Finance</p>
+          <h1 className="mt-1 text-3xl font-semibold">Accounting</h1>
+          <p className="mt-1 text-sm text-muted">Your money in and out — automatically from sales &amp; expenses, plus manual entries.</p>
+        </div>
+        <a href="/admin/accounting/balance" className="cursor-pointer rounded-full border border-red-500/40 bg-red-500/5 px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-red-400 transition-colors duration-200 hover:bg-red-500/10">
+          🔒 Business Balance
+        </a>
+      </div>
 
       {/* Overview cards */}
       <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 [&>*]:min-w-0">
