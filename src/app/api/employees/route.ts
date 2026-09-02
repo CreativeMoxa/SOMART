@@ -24,7 +24,10 @@ export async function GET() {
       .select("-passwordHash")
       .sort({ createdAt: -1 })
       .lean();
-    return NextResponse.json(employees);
+    // Expose only whether a Balance PIN is set — never the hash.
+    return NextResponse.json(
+      employees.map(({ balancePinHash, ...e }) => ({ ...e, hasBalancePin: Boolean(balancePinHash) }))
+    );
   } catch (err) {
     console.error("GET /api/employees failed:", err);
     return NextResponse.json({ error: "Failed to load employees" }, { status: 500 });

@@ -122,10 +122,10 @@ export default function BusinessBalanceManager() {
           <Link href="/admin/accounting" className="text-xs font-semibold text-muted hover:text-gold">← Accounting</Link>
         </div>
         <form onSubmit={unlock} className="rounded-2xl border border-line bg-surface p-6">
-          <p className="text-sm text-muted">Enter your account password (PIN) to view the business balance.</p>
+          <p className="text-sm text-muted">Enter your Business Balance PIN (set by the CEO in Employees) to continue.</p>
           <input
-            type="password" autoFocus value={pin} onChange={(e) => setPin(e.target.value)}
-            placeholder="PIN / password" className={`${inputClass} mt-4 w-full`} />
+            type="password" inputMode="numeric" autoFocus value={pin} onChange={(e) => setPin(e.target.value)}
+            placeholder="PIN" className={`${inputClass} mt-4 w-full`} />
           {error && <p className="mt-2 text-sm text-red-500">{error}</p>}
           <button type="submit" disabled={busy} className="mt-4 w-full cursor-pointer rounded-xl bg-gold-bright px-5 py-3 text-sm font-bold uppercase tracking-wider text-black disabled:opacity-60">
             {busy ? "Checking…" : "Unlock"}

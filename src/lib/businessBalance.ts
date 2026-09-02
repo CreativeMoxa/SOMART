@@ -1,13 +1,14 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, type CurrentUser } from "@/lib/auth";
 import { Employee } from "@/models/Employee";
 import { verifyPassword } from "@/lib/password";
 
 // Business Balance is the most sensitive area. Access requires BOTH:
-//   1. an authorized role (the owner / Founder & CEO), and
-//   2. a PIN — the user's own account password — re-entered to unlock, which
-//      grants a short-lived unlock so they aren't asked on every action.
+//   1. authorization — the CEO has given this employee a custom Balance PIN in
+//      the Employees module (having a PIN set = authorized), and
+//   2. entering that PIN, which grants a short-lived unlock so they aren't
+//      asked on every action.
 const BB_COOKIE = "somart_bb_unlock";
 const UNLOCK_MINUTES = 20;
 
@@ -17,23 +18,27 @@ function secret() {
   return new TextEncoder().encode(s);
 }
 
-// Only the owner may view/edit Business Balance. The env break-glass admin
-// resolves to founder-ceo, so the owner is never locked out.
-export function canAccessBalance(role: string): boolean {
-  return role === "founder-ceo";
+// Authorized when the employee has a custom Balance PIN set. The env
+// break-glass admin (no employee record) is always allowed so the owner can
+// never be locked out.
+export async function hasBalanceAccess(user: CurrentUser | null): Promise<boolean> {
+  if (!user) return false;
+  if (user.isEnvAdmin) return true;
+  const emp = await Employee.findById(user.id).select("balancePinHash").lean();
+  return Boolean(emp?.balancePinHash);
 }
 
-// Verify the current user's password as the unlock PIN.
-export async function verifyPin(password: string): Promise<boolean> {
+// Verify the entered PIN against the user's custom Balance PIN. The env admin
+// falls back to ADMIN_PASSWORD (break-glass only).
+export async function verifyPin(pin: string): Promise<boolean> {
   const user = await getCurrentUser();
-  if (!user || !canAccessBalance(user.role)) return false;
-  if (!password) return false;
+  if (!user || !pin) return false;
   if (user.isEnvAdmin) {
-    return Boolean(process.env.ADMIN_PASSWORD) && password === process.env.ADMIN_PASSWORD;
+    return Boolean(process.env.ADMIN_PASSWORD) && pin === process.env.ADMIN_PASSWORD;
   }
-  const emp = await Employee.findById(user.id).select("passwordHash").lean();
-  if (!emp?.passwordHash) return false;
-  return verifyPassword(password, emp.passwordHash);
+  const emp = await Employee.findById(user.id).select("balancePinHash").lean();
+  if (!emp?.balancePinHash) return false;
+  return verifyPassword(pin, emp.balancePinHash);
 }
 
 export async function setUnlock(userId: string): Promise<void> {
@@ -58,10 +63,10 @@ export async function clearUnlock(): Promise<void> {
   store.delete(BB_COOKIE);
 }
 
-// True only when the current owner has a valid, matching unlock token.
+// True only when an authorized user has a valid, matching unlock token.
 export async function isUnlocked(): Promise<boolean> {
   const user = await getCurrentUser();
-  if (!user || !canAccessBalance(user.role)) return false;
+  if (!user || !(await hasBalanceAccess(user))) return false;
   try {
     const store = await cookies();
     const token = store.get(BB_COOKIE)?.value;

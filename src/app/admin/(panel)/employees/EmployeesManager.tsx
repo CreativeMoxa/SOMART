@@ -26,6 +26,7 @@ type Employee = {
   lastActiveAt?: string | null;
   registeredAt?: string | null;
   allowMultipleDevices?: boolean;
+  hasBalancePin?: boolean;
   createdAt?: string;
   createdBy?: string;
   updatedBy?: string;
@@ -232,6 +233,21 @@ export default function EmployeesManager() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Update failed");
     }
+  }
+
+  // Set / change / remove an employee's Business Balance PIN.
+  async function setBalancePin(employee: Employee) {
+    const prompt = employee.hasBalancePin
+      ? `Change Business Balance PIN for ${employee.name} (4–12 digits). Leave blank to REMOVE access.`
+      : `Set a Business Balance PIN for ${employee.name} (4–12 digits). This grants them Business Balance access.`;
+    const pin = window.prompt(prompt, "");
+    if (pin === null) return; // cancelled
+    const trimmed = pin.trim();
+    if (trimmed !== "" && !/^\d{4,12}$/.test(trimmed)) {
+      setError("Balance PIN must be 4–12 digits.");
+      return;
+    }
+    await patch(employee, { balancePin: trimmed });
   }
 
   async function setStatus(employee: Employee, status: EmployeeStatus) {
@@ -451,6 +467,16 @@ export default function EmployeesManager() {
                       }`}
                     >
                       {e.allowMultipleDevices === false ? "Single device" : "Multiple"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBalancePin(e)}
+                      title="Business Balance PIN — set, change, or remove"
+                      className={`ml-1.5 cursor-pointer rounded-full px-3 py-1 text-xs font-semibold transition-colors duration-200 ${
+                        e.hasBalancePin ? "bg-emerald-500/15 text-emerald-500" : "bg-surface text-muted hover:text-gold"
+                      }`}
+                    >
+                      {e.hasBalancePin ? "🔑 PIN set" : "Set PIN"}
                     </button>
                   </td>
                   <td className="px-4 py-3">

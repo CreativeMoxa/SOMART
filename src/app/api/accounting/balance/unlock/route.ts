@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyPin, setUnlock, clearUnlock, canAccessBalance } from "@/lib/businessBalance";
+import { verifyPin, setUnlock, clearUnlock, hasBalanceAccess } from "@/lib/businessBalance";
 import { getCurrentUser } from "@/lib/auth";
 import { rateLimit } from "@/lib/rateLimit";
 import { requestContext } from "@/lib/auth";
@@ -7,8 +7,8 @@ import { requestContext } from "@/lib/auth";
 // POST { password } → unlock Business Balance for a short time. DELETE → lock.
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser();
-  if (!user || !canAccessBalance(user.role)) {
-    return NextResponse.json({ error: "Not authorized to access Business Balance." }, { status: 403 });
+  if (!user || !(await hasBalanceAccess(user))) {
+    return NextResponse.json({ error: "Not authorized. Ask the CEO to set your Business Balance PIN." }, { status: 403 });
   }
   const { ip } = await requestContext();
   const limited = rateLimit(`bbpin:${user.id}:${ip}`, 6, 10 * 60 * 1000);

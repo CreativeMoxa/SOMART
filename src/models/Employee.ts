@@ -22,6 +22,9 @@ const employeeSchema = new Schema(
 
     // Set when the employee completes registration (email OTP → password).
     passwordHash: { type: String, default: "" },
+    // Custom Business Balance PIN (hashed), managed by the CEO in Employees.
+    // Having one set = this employee is authorized to open Business Balance.
+    balancePinHash: { type: String, default: "" },
     registeredAt: { type: Date, default: null },
     lastLoginAt: { type: Date, default: null },
     lastActiveAt: { type: Date, default: null }, // heartbeat for online / last-seen

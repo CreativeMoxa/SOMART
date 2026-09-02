@@ -4,6 +4,7 @@ import { Employee, EMPLOYEE_STATUSES, normalizeEmail } from "@/models/Employee";
 import { requireModule, requestContext } from "@/lib/auth";
 import { isRole } from "@/lib/roles";
 import { logActivity } from "@/models/ActivityLog";
+import { hashPassword } from "@/lib/password";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -15,7 +16,8 @@ export async function GET(_req: NextRequest, { params }: Params) {
     const { id } = await params;
     const employee = await Employee.findById(id).select("-passwordHash").lean();
     if (!employee) return NextResponse.json({ error: "Employee not found" }, { status: 404 });
-    return NextResponse.json(employee);
+    const { balancePinHash, ...rest } = employee as Record<string, unknown>;
+    return NextResponse.json({ ...rest, hasBalancePin: Boolean(balancePinHash) });
   } catch (err) {
     console.error("GET /api/employees/[id] failed:", err);
     return NextResponse.json({ error: "Failed to load employee" }, { status: 500 });
@@ -98,6 +100,21 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       changes.push("signed out of all devices");
     }
 
+    // Business Balance PIN — set (4–12 digits) or clear (empty). Hashed; the CEO
+    // grants Business Balance access by setting a PIN for the person.
+    if (body.balancePin !== undefined) {
+      const pin = String(body.balancePin ?? "").trim();
+      if (pin === "") {
+        if (employee.balancePinHash) { employee.balancePinHash = ""; changes.push("balance PIN removed"); }
+      } else {
+        if (!/^\d{4,12}$/.test(pin)) {
+          return NextResponse.json({ error: "Balance PIN must be 4–12 digits" }, { status: 400 });
+        }
+        employee.balancePinHash = await hashPassword(pin);
+        changes.push("balance PIN set");
+      }
+    }
+
     employee.updatedBy = user.name || user.email;
     await employee.save();
 
@@ -114,6 +131,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
     const doc = employee.toObject() as Record<string, unknown>;
     delete doc.passwordHash;
+    doc.hasBalancePin = Boolean(doc.balancePinHash);
+    delete doc.balancePinHash;
     return NextResponse.json(doc);
   } catch (err) {
     console.error("PATCH /api/employees/[id] failed:", err);
