@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
 import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS, DEFAULT_PAYMENT_METHOD } from "@/lib/payment";
 import { confirmDialog } from "@/components/admin/ConfirmDialog";
 
@@ -45,6 +46,7 @@ const inputClass =
   "rounded-xl border border-line bg-background px-3.5 py-2.5 text-sm transition-colors duration-200 focus:border-gold focus:outline-2 focus:outline-offset-1 focus:outline-gold/40";
 
 export default function AccountingManager() {
+  const router = useRouter();
   const [tab, setTab] = useState<Tab>("daily");
   const [ref, setRef] = useState(new Date());
   const [customStart, setCustomStart] = useState(fmt(new Date()));
@@ -141,6 +143,36 @@ export default function AccountingManager() {
     await load();
   }
 
+  // ── Business Balance PIN popup ────────────────────────────────────────────
+  const [showPin, setShowPin] = useState(false);
+  const [pin, setPin] = useState("");
+  const [pinError, setPinError] = useState<string | null>(null);
+  const [pinBusy, setPinBusy] = useState(false);
+  async function submitPin(ev: FormEvent) {
+    ev.preventDefault();
+    setPinBusy(true);
+    setPinError(null);
+    try {
+      const res = await fetch("/api/accounting/balance/unlock", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: pin }),
+      });
+      if (res.ok) {
+        setShowPin(false);
+        setPin("");
+        router.push("/admin/accounting/balance"); // unlocked → open the page
+        return;
+      }
+      const body = await res.json().catch(() => ({}));
+      setPinError(res.status === 403 ? (body.error ?? "You're not authorized. Ask the CEO to set your PIN.") : "Incorrect PIN.");
+    } catch {
+      setPinError("Something went wrong. Try again.");
+    } finally {
+      setPinBusy(false);
+    }
+  }
+
   // ── Opening balance ───────────────────────────────────────────────────────
   const [editOpen, setEditOpen] = useState(false);
   const [obAmount, setObAmount] = useState("");
@@ -207,10 +239,34 @@ export default function AccountingManager() {
           <h1 className="mt-1 text-3xl font-semibold">Accounting</h1>
           <p className="mt-1 text-sm text-muted">Your money in and out — automatically from sales &amp; expenses, plus manual entries.</p>
         </div>
-        <a href="/admin/accounting/balance" className="cursor-pointer rounded-full border border-red-500/40 bg-red-500/5 px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-red-400 transition-colors duration-200 hover:bg-red-500/10">
+        <button type="button" onClick={() => { setShowPin(true); setPin(""); setPinError(null); }} className="cursor-pointer rounded-full border border-red-500/40 bg-red-500/5 px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-red-400 transition-colors duration-200 hover:bg-red-500/10">
           🔒 Business Balance
-        </a>
+        </button>
       </div>
+
+      {/* Business Balance PIN popup */}
+      {showPin && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowPin(false)}>
+          <form onClick={(e) => e.stopPropagation()} onSubmit={submitPin} className="w-full max-w-sm rounded-2xl border border-line bg-surface p-6">
+            <h3 className="text-lg font-bold">🔒 Business Balance</h3>
+            <p className="mt-1 text-xs text-muted">Enter your Business Balance PIN to continue.</p>
+            <input
+              type="password"
+              inputMode="numeric"
+              autoFocus
+              value={pin}
+              onChange={(e) => setPin(e.target.value)}
+              placeholder="PIN"
+              className={`${inputClass} mt-4 w-full`}
+            />
+            {pinError && <p className="mt-2 text-sm text-red-500">{pinError}</p>}
+            <div className="mt-5 flex justify-end gap-2">
+              <button type="button" onClick={() => setShowPin(false)} className="cursor-pointer rounded-full border border-line px-4 py-2 text-sm text-muted">Cancel</button>
+              <button type="submit" disabled={pinBusy} className="cursor-pointer rounded-full bg-gold-bright px-5 py-2 text-sm font-bold text-black disabled:opacity-60">{pinBusy ? "Checking…" : "Unlock"}</button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {/* Overview cards */}
       <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 [&>*]:min-w-0">
@@ -255,8 +311,8 @@ export default function AccountingManager() {
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <button type="button" onClick={handleExcel} className="cursor-pointer rounded-full border border-line px-4 py-2 text-xs font-bold uppercase tracking-wider text-muted hover:border-emerald-500 hover:text-emerald-500">⬇ Excel</button>
           <button type="button" onClick={handlePdf} className="cursor-pointer rounded-full border border-line px-4 py-2 text-xs font-bold uppercase tracking-wider text-muted hover:border-gold hover:text-gold">⬇ PDF</button>
-          <a href="/admin/accounting/print/weekly-sheet" target="_blank" rel="noopener noreferrer" title="Blank printable weekly accounting sheet" className="cursor-pointer rounded-full border border-line px-4 py-2 text-xs font-bold uppercase tracking-wider text-muted hover:border-gold hover:text-gold">🖨 PDF 1</a>
-          <a href="/admin/accounting/print/cash-sheet" target="_blank" rel="noopener noreferrer" title="Blank printable weekly daily cash sheet" className="cursor-pointer rounded-full border border-line px-4 py-2 text-xs font-bold uppercase tracking-wider text-muted hover:border-gold hover:text-gold">🖨 PDF 2</a>
+          <a href="/admin/accounting/print/weekly-sheet?auto=1" target="_blank" rel="noopener noreferrer" title="Blank printable weekly accounting sheet — opens Save as PDF" className="cursor-pointer rounded-full border border-line px-4 py-2 text-xs font-bold uppercase tracking-wider text-muted hover:border-gold hover:text-gold">🖨 PDF 1</a>
+          <a href="/admin/accounting/print/cash-sheet?auto=1" target="_blank" rel="noopener noreferrer" title="Blank printable weekly daily cash sheet — opens Save as PDF" className="cursor-pointer rounded-full border border-line px-4 py-2 text-xs font-bold uppercase tracking-wider text-muted hover:border-gold hover:text-gold">🖨 PDF 2</a>
         </div>
       </div>
 
