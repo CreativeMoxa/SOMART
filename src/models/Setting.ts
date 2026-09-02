@@ -62,6 +62,10 @@ const settingSchema = new Schema(
     },
     currency: { type: String, default: "USD" },
     currencySymbol: { type: String, default: "$" },
+    // Accounting module: the business's starting cash position and the date it
+    // applies from. Closing balance = opening + income − expenses since then.
+    accountingOpeningBalance: { type: Number, default: 0 },
+    accountingOpeningDate: { type: String, default: "" }, // YYYY-MM-DD
     taxPercent: { type: Number, default: 0 },
     // Shown on invoices/quotations as the "on this account:" payment line.
     bankAccount: { type: String, default: "" },

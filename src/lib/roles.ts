@@ -20,6 +20,7 @@ export const MODULES = [
   "customers",
   "marketing",
   "accounting",
+  "accounts",
   "reports",
   "tasks",
   "todos",
@@ -100,8 +101,8 @@ export const ADMIN_LINKS: readonly AdminLink[] = [
   { module: "invoices", href: "/admin/invoices", label: "Invoices", accent: "#fb923c" },
   { module: "customers", href: "/admin/customers", label: "Customers", accent: "#f472b6" },
   { module: "marketing", href: "/admin/marketing", label: "Marketing", accent: "#e879f9" },
-  // The existing Expenses module — surfaced as "Accounting" in the menu.
-  { module: "accounting", href: "/admin/expenses", label: "Accounting", accent: "#fb7185" },
+  { module: "accounting", href: "/admin/expenses", label: "Expenses", accent: "#fb7185" },
+  { module: "accounts", href: "/admin/accounting", label: "Accounting", accent: "#4ade80" },
   { module: "reports", href: "/admin/reports", label: "Reports", accent: "#818cf8" },
   { module: "tasks", href: "/admin/tasks", label: "Task Manager", accent: "#f59e0b" },
   { module: "todos", href: "/admin/todos", label: "To-Do List", accent: "#facc15" },
