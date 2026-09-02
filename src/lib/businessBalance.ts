@@ -28,12 +28,16 @@ export async function hasBalanceAccess(user: CurrentUser | null): Promise<boolea
   return Boolean(emp?.balancePinHash);
 }
 
-// Verify the entered PIN against the user's custom Balance PIN. The env admin
-// falls back to ADMIN_PASSWORD (break-glass only).
+// Verify the entered PIN. A real employee uses their own custom Balance PIN.
+// The break-glass owner (env admin, no employee record) can use the custom PIN
+// set on the Founder & CEO employee row, and ADMIN_PASSWORD always works as a
+// fallback so the owner can never be locked out.
 export async function verifyPin(pin: string): Promise<boolean> {
   const user = await getCurrentUser();
   if (!user || !pin) return false;
   if (user.isEnvAdmin) {
+    const founder = await Employee.findOne({ role: "founder-ceo" }).select("balancePinHash").lean();
+    if (founder?.balancePinHash && (await verifyPassword(pin, founder.balancePinHash))) return true;
     return Boolean(process.env.ADMIN_PASSWORD) && pin === process.env.ADMIN_PASSWORD;
   }
   const emp = await Employee.findById(user.id).select("balancePinHash").lean();
