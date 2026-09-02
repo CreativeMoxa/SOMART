@@ -245,9 +245,11 @@ export default function AccountingManager() {
             {t}
           </button>
         ))}
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex flex-wrap items-center gap-2">
           <button type="button" onClick={handleExcel} className="cursor-pointer rounded-full border border-line px-4 py-2 text-xs font-bold uppercase tracking-wider text-muted hover:border-emerald-500 hover:text-emerald-500">⬇ Excel</button>
           <button type="button" onClick={handlePdf} className="cursor-pointer rounded-full border border-line px-4 py-2 text-xs font-bold uppercase tracking-wider text-muted hover:border-gold hover:text-gold">⬇ PDF</button>
+          <a href="/admin/accounting/print/weekly-sheet" target="_blank" rel="noopener noreferrer" title="Blank printable weekly accounting sheet" className="cursor-pointer rounded-full border border-line px-4 py-2 text-xs font-bold uppercase tracking-wider text-muted hover:border-gold hover:text-gold">🖨 PDF 1</a>
+          <a href="/admin/accounting/print/cash-sheet" target="_blank" rel="noopener noreferrer" title="Blank printable weekly daily cash sheet" className="cursor-pointer rounded-full border border-line px-4 py-2 text-xs font-bold uppercase tracking-wider text-muted hover:border-gold hover:text-gold">🖨 PDF 2</a>
         </div>
       </div>
 
