@@ -313,6 +313,7 @@ export default function AccountingManager() {
           <button type="button" onClick={handlePdf} className="cursor-pointer rounded-full border border-line px-4 py-2 text-xs font-bold uppercase tracking-wider text-muted hover:border-gold hover:text-gold">⬇ PDF</button>
           <a href="/admin/accounting/print/weekly-sheet?auto=1" target="_blank" rel="noopener noreferrer" title="Blank printable weekly accounting sheet — opens Save as PDF" className="cursor-pointer rounded-full border border-line px-4 py-2 text-xs font-bold uppercase tracking-wider text-muted hover:border-gold hover:text-gold">🖨 PDF 1</a>
           <a href="/admin/accounting/print/cash-sheet?auto=1" target="_blank" rel="noopener noreferrer" title="Blank printable weekly daily cash sheet — opens Save as PDF" className="cursor-pointer rounded-full border border-line px-4 py-2 text-xs font-bold uppercase tracking-wider text-muted hover:border-gold hover:text-gold">🖨 PDF 2</a>
+          <a href="/admin/accounting/print/monthly-sheet?auto=1" target="_blank" rel="noopener noreferrer" title="Blank printable monthly accounting sheet — opens Save as PDF" className="cursor-pointer rounded-full border border-line px-4 py-2 text-xs font-bold uppercase tracking-wider text-muted hover:border-gold hover:text-gold">🖨 PDF 3</a>
         </div>
       </div>
 
