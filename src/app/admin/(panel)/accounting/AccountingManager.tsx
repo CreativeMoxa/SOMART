@@ -229,6 +229,13 @@ export default function AccountingManager() {
     });
   }
 
+  async function downloadSheet(kind: "weekly" | "cash" | "monthly") {
+    const m = await import("@/lib/accountingSheets");
+    if (kind === "weekly") await m.downloadWeeklySheet();
+    else if (kind === "cash") await m.downloadCashSheet();
+    else await m.downloadMonthlySheet();
+  }
+
   const wk = windowKeys();
 
   return (
@@ -311,9 +318,9 @@ export default function AccountingManager() {
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <button type="button" onClick={handleExcel} className="cursor-pointer rounded-full border border-line px-4 py-2 text-xs font-bold uppercase tracking-wider text-muted hover:border-emerald-500 hover:text-emerald-500">⬇ Excel</button>
           <button type="button" onClick={handlePdf} className="cursor-pointer rounded-full border border-line px-4 py-2 text-xs font-bold uppercase tracking-wider text-muted hover:border-gold hover:text-gold">⬇ PDF</button>
-          <a href="/admin/accounting/print/weekly-sheet?auto=1" target="_blank" rel="noopener noreferrer" title="Blank printable weekly accounting sheet — opens Save as PDF" className="cursor-pointer rounded-full border border-line px-4 py-2 text-xs font-bold uppercase tracking-wider text-muted hover:border-gold hover:text-gold">🖨 PDF 1</a>
-          <a href="/admin/accounting/print/cash-sheet?auto=1" target="_blank" rel="noopener noreferrer" title="Blank printable weekly daily cash sheet — opens Save as PDF" className="cursor-pointer rounded-full border border-line px-4 py-2 text-xs font-bold uppercase tracking-wider text-muted hover:border-gold hover:text-gold">🖨 PDF 2</a>
-          <a href="/admin/accounting/print/monthly-sheet?auto=1" target="_blank" rel="noopener noreferrer" title="Blank printable monthly accounting sheet — opens Save as PDF" className="cursor-pointer rounded-full border border-line px-4 py-2 text-xs font-bold uppercase tracking-wider text-muted hover:border-gold hover:text-gold">🖨 PDF 3</a>
+          <button type="button" onClick={() => downloadSheet("weekly")} title="Blank weekly accounting sheet — downloads a PDF" className="cursor-pointer rounded-full border border-line px-4 py-2 text-xs font-bold uppercase tracking-wider text-muted hover:border-gold hover:text-gold">⬇ PDF 1</button>
+          <button type="button" onClick={() => downloadSheet("cash")} title="Blank weekly daily cash sheet — downloads a PDF" className="cursor-pointer rounded-full border border-line px-4 py-2 text-xs font-bold uppercase tracking-wider text-muted hover:border-gold hover:text-gold">⬇ PDF 2</button>
+          <button type="button" onClick={() => downloadSheet("monthly")} title="Blank monthly accounting sheet — downloads a PDF" className="cursor-pointer rounded-full border border-line px-4 py-2 text-xs font-bold uppercase tracking-wider text-muted hover:border-gold hover:text-gold">⬇ PDF 3</button>
         </div>
       </div>
 
